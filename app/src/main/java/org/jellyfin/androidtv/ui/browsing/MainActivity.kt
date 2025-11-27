@@ -6,6 +6,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.auth.repository.SessionRepository
 import org.jellyfin.androidtv.auth.repository.UserRepository
+import org.jellyfin.androidtv.data.service.UpdateCheckerService
 import org.jellyfin.androidtv.databinding.ActivityMainBinding
 import org.jellyfin.androidtv.integration.LeanbackChannelWorker
 import org.jellyfin.androidtv.ui.InteractionTrackerViewModel
@@ -40,6 +42,7 @@ class MainActivity : FragmentActivity() {
 	private val userRepository by inject<UserRepository>()
 	private val interactionTrackerViewModel by viewModel<InteractionTrackerViewModel>()
 	private val workManager by inject<WorkManager>()
+	private val updateCheckerService by inject<UpdateCheckerService>()
 
 	private lateinit var binding: ActivityMainBinding
 
@@ -77,6 +80,9 @@ class MainActivity : FragmentActivity() {
 		binding.background.setContent { AppBackground() }
 		binding.screensaver.setContent { InAppScreensaver() }
 		setContentView(binding.root)
+
+		// Check for updates on app launch
+		checkForUpdatesOnLaunch()
 	}
 
 	override fun onResume() {
@@ -98,6 +104,33 @@ class MainActivity : FragmentActivity() {
 		}
 
 		return true
+	}
+
+	private fun checkForUpdatesOnLaunch() {
+		lifecycleScope.launch(Dispatchers.IO) {
+			try {
+				val result = updateCheckerService.checkForUpdate()
+				result.onSuccess { updateInfo ->
+					if (updateInfo != null && updateInfo.isNewer) {
+						// Show toast on main thread
+						launch(Dispatchers.Main) {
+							Toast.makeText(
+								this@MainActivity,
+								"Update available: ${updateInfo.version}",
+								Toast.LENGTH_LONG
+							).show()
+						}
+						Timber.i("Update available: ${updateInfo.version}")
+					} else {
+						Timber.d("No updates available")
+					}
+				}.onFailure { error ->
+					Timber.e(error, "Failed to check for updates")
+				}
+			} catch (e: Exception) {
+				Timber.e(e, "Error checking for updates on launch")
+			}
+		}
 	}
 
 	override fun onPause() {

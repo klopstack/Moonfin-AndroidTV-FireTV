@@ -20,7 +20,7 @@ Moonfin for Android TV is an enhanced fork of the official Jellyfin Android TV c
 Moonfin for Android TV builds on the solid foundation of Jellyfin with targeted improvements for TV viewing:
 
 ### 🎬 Jellyseerr Integration (Beta)
-**The first and only Jellyfin client with native Jellyseerr support!**
+**The first and only native Jellyfin client with Jellyseerr support!**
 - Browse trending, popular, and recommended movies/TV shows from TMDB
 - Request content in HD or 4K with a single button press
 - **NSFW Content Filtering** - Automatically filters adult content using TMDB flags, keyword detection, and server blacklist integration (configurable in settings)
@@ -73,8 +73,10 @@ Moonfin for Android TV builds on the solid foundation of Jellyfin with targeted 
 - Consistent icons and visual elements throughout
 
 ## Screenshots
-<img width="1920" height="1080" alt="Screenshot_20251121_212941" src="https://github.com/user-attachments/assets/9984c400-950e-4954-b32b-bbea59fa7bf6" />
-<img width="1920" height="1080" alt="Screenshot_20251121_212910" src="https://github.com/user-attachments/assets/3bd52558-6bc9-41ca-a091-3bc22b87544d" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/6af5aa5a-b1eb-4db7-9fca-ea736bf7a686" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/afe9818e-360c-4ce0-a50c-ff0ed0cbc81a" />
+
+
 <img width="1920" height="1080" alt="Screenshot_20251121_212922" src="https://github.com/user-attachments/assets/9cb2fd75-c336-4721-9842-d614d106b38a" />
 <img width="1920" height="1080" alt="Screenshot_20251121_212955" src="https://github.com/user-attachments/assets/d7c7d13f-501c-4ca1-9441-8e9294124302" />
 

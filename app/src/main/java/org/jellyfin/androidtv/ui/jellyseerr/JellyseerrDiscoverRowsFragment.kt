@@ -73,6 +73,11 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 	override fun onResume() {
 		super.onResume()
 		
+		// Refresh content from Jellyseerr server when returning to screen
+		if (!isReturningFromDetail) {
+			loadContent()
+		}
+		
 		// Restore focus position if returning from detail screen
 		if (isReturningFromDetail) {
 			Timber.d("JellyseerrDiscoverRowsFragment: onResume() called with isReturningFromDetail=true")

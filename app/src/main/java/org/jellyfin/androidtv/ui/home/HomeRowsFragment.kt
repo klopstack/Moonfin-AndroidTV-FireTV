@@ -327,9 +327,8 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 		}
 
 		if (!justLoaded) {
-			//Re-retrieve anything that needs it but delay slightly so we don't take away gui landing
-			refreshCurrentItem()
-			refreshRows()
+			// Always refresh all rows and data when returning to home to get latest from server
+			refreshRows(force = true, delayed = true) // Force refresh to get latest data
 			
 			// Reload media bar with fresh random items when returning to home
 			mediaBarViewModel.loadInitialContent()

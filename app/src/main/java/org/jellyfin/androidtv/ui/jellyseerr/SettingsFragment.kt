@@ -5,7 +5,6 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import androidx.core.content.ContextCompat
-import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
@@ -14,13 +13,13 @@ import org.jellyfin.androidtv.constant.JellyseerrFetchLimit
 import org.jellyfin.androidtv.databinding.FragmentJellyseerrSettingsBinding
 import org.jellyfin.androidtv.preference.JellyseerrPreferences
 import org.jellyfin.androidtv.preference.UserPreferences
-import org.jellyfin.androidtv.util.getUserFeedbackManager
+import org.jellyfin.androidtv.ui.base.BaseFragment
 import org.jellyfin.sdk.api.client.ApiClient
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import timber.log.Timber
 
-class SettingsFragment : Fragment(R.layout.fragment_jellyseerr_settings) {
+class SettingsFragment : BaseFragment(R.layout.fragment_jellyseerr_settings) {
 	private val viewModel: JellyseerrViewModel by viewModel()
 	private val preferences: JellyseerrPreferences by inject()
 	private val apiClient: ApiClient by inject()
@@ -30,16 +29,9 @@ class SettingsFragment : Fragment(R.layout.fragment_jellyseerr_settings) {
 	private var _binding: FragmentJellyseerrSettingsBinding? = null
 	private val binding get() = _binding!!
 
-	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-		super.onViewCreated(view, savedInstanceState)
+	override fun setupUI(view: View, savedInstanceState: Bundle?) {
 		_binding = FragmentJellyseerrSettingsBinding.bind(view)
 
-		setupUI()
-		setupObservers()
-		loadSavedSettings()
-	}
-
-	private fun setupUI() {
 		binding.connectJellyfinButton.setOnClickListener {
 			connectWithJellyfin()
 		}
@@ -94,40 +86,38 @@ class SettingsFragment : Fragment(R.layout.fragment_jellyseerr_settings) {
 		}
 	}
 
-	private fun setupObservers() {
+	override fun setupObservers() {
 		// Monitor connection state
-		lifecycleScope.launch {
-			viewModel.isAvailable.collect { isAvailable ->
-				updateConnectionStatus(isAvailable)
-			}
+		collectFlow(viewModel.isAvailable) { isAvailable ->
+			updateConnectionStatus(isAvailable)
 		}
 
 		// Monitor loading state for user feedback
-		lifecycleScope.launch {
-			viewModel.loadingState.collect { state ->
-				when (state) {
-					is JellyseerrLoadingState.Loading -> {
-						binding.testConnectionButton.isEnabled = false
-						binding.statusText.text = "Testing connection..."
-					}
-					is JellyseerrLoadingState.Success -> {
-						binding.testConnectionButton.isEnabled = true
-						binding.statusText.text = "✓ Connected successfully!"
-						binding.statusIcon.setImageResource(R.drawable.ic_check)
-						requireContext().getUserFeedbackManager().showSuccess("Connected to Jellyseerr!")
-					}
-					is JellyseerrLoadingState.Error -> {
-						binding.testConnectionButton.isEnabled = true
-						binding.statusText.text = "✗ Connection failed: ${state.message}"
-						requireContext().getUserFeedbackManager().showError("Connection error: ${state.message}")
-					}
-					is JellyseerrLoadingState.Idle -> {
-						binding.testConnectionButton.isEnabled = true
-						binding.statusText.text = "Not tested"
-					}
+		collectFlow(viewModel.loadingState) { state ->
+			when (state) {
+				is JellyseerrLoadingState.Loading -> {
+					binding.testConnectionButton.isEnabled = false
+					binding.statusText.text = "Testing connection..."
+				}
+				is JellyseerrLoadingState.Success -> {
+					binding.testConnectionButton.isEnabled = true
+					binding.statusText.text = "✓ Connected successfully!"
+					binding.statusIcon.setImageResource(R.drawable.ic_check)
+					showSuccess("Connected to Jellyseerr!")
+				}
+				is JellyseerrLoadingState.Error -> {
+					binding.testConnectionButton.isEnabled = true
+					binding.statusText.text = "✗ Connection failed: ${state.message}"
+					showError("Connection error: ${state.message}")
+				}
+				is JellyseerrLoadingState.Idle -> {
+					binding.testConnectionButton.isEnabled = true
+					binding.statusText.text = "Not tested"
 				}
 			}
 		}
+		
+		loadSavedSettings()
 	}
 
 	private fun loadSavedSettings() {
@@ -156,7 +146,7 @@ class SettingsFragment : Fragment(R.layout.fragment_jellyseerr_settings) {
 
 		// Validate that connection was set up
 		if (serverUrl.isNullOrEmpty()) {
-			requireContext().getUserFeedbackManager().showError("Please connect with Jellyfin first")
+			showError("Please connect with Jellyfin first")
 			return
 		}
 
@@ -170,20 +160,20 @@ class SettingsFragment : Fragment(R.layout.fragment_jellyseerr_settings) {
 		val jellyseerrServerUrl = binding.serverUrlInput.text.toString().trim()
 		
 		if (jellyseerrServerUrl.isEmpty()) {
-			requireContext().getUserFeedbackManager().showError("Please enter Jellyseerr server URL first")
+			showError("Please enter Jellyseerr server URL first")
 			return
 		}
 
 		// Get the Jellyfin server URL from current connection
 		val jellyfinServerUrl = apiClient.baseUrl ?: run {
-			requireContext().getUserFeedbackManager().showError("Could not determine Jellyfin server URL")
+			showError("Could not determine Jellyfin server URL")
 			return
 		}
 
 		// Get the current logged-in user's username
 		val currentUser = userRepository.currentUser.value
 		val username = currentUser?.name ?: run {
-			requireContext().getUserFeedbackManager().showError("Could not determine current user")
+			showError("Could not determine current user")
 			return
 		}
 
@@ -210,7 +200,7 @@ class SettingsFragment : Fragment(R.layout.fragment_jellyseerr_settings) {
 				val password = passwordInput.text.toString().trim()
 				
 				if (password.isEmpty()) {
-					requireContext().getUserFeedbackManager().showError("Password is required")
+					showError("Password is required")
 					return@setPositiveButton
 				}
 
@@ -242,11 +232,11 @@ class SettingsFragment : Fragment(R.layout.fragment_jellyseerr_settings) {
 				// Initialize connection (using cookie-based auth)
 				viewModel.initializeJellyseerr(jellyseerrServerUrl, "")
 				
-				requireContext().getUserFeedbackManager().showSuccess("Connected successfully using session cookie!")
+				showSuccess("Connected successfully using session cookie!")
 				
 				Timber.d("Jellyseerr: Jellyfin authentication successful using cookie authentication")
 			}.onFailure { error ->
-				requireContext().getUserFeedbackManager().showError("Connection failed: ${error.message}", error)
+				showError("Connection failed: ${error.message}", error)
 					binding.statusText.text = "✗ Connection failed"
 					Timber.e(error, "Jellyseerr: Jellyfin authentication failed")
 				}

@@ -2,17 +2,16 @@ package org.jellyfin.androidtv.ui.jellyseerr
 
 import android.os.Bundle
 import android.view.View
-import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.databinding.FragmentJellyseerrRequestsBinding
-import org.jellyfin.androidtv.util.getUserFeedbackManager
+import org.jellyfin.androidtv.ui.base.BaseFragment
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
-class RequestsFragment : Fragment(R.layout.fragment_jellyseerr_requests) {
+class RequestsFragment : BaseFragment(R.layout.fragment_jellyseerr_requests) {
 	private val viewModel: JellyseerrViewModel by viewModel()
 
 	private var _binding: FragmentJellyseerrRequestsBinding? = null
@@ -20,79 +19,59 @@ class RequestsFragment : Fragment(R.layout.fragment_jellyseerr_requests) {
 
 	private lateinit var requestsAdapter: RequestsAdapter
 
-	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-		super.onViewCreated(view, savedInstanceState)
+	override fun setupUI(view: View, savedInstanceState: Bundle?) {
 		_binding = FragmentJellyseerrRequestsBinding.bind(view)
-
-		setupRecyclerView()
-		setupUI()
-		setupObservers()
 		
-		lifecycleScope.launch {
-			kotlinx.coroutines.delay(1000)
-			loadRequests()
-		}
-	}
-
-	private fun setupRecyclerView() {
 		requestsAdapter = RequestsAdapter()
-
 		binding.requestsList.apply {
 			adapter = requestsAdapter
 			layoutManager = LinearLayoutManager(requireContext())
 		}
-	}
-
-	private fun setupUI() {
+		
 		binding.refreshButton.setOnClickListener {
-			loadRequests()
+			viewModel.loadRequests()
+		}
+		
+		lifecycleScope.launch {
+			kotlinx.coroutines.delay(1000)
+			viewModel.loadRequests()
 		}
 	}
 
-	private fun setupObservers() {
-		lifecycleScope.launch {
-			viewModel.loadingState.collect { state ->
-				when (state) {
-					is JellyseerrLoadingState.Loading -> {
-						binding.loadingState.visibility = View.VISIBLE
-						binding.emptyState.visibility = View.GONE
-					}
-					is JellyseerrLoadingState.Success -> {
-						binding.loadingState.visibility = View.GONE
-					}
-					is JellyseerrLoadingState.Error -> {
-						binding.loadingState.visibility = View.GONE
-						binding.emptyState.visibility = View.VISIBLE
-						requireContext().getUserFeedbackManager().showError("Error: ${state.message}")
-					}
-					else -> {}
-				}
-			}
-		}
-
-		lifecycleScope.launch {
-			viewModel.userRequests.collect { requests ->
-				requestsAdapter.submitList(requests)
-				if (requests.isEmpty()) {
-					binding.emptyState.visibility = View.VISIBLE
-					binding.requestsList.visibility = View.GONE
-				} else {
+	override fun setupObservers() {
+		collectFlow(viewModel.loadingState) { state ->
+			when (state) {
+				is JellyseerrLoadingState.Loading -> {
+					binding.loadingState.visibility = View.VISIBLE
 					binding.emptyState.visibility = View.GONE
-					binding.requestsList.visibility = View.VISIBLE
 				}
+				is JellyseerrLoadingState.Success -> {
+					binding.loadingState.visibility = View.GONE
+				}
+				is JellyseerrLoadingState.Error -> {
+					binding.loadingState.visibility = View.GONE
+					binding.emptyState.visibility = View.VISIBLE
+					showError("Error: ${state.message}")
+				}
+				else -> {}
 			}
 		}
 
-		lifecycleScope.launch {
-			viewModel.isAvailable.collect { isAvailable ->
-				binding.notConnectedWarning.visibility =
-					if (isAvailable) View.GONE else View.VISIBLE
+		collectFlow(viewModel.userRequests) { requests ->
+			requestsAdapter.submitList(requests)
+			if (requests.isEmpty()) {
+				binding.emptyState.visibility = View.VISIBLE
+				binding.requestsList.visibility = View.GONE
+			} else {
+				binding.emptyState.visibility = View.GONE
+				binding.requestsList.visibility = View.VISIBLE
 			}
 		}
-	}
 
-	private fun loadRequests() {
-		viewModel.loadRequests()
+		collectFlow(viewModel.isAvailable) { isAvailable ->
+			binding.notConnectedWarning.visibility =
+				if (isAvailable) View.GONE else View.VISIBLE
+		}
 	}
 
 	override fun onDestroyView() {

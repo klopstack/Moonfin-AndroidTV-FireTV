@@ -1,6 +1,7 @@
 package org.jellyfin.androidtv.ui.browsing
 
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.constant.QueryDefaults
 import org.jellyfin.androidtv.data.repository.ItemRepository
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemSortBy
@@ -23,7 +24,7 @@ class ByLetterFragment : BrowseFolderFragment() {
 			fields = ItemRepository.itemFields,
 		)
 
-		rows.add(BrowseRowDef("#", numbersItemsRequest, 40))
+		rows.add(BrowseRowDef("#", numbersItemsRequest, QueryDefaults.DEFAULT_CHUNK_SIZE))
 
 		// Add all the defined letters
 		for (letter in letters.toCharArray()) {
@@ -36,7 +37,7 @@ class ByLetterFragment : BrowseFolderFragment() {
 				fields = ItemRepository.itemFields,
 			)
 
-			rows.add(BrowseRowDef(letter.toString(), letterItemsRequest, 40))
+			rows.add(BrowseRowDef(letter.toString(), letterItemsRequest, QueryDefaults.DEFAULT_CHUNK_SIZE))
 		}
 
 		rowLoader.loadRows(rows)

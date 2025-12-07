@@ -3,6 +3,7 @@ package org.jellyfin.androidtv.ui.browsing
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.constant.QueryDefaults
 import org.jellyfin.androidtv.constant.QueryType
 import org.jellyfin.androidtv.data.repository.ItemRepository
 import org.jellyfin.androidtv.util.apiclient.ioCallContent

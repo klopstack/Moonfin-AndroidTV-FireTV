@@ -1,5 +1,6 @@
 package org.jellyfin.androidtv.ui.search
 
+import org.jellyfin.androidtv.constant.QueryDefaults
 import org.jellyfin.androidtv.data.repository.ItemRepository
 import org.jellyfin.androidtv.util.apiclient.ioCallContent
 import org.jellyfin.sdk.api.client.ApiClient
@@ -21,17 +22,13 @@ interface SearchRepository {
 class SearchRepositoryImpl(
 	private val apiClient: ApiClient
 ) : SearchRepository {
-	companion object {
-		private const val QUERY_LIMIT = 25
-	}
-
 	override suspend fun search(
 		searchTerm: String,
 		itemTypes: Collection<BaseItemKind>,
 	): Result<List<BaseItemDto>> = try {
 		var request = GetItemsRequest(
 			searchTerm = searchTerm,
-			limit = QUERY_LIMIT,
+			limit = QueryDefaults.SEARCH_PAGE_SIZE,
 			imageTypeLimit = 1,
 			includeItemTypes = itemTypes,
 			fields = ItemRepository.itemFields,

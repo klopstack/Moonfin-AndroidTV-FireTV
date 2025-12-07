@@ -1,6 +1,7 @@
 package org.jellyfin.androidtv.ui.browsing
 
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.constant.QueryDefaults
 import org.jellyfin.androidtv.data.querying.GetSpecialsRequest
 import org.jellyfin.androidtv.data.repository.ItemRepository
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -33,23 +34,23 @@ class GenericFolderFragment : EnhancedBrowseFragment() {
 				val resume = GetItemsRequest(
 					fields = ItemRepository.itemFields,
 					parentId = mFolder.id,
-					limit = 50,
+					limit = QueryDefaults.DEFAULT_PAGE_SIZE,
 					filters = setOf(ItemFilter.IS_RESUMABLE),
 					sortBy = setOf(ItemSortBy.DATE_PLAYED),
 					sortOrder = setOf(SortOrder.DESCENDING),
 				)
-				mRows.add(BrowseRowDef(getString(R.string.lbl_continue_watching), resume, 0))
+				mRows.add(BrowseRowDef(getString(R.string.lbl_continue_watching), resume, QueryDefaults.NO_CHUNK))
 			}
 
 			val latest = GetItemsRequest(
 				fields = ItemRepository.itemFields,
 				parentId = mFolder.id,
-				limit = 50,
+				limit = QueryDefaults.DEFAULT_PAGE_SIZE,
 				filters = setOf(ItemFilter.IS_UNPLAYED),
 				sortBy = setOf(ItemSortBy.DATE_CREATED),
 				sortOrder = setOf(SortOrder.DESCENDING),
 			)
-			mRows.add(BrowseRowDef(getString(R.string.lbl_latest), latest, 0))
+			mRows.add(BrowseRowDef(getString(R.string.lbl_latest), latest, QueryDefaults.NO_CHUNK))
 		}
 
 		val byName = GetItemsRequest(
@@ -61,7 +62,7 @@ class GenericFolderFragment : EnhancedBrowseFragment() {
 			else -> getString(R.string.lbl_by_name)
 		}
 
-		mRows.add(BrowseRowDef(header, byName, 100))
+		mRows.add(BrowseRowDef(header, byName, QueryDefaults.LARGE_CHUNK_SIZE))
 
 		if (mFolder.type == BaseItemKind.SEASON) {
 			val specials = GetSpecialsRequest(mFolder.id)

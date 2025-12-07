@@ -164,9 +164,7 @@ fun SettingsMainScreen() {
 			},
 			headingContent = { Text(stringResource(R.string.pref_telemetry_category)) },
 			captionContent = { Text(stringResource(R.string.pref_telemetry_description)) },
-			onClick = {
-				router.push(Routes.TELEMETRY)
-			}
+			onClick = { router.push(Routes.TELEMETRY) }
 		)
 
 		ListButton(
@@ -178,9 +176,7 @@ fun SettingsMainScreen() {
 			},
 			headingContent = { Text(stringResource(R.string.pref_developer_link)) },
 			captionContent = { Text(stringResource(R.string.pref_developer_link_description)) },
-			onClick = {
-				context.startActivity(ActivityDestinations.developerPreferences(context))
-			}
+			onClick = { router.push(Routes.DEVELOPER) }
 		)
 
 		ListSection(
@@ -265,9 +261,7 @@ fun SettingsMainScreen() {
 			},
 			headingContent = { Text(stringResource(R.string.licenses_link)) },
 			captionContent = { Text(stringResource(R.string.licenses_link_description)) },
-			onClick = {
-				context.startActivity(ActivityDestinations.licenses(context))
-			}
+			onClick = { router.push(Routes.LICENSES) }
 		)
 	}
 }

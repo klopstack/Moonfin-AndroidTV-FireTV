@@ -10,9 +10,18 @@ import org.jellyfin.preference.stringPreference
 /**
  * Jellyseerr integration preferences
  * Stores Jellyseerr server configuration and user settings
+ * 
+ * Note: Per-user auth data (API keys, passwords) is stored separately per-user.
+ * Use getUserPreferences(userId) to access user-specific settings.
  */
-class JellyseerrPreferences(context: Context) : SharedPreferenceStore(
-	sharedPreferences = context.getSharedPreferences("jellyseerr_prefs", Context.MODE_PRIVATE)
+class JellyseerrPreferences(context: Context, userId: String? = null) : SharedPreferenceStore(
+	sharedPreferences = if (userId != null) {
+		// User-specific preferences (auth data, API keys, etc.)
+		context.getSharedPreferences("jellyseerr_prefs_$userId", Context.MODE_PRIVATE)
+	} else {
+		// Global preferences (server URL, UI settings, etc.)
+		context.getSharedPreferences("jellyseerr_prefs", Context.MODE_PRIVATE)
+	}
 ) {
 	companion object {
 		/**

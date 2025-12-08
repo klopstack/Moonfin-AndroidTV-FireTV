@@ -17,11 +17,12 @@ import org.jellyfin.androidtv.ui.base.BaseFragment
 import org.jellyfin.sdk.api.client.ApiClient
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.koin.core.qualifier.named
 import timber.log.Timber
 
 class SettingsFragment : BaseFragment(R.layout.fragment_jellyseerr_settings) {
 	private val viewModel: JellyseerrViewModel by viewModel()
-	private val preferences: JellyseerrPreferences by inject()
+	private val preferences: JellyseerrPreferences by inject(named("global"))
 	private val apiClient: ApiClient by inject()
 	private val userPreferences: UserPreferences by inject()
 	private val userRepository: UserRepository by inject()

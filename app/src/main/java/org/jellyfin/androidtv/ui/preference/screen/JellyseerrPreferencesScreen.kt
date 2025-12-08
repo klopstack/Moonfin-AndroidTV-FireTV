@@ -22,13 +22,21 @@ import org.jellyfin.androidtv.ui.preference.dsl.enum
 import org.jellyfin.androidtv.ui.preference.dsl.optionsScreen
 import org.jellyfin.sdk.api.client.ApiClient
 import org.koin.android.ext.android.inject
+import org.koin.core.parameter.parametersOf
+import org.koin.core.qualifier.named
 import timber.log.Timber
 
 class JellyseerrPreferencesScreen : OptionsFragment() {
-	private val jellyseerrPreferences: JellyseerrPreferences by inject()
+	private val jellyseerrPreferences: JellyseerrPreferences by inject(named("global"))
 	private val jellyseerrRepository: JellyseerrRepository by inject()
 	private val apiClient: ApiClient by inject()
 	private val userRepository: UserRepository by inject()
+
+	// Helper to get user-specific preferences for auth data
+	private fun getUserPreferences(): JellyseerrPreferences? {
+		val userId = userRepository.currentUser.value?.id?.toString()
+		return userId?.let { inject<JellyseerrPreferences>(named("user")) { parametersOf(it) }.value }
+	}
 
 	override val screen by optionsScreen {
 		setTitle(R.string.jellyseerr_settings)
@@ -84,7 +92,8 @@ class JellyseerrPreferencesScreen : OptionsFragment() {
 				// Note: This content is evaluated when the screen loads
 				// After logging in, exit and re-enter this screen to see updated status
 				content = run {
-					val apiKey = jellyseerrPreferences[JellyseerrPreferences.apiKey] ?: ""
+					val userPrefs = getUserPreferences()
+					val apiKey = userPrefs?.get(JellyseerrPreferences.apiKey) ?: ""
 					if (apiKey.isNotEmpty()) {
 						getString(R.string.jellyseerr_api_key_present)
 					} else {
@@ -266,7 +275,8 @@ class JellyseerrPreferencesScreen : OptionsFragment() {
 					jellyseerrPreferences[JellyseerrPreferences.enabled] = true
 					jellyseerrPreferences[JellyseerrPreferences.lastConnectionSuccess] = true
 					
-					val apiKeyLength = jellyseerrPreferences[JellyseerrPreferences.apiKey]?.length ?: 0
+					val userPrefs = getUserPreferences()
+					val apiKeyLength = userPrefs?.get(JellyseerrPreferences.apiKey)?.length ?: 0
 					Timber.d("Jellyseerr: API key stored (length: $apiKeyLength)")
 					
 					Toast.makeText(
@@ -406,18 +416,12 @@ class JellyseerrPreferencesScreen : OptionsFragment() {
 					// Get API key if available, otherwise use empty string for cookie auth
 					val apiKey = user.apiKey ?: ""
 
-					// Save credentials
+					// Save server URL and status (global preferences)
 					jellyseerrPreferences[JellyseerrPreferences.serverUrl] = jellyseerrServerUrl
 					jellyseerrPreferences[JellyseerrPreferences.enabled] = true
 					jellyseerrPreferences[JellyseerrPreferences.lastConnectionSuccess] = true
 					
-					// Save API key if available
-					if (apiKey.isNotEmpty()) {
-						jellyseerrPreferences[JellyseerrPreferences.apiKey] = apiKey
-					}
-					
-					// Initialize connection
-					jellyseerrRepository.initialize(jellyseerrServerUrl, apiKey)
+					// Note: API key and auth method are now saved per-user by the repository
 					
 					val authType = if (apiKey.isEmpty()) {
 						"session cookie (persists across restarts, ~30 day expiration)"

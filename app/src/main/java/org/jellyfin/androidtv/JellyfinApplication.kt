@@ -24,6 +24,7 @@ import org.jellyfin.androidtv.preference.JellyseerrPreferences
 import org.jellyfin.androidtv.ui.background.UpdateCheckWorker
 import org.jellyfin.androidtv.telemetry.TelemetryService
 import org.koin.android.ext.android.inject
+import org.koin.core.qualifier.named
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
@@ -44,29 +45,21 @@ class JellyfinApplication : Application() {
 	
 	private fun setupJellyseerrUserMonitoring() {
 		val userRepository by inject<UserRepository>()
-		val jellyseerrPreferences by inject<JellyseerrPreferences>()
+		val jellyseerrPreferencesGlobal by inject<JellyseerrPreferences>(named("global"))
 		
 		ProcessLifecycleOwner.get().lifecycleScope.launch {
 			userRepository.currentUser.collect { currentUser ->
 				val currentUsername = currentUser?.name
 				val currentUserId = currentUser?.id?.toString()
-				val lastJellyfinUser = jellyseerrPreferences[JellyseerrPreferences.lastJellyfinUser]
+				val lastJellyfinUser = jellyseerrPreferencesGlobal[JellyseerrPreferences.lastJellyfinUser]
 				
-				Timber.d("Jellyseerr: User change detected - currentUser: $currentUsername (id: $currentUserId), lastUser: $lastJellyfinUser")
-				
-				// Switch cookie storage when user changes (each user gets their own Jellyseerr session)
+				// Switch cookie storage and preferences when user changes (each user gets their own Jellyseerr session)
 				if (currentUserId != null && currentUsername != null) {
-					if (lastJellyfinUser != null && lastJellyfinUser.isNotEmpty() && currentUsername != lastJellyfinUser) {
-						Timber.i("Jellyseerr: Jellyfin user switched from '$lastJellyfinUser' to '$currentUsername' (id: $currentUserId)")
-					} else {
-						Timber.d("Jellyseerr: Setting cookie storage for user '$currentUsername' (id: $currentUserId)")
-					}
 					// Switch to this user's cookie storage
 					JellyseerrHttpClient.switchCookieStorage(currentUserId)
-					// Update the stored username
-					jellyseerrPreferences[JellyseerrPreferences.lastJellyfinUser] = currentUsername
-				} else {
-					Timber.d("Jellyseerr: No current user or user ID is null")
+					
+					// Update the stored username in global prefs
+					jellyseerrPreferencesGlobal[JellyseerrPreferences.lastJellyfinUser] = currentUsername
 				}
 			}
 		}

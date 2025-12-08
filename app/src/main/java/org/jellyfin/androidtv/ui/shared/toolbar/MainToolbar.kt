@@ -69,6 +69,7 @@ import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinActivityViewModel
+import org.koin.core.qualifier.named
 import timber.log.Timber
 import java.util.UUID
 
@@ -91,7 +92,7 @@ fun MainToolbar(
 	val userRepository = koinInject<UserRepository>()
 	val api = koinInject<ApiClient>()
 	val userViewsRepository = koinInject<UserViewsRepository>()
-	val jellyseerrPreferences = koinInject<JellyseerrPreferences>()
+	val jellyseerrPreferences = koinInject<JellyseerrPreferences>(named("global"))
 	val userPreferences = koinInject<UserPreferences>()
 	val scope = rememberCoroutineScope()
 

@@ -630,89 +630,59 @@ class JellyseerrHttpClient(
 	}
 
 	/**
-	 * Login with Jellyfin credentials and get API key
-	 * First attempts without hostname (for existing Jellyfin configuration)
-	 * Falls back to including hostname (for initial setup)
+	 * Login with Jellyfin credentials
+	 * First attempts without hostname (for already-configured servers)
+	 * Falls back to including hostname on 401 (for initial server setup)
 	 */
 	suspend fun loginJellyfin(username: String, password: String, jellyfinUrl: String): Result<JellyseerrUserDto> = runCatching {
 		val url = URLBuilder("$baseUrl/api/v1/auth/jellyfin").build()
 		
-		// First try without hostname (for already-configured Jellyfin server)
-		var loginBody = mapOf(
-			"username" to username,
-			"password" to password
-		)
+		// Clear any existing cookies to prevent stale session issues
+		clearCookies()
 		
+		// First attempt: without hostname (standard for already-configured servers)
 		var response = httpClient.post(url) {
 			contentType(ContentType.Application.Json)
-			setBody(loginBody)
-		}
-		
-		Timber.d("Jellyseerr: Jellyfin login attempt (no hostname) - Status: ${response.status}")
-		
-		// If login was successful, return the result
-		if (response.status.value in 200..299) {
-			val user = response.body<JellyseerrUserDto>()
-			Timber.d("Jellyseerr: Login successful - User ID: ${user.id}, Username: ${user.username}")
-			return@runCatching user
-		}
-		
-		// If we get 401, the credentials might be wrong OR the server needs initial setup
-		// Try with hostname for initial setup
-		if (response.status.value == 401) {
-			Timber.d("Jellyseerr: Retrying with hostname for initial setup")
-			loginBody = mapOf(
+			setBody(mapOf(
 				"username" to username,
-				"password" to password,
-				"hostname" to jellyfinUrl
-			)
-			
+				"password" to password
+			))
+		}
+		
+		// Success - return user
+		if (response.status.value in 200..299) {
+			return@runCatching response.body<JellyseerrUserDto>()
+		}
+		
+		// 401 - Server not configured yet, retry with hostname
+		if (response.status.value == 401) {
 			response = httpClient.post(url) {
 				contentType(ContentType.Application.Json)
-				setBody(loginBody)
+				setBody(mapOf(
+					"username" to username,
+					"password" to password,
+					"hostname" to jellyfinUrl
+				))
 			}
 			
-			Timber.d("Jellyseerr: Jellyfin login attempt (with hostname) - Status: ${response.status}")
-			
-			// If we get 500 with "hostname already configured", it means credentials are wrong
-			if (response.status.value == 500) {
-				val errorBody = response.body<String>()
-				if (errorBody.contains("hostname already configured", ignoreCase = true)) {
-					Timber.e("Jellyseerr: Server already configured, credentials incorrect")
-					throw Exception("Jellyfin authentication failed. Please check your username and password.")
-				}
+			if (response.status.value in 200..299) {
+				return@runCatching response.body<JellyseerrUserDto>()
 			}
 			
-			if (response.status.value !in 200..299) {
-				val errorBody = response.body<String>()
-				Timber.e("Jellyseerr: Jellyfin login failed with status ${response.status}: $errorBody")
-				throw Exception("Jellyfin login failed: ${response.status}")
-			}
-		} else {
-			// Some other error occurred on first attempt
+			// Handle errors from second attempt
 			val errorBody = response.body<String>()
-			Timber.e("Jellyseerr: Jellyfin login failed with status ${response.status}: $errorBody")
-			throw Exception("Jellyfin login failed: ${response.status}")
+			throw Exception("Jellyfin login failed: ${response.status} - $errorBody")
 		}
 		
-		// Parse the login response
-		val user = response.body<JellyseerrUserDto>()
-		Timber.d("Jellyseerr: Login successful - User ID: ${user.id}, Username: ${user.username}, API Key present: ${!user.apiKey.isNullOrEmpty()}")
-		
-		// Jellyfin users typically don't have API keys and use cookie-based authentication
-		// Note: Cookies are now persisted to SharedPreferences and will survive app restarts.
-		// Server-side cookie expiration is typically ~30 days.
-		if (user.apiKey.isNullOrEmpty()) {
-			Timber.d("Jellyseerr: No API key for Jellyfin user, using cookie-based authentication")
-			Timber.d("Jellyseerr: Cookies are persisted and will survive app restarts")
-			
-			// Verify cookies were saved
-			val testUrl = URLBuilder(baseUrl).build()
-			val savedCookies = cookieStorage?.get(testUrl)
-			Timber.d("Jellyseerr: Verified ${savedCookies?.size ?: 0} cookies in persistent storage for $baseUrl")
+		// 500 - Likely wrong credentials on configured server
+		if (response.status.value == 500) {
+			val errorBody = response.body<String>()
+			throw Exception("Authentication failed. Verify your username and password are correct, and that the Jellyfin server URL in Jellyseerr settings matches: $jellyfinUrl")
 		}
 		
-		user
+		// Other errors
+		val errorBody = response.body<String>()
+		throw Exception("Jellyfin login failed: ${response.status} - $errorBody")
 	}.onFailure { error ->
 		Timber.e(error, "Jellyseerr: Failed to login with Jellyfin")
 	}
@@ -722,56 +692,39 @@ class JellyseerrHttpClient(
 	 */
 	suspend fun getCurrentUser(): Result<JellyseerrUserDto> = runCatching {
 		val url = URLBuilder("$baseUrl/api/v1/auth/me").build()
-		Timber.d("Jellyseerr: Getting current user from $baseUrl, apiKey=${if (apiKey.isEmpty()) "EMPTY (using cookies)" else "SET"}")
-		
 		val response = httpClient.get(url) {
 			addAuthHeader()
 		}
 		
-		Timber.d("Jellyseerr: Got current user - Status: ${response.status}")
-		
 		if (response.status.value !in 200..299) {
-			val errorBody = response.body<String>()
-			Timber.e("Jellyseerr: getCurrentUser failed with status ${response.status}: $errorBody")
 			throw Exception("Failed to get current user: ${response.status}")
 		}
 		
-		val user = response.body<JellyseerrUserDto>()
-		Timber.d("Jellyseerr: Current user ID: ${user.id}, Username: ${user.username}")
-		user
+		response.body<JellyseerrUserDto>()
 	}.onFailure { error ->
-		Timber.e(error, "Jellyseerr: Failed to get current user - ${error.message}")
+		Timber.e(error, "Jellyseerr: Failed to get current user")
 	}
 
 	/**
-	 * Regenerate API key for the current user (requires active session)
-	 * This is useful to get a permanent API key after cookie-based Jellyfin auth
-	 * Uses the /api/v1/settings/main/regenerate endpoint which returns MainSettings with the new API key
+	 * Regenerate API key for the current user (requires admin permissions)
+	 * Returns the new API key from MainSettings
 	 */
 	suspend fun regenerateApiKey(): Result<String> = runCatching {
 		val url = URLBuilder("$baseUrl/api/v1/settings/main/regenerate").build()
 		
 		val response = httpClient.post(url) {
-			// Use cookie auth to regenerate API key (don't send X-Api-Key header)
-			// The cookie from loginJellyfin is automatically sent by HttpCookies plugin
-			// Don't set body at all - EmptyContent by default (Content-Length: 0, no Content-Type)
-			
-			// Add browser-like headers to match Swagger request
 			header("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Safari/537.36")
 			header("Origin", baseUrl)
 			header("Referer", "$baseUrl/")
 		}
 		
 		if (response.status.value !in 200..299) {
-			val errorBody = response.body<String>()
 			throw Exception("Failed to regenerate API key (requires admin): ${response.status}")
 		}
 		
-		val mainSettings = response.body<JellyseerrMainSettingsDto>()
-		val newApiKey = mainSettings.apiKey
-		newApiKey
+		response.body<JellyseerrMainSettingsDto>().apiKey
 	}.onFailure { error ->
-		Timber.e(error, "Jellyseerr: API key regeneration failed with exception")
+		Timber.e(error, "Jellyseerr: Failed to regenerate API key")
 	}
 
 	// ==================== Status & Configuration ====================
@@ -784,7 +737,6 @@ class JellyseerrHttpClient(
 		val response = httpClient.get(url) {
 			addAuthHeader()
 		}
-		Timber.d("Jellyseerr: Got status - Status: ${response.status}")
 		response.body<JellyseerrStatusDto>()
 	}.onFailure { error ->
 		Timber.e(error, "Jellyseerr: Failed to get status")

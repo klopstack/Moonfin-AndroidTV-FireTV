@@ -20,23 +20,14 @@ class DelegatingCookiesStorage(private val context: Context) : CookiesStorage {
 	
 	fun switchToUser(userId: String) {
 		if (currentUserId != userId) {
-			Timber.i("DelegatingCookiesStorage: Switching from user '$currentUserId' to '$userId'")
 			currentUserId = userId
 			delegate = PersistentCookiesStorage(context, userId)
-		} else {
-			Timber.d("DelegatingCookiesStorage: Already using storage for user '$userId'")
 		}
 	}
 	
-	override suspend fun get(requestUrl: Url): List<Cookie> {
-		Timber.d("DelegatingCookiesStorage: Getting cookies for $requestUrl (current user: $currentUserId)")
-		return delegate.get(requestUrl)
-	}
+	override suspend fun get(requestUrl: Url): List<Cookie> = delegate.get(requestUrl)
 	
-	override suspend fun addCookie(requestUrl: Url, cookie: Cookie) {
-		Timber.d("DelegatingCookiesStorage: Adding cookie for $requestUrl (current user: $currentUserId)")
-		delegate.addCookie(requestUrl, cookie)
-	}
+	override suspend fun addCookie(requestUrl: Url, cookie: Cookie) = delegate.addCookie(requestUrl, cookie)
 	
 	override fun close() = delegate.close()
 	
@@ -66,7 +57,6 @@ class PersistentCookiesStorage(context: Context, userId: String? = null) : Cooki
 					val cookie = deserializeCookie(value)
 					if (cookie != null && !isExpired(cookie)) {
 						cookies[key] = cookie
-						Timber.d("PersistentCookiesStorage: Loaded cookie: $key")
 					}
 				}
 			}
@@ -90,8 +80,6 @@ class PersistentCookiesStorage(context: Context, userId: String? = null) : Cooki
 	}
 
 	override suspend fun get(requestUrl: Url): List<Cookie> = mutex.withLock {
-		val now = GMTDate()
-		
 		// Remove expired cookies
 		val expiredKeys = cookies.filter { (_, cookie) ->
 			isExpired(cookie)
@@ -105,20 +93,6 @@ class PersistentCookiesStorage(context: Context, userId: String? = null) : Cooki
 		// Return cookies that match the URL
 		cookies.values.filter { cookie ->
 			matchesDomain(cookie, requestUrl) && matchesPath(cookie, requestUrl)
-		}.also {
-			if (it.isNotEmpty()) {
-				Timber.d("PersistentCookiesStorage: Found ${it.size} cookie(s) for ${requestUrl.host}")
-				it.forEach { cookie ->
-					val expiresIn = cookie.expires?.let { expires ->
-						val diff = expires.timestamp - GMTDate().timestamp
-						val days = diff / (24 * 60 * 60 * 1000)
-						"$days days"
-					} ?: "session"
-					Timber.d("  - Cookie: ${cookie.name}, value length: ${cookie.value.length}, expires in: $expiresIn")
-				}
-			} else {
-				Timber.w("PersistentCookiesStorage: No cookies found for ${requestUrl.host}, total stored: ${cookies.size}")
-			}
 		}
 	}
 
@@ -126,18 +100,9 @@ class PersistentCookiesStorage(context: Context, userId: String? = null) : Cooki
 		val key = "${cookie.name}_${requestUrl.host}"
 		cookies[key] = cookie
 		saveCookies()
-		
-		// Log cookie details including expiration
-		val expiresIn = cookie.expires?.let { expires ->
-			val diff = expires.timestamp - GMTDate().timestamp
-			val days = diff / (24 * 60 * 60 * 1000)
-			"$days days"
-		} ?: "session"
-		Timber.d("PersistentCookiesStorage: Saved cookie: ${cookie.name} for ${requestUrl.host}, expires in: $expiresIn, maxAge: ${cookie.maxAge}")
 	}
 
 	override fun close() {
-		// Save cookies one final time before closing
 		try {
 			saveCookies()
 		} catch (e: Exception) {
@@ -151,7 +116,6 @@ class PersistentCookiesStorage(context: Context, userId: String? = null) : Cooki
 	suspend fun clearAll() = mutex.withLock {
 		cookies.clear()
 		preferences.edit().clear().apply()
-		Timber.d("PersistentCookiesStorage: Cleared all cookies")
 	}
 
 	private fun isExpired(cookie: Cookie): Boolean {

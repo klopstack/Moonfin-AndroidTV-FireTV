@@ -3,6 +3,7 @@ package org.jellyfin.androidtv.preference
 import android.content.Context
 import androidx.preference.PreferenceManager
 import org.jellyfin.androidtv.constant.HomeSectionType
+import org.jellyfin.preference.booleanPreference
 import org.jellyfin.preference.enumPreference
 import org.jellyfin.preference.intPreference
 import org.jellyfin.preference.stringPreference
@@ -31,6 +32,10 @@ class UserSettingPreferences(
 		val homesection7 = enumPreference("homesection7", HomeSectionType.NONE)
 		val homesection8 = enumPreference("homesection8", HomeSectionType.NONE)
 		val homesection9 = enumPreference("homesection9", HomeSectionType.NONE)
+
+		// Theme music settings
+		val themeMusicEnabled = booleanPreference("themeMusicEnabled", false)
+		val themeMusicVolume = intPreference("themeMusicVolume", 30) // 0-100
 	}
 
 	val homesections = listOf(

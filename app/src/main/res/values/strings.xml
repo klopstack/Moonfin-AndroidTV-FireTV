@@ -674,6 +674,13 @@
     <string name="lbl_media_bar_pause">Pause slideshow</string>
     <string name="lbl_media_bar_play">Resume slideshow</string>
     
+    <!-- Theme Music Settings -->
+    <string name="pref_theme_music_title">Theme Music</string>
+    <string name="pref_theme_music_enable">Enable theme music</string>
+    <string name="pref_theme_music_enable_summary">Play background theme music when viewing media details</string>
+    <string name="pref_theme_music_volume">Theme music volume</string>
+    <string name="pref_theme_music_volume_summary">Adjust the volume level for background theme music (default: 30%)</string>
+    
     <!-- Jellyseerr Settings -->
     <string name="jellyseerr">Jellyseerr</string>
     <string name="home">Home</string>

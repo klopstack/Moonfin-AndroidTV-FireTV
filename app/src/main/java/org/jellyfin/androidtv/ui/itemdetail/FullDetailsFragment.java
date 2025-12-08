@@ -155,6 +155,7 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
     final Lazy<PlaybackHelper> playbackHelper = inject(PlaybackHelper.class);
     private final Lazy<ImageHelper> imageHelper = inject(ImageHelper.class);
     private final Lazy<InteractionTrackerViewModel> interactionTracker = inject(InteractionTrackerViewModel.class);
+    private final Lazy<org.jellyfin.androidtv.ui.playback.ThemeMusicPlayer> themeMusicPlayer = inject(org.jellyfin.androidtv.ui.playback.ThemeMusicPlayer.class);
 
     @Nullable
     @Override
@@ -285,6 +286,7 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
     public void onPause() {
         super.onPause();
         stopClock();
+        themeMusicPlayer.getValue().fadeOutAndStop();
     }
 
     @Override
@@ -504,6 +506,7 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
                 );
             }
             new BuildDorTask().execute(item);
+            themeMusicPlayer.getValue().playThemeMusicForItem(mBaseItem);
         }
     }
 
@@ -1393,6 +1396,8 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
     }
 
     void play(final BaseItemDto item, final int pos, final boolean shuffle) {
+        themeMusicPlayer.getValue().stop();
+        
         playbackHelper.getValue().getItemsToPlay(getContext(), item, pos == 0 && item.getType() == BaseItemKind.MOVIE, shuffle, new Response<List<BaseItemDto>>(getLifecycle()) {
             @Override
             public void onResponse(List<BaseItemDto> response) {
@@ -1409,6 +1414,8 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
     }
 
     void play(final List<BaseItemDto> items, final int pos, final boolean shuffle) {
+        themeMusicPlayer.getValue().stop();
+        
         if (items.isEmpty()) return;
         if (shuffle) Collections.shuffle(items);
         KoinJavaComponent.<PlaybackLauncher>get(PlaybackLauncher.class).launch(getContext(), items, pos);

@@ -172,6 +172,7 @@ val appModule = module {
 	single { KeyProcessor() }
 	single { ReportingHelper(get(), get()) }
 	single<PlaybackHelper> { SdkPlaybackHelper(get(), get(), get(), get()) }
+	single { org.jellyfin.androidtv.ui.playback.ThemeMusicPlayer(androidContext()) }
 
 	factory { (context: Context) -> 
 		SearchFragmentDelegate(context, get(), get()) 

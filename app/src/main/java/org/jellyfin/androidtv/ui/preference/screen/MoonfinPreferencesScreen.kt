@@ -125,6 +125,31 @@ class MoonfinPreferencesScreen : OptionsFragment() {
 			}
 		}
 
+		// Theme Music
+		category {
+			setTitle(R.string.pref_theme_music_title)
+
+			checkbox {
+				setTitle(R.string.pref_theme_music_enable)
+				setContent(R.string.pref_theme_music_enable_summary)
+				bind(userSettingPreferences, UserSettingPreferences.themeMusicEnabled)
+			}
+
+			seekbar {
+				setTitle(R.string.pref_theme_music_volume)
+				setContent(R.string.pref_theme_music_volume_summary)
+				min = 10
+				max = 100
+				increment = 5
+				valueFormatter = object : DurationSeekBarPreference.ValueFormatter() {
+					override fun display(value: Int) = "$value%"
+				}
+				bind(userSettingPreferences, UserSettingPreferences.themeMusicVolume)
+				
+				depends { userSettingPreferences[UserSettingPreferences.themeMusicEnabled] }
+			}
+		}
+
 		// Screensaver
 		category {
 			setTitle(R.string.pref_screensaver)

@@ -82,6 +82,11 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		 */
 		var shuffleContentType = stringPreference("pref_shuffle_content_type", "both")
 
+		/**
+		 * Show confirmation dialog when exiting the app
+		 */
+		var confirmExit = booleanPreference("confirm_exit", true)
+
 		/* Playback - General*/
 		/**
 		 * Maximum bitrate in megabit for playback.

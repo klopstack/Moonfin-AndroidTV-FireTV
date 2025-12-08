@@ -69,6 +69,12 @@ class MoonfinPreferencesScreen : OptionsFragment() {
 				setContent(R.string.lbl_merge_continue_watching_next_up_description)
 				bind(userPreferences, UserPreferences.mergeContinueWatchingNextUp)
 			}
+
+			checkbox {
+				setTitle(R.string.pref_confirm_exit)
+				setContent(R.string.pref_confirm_exit_description)
+				bind(userPreferences, UserPreferences.confirmExit)
+			}
 		}
 
 		// Media Bar Settings

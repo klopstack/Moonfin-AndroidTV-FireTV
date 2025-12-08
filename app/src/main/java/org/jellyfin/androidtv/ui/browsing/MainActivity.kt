@@ -1,5 +1,6 @@
 package org.jellyfin.androidtv.ui.browsing
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
@@ -19,11 +20,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.auth.repository.SessionRepository
 import org.jellyfin.androidtv.auth.repository.UserRepository
 import org.jellyfin.androidtv.data.service.UpdateCheckerService
 import org.jellyfin.androidtv.databinding.ActivityMainBinding
 import org.jellyfin.androidtv.integration.LeanbackChannelWorker
+import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.ui.InteractionTrackerViewModel
 import org.jellyfin.androidtv.ui.background.AppBackground
 import org.jellyfin.androidtv.ui.navigation.NavigationAction
@@ -44,12 +47,19 @@ class MainActivity : FragmentActivity() {
 	private val interactionTrackerViewModel by viewModel<InteractionTrackerViewModel>()
 	private val workManager by inject<WorkManager>()
 	private val updateCheckerService by inject<UpdateCheckerService>()
+	private val userPreferences by inject<UserPreferences>()
 
 	private lateinit var binding: ActivityMainBinding
+	private var exitConfirmationDialog: AlertDialog? = null
 
 	private val backPressedCallback = object : OnBackPressedCallback(false) {
 		override fun handleOnBackPressed() {
-			if (navigationRepository.canGoBack) navigationRepository.goBack()
+			if (navigationRepository.canGoBack) {
+				navigationRepository.goBack()
+			} else {
+				// User is on home screen, show exit confirmation
+				showExitConfirmation()
+			}
 		}
 	}
 
@@ -73,7 +83,8 @@ class MainActivity : FragmentActivity() {
 			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
 			.onEach { action ->
 				handleNavigationAction(action)
-				backPressedCallback.isEnabled = navigationRepository.canGoBack
+				// Always enable back callback to handle exit confirmation
+				backPressedCallback.isEnabled = true
 				interactionTrackerViewModel.notifyInteraction(canCancel = false, userInitiated = false)
 			}.launchIn(lifecycleScope)
 
@@ -227,5 +238,35 @@ class MainActivity : FragmentActivity() {
 		}
 
 		return super.dispatchTouchEvent(ev)
+	}
+
+	private fun showExitConfirmation() {
+		// Check if confirmation is enabled in preferences
+		if (!userPreferences[UserPreferences.confirmExit]) {
+			// Exit immediately without confirmation
+			finish()
+			return
+		}
+
+		// Don't show dialog if one is already showing
+		if (exitConfirmationDialog?.isShowing == true) return
+
+		exitConfirmationDialog = AlertDialog.Builder(this)
+			.setTitle(R.string.exit_confirmation_title)
+			.setMessage(R.string.exit_confirmation_message)
+			.setPositiveButton(R.string.lbl_exit) { _, _ ->
+				finish()
+			}
+			.setNegativeButton(android.R.string.cancel, null)
+			.setOnCancelListener { exitConfirmationDialog = null }
+			.create()
+
+		exitConfirmationDialog?.show()
+	}
+
+	override fun onDestroy() {
+		exitConfirmationDialog?.dismiss()
+		exitConfirmationDialog = null
+		super.onDestroy()
 	}
 }

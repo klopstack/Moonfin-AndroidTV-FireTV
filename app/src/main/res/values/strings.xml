@@ -565,6 +565,12 @@
     <string name="segment_action_ask_to_skip">Ask to skip</string>
     <string name="segment_action_nothing">Do nothing</string>
     <string name="segment_action_skip">Skip</string>
+    <string name="skip_intro">Skip Intro</string>
+    <string name="skip_recap">Skip Recap</string>
+    <string name="skip_commercial">Skip Commercial</string>
+    <string name="skip_preview">Skip Preview</string>
+    <string name="skip_outro">Skip Outro</string>
+    <string name="play_next_episode_countdown">Play Next Episode (%ds)</string>
     <string name="segment_type_commercial">Commercials</string>
     <string name="segment_type_intro">Intros</string>
     <string name="segment_type_outro">Outros</string>

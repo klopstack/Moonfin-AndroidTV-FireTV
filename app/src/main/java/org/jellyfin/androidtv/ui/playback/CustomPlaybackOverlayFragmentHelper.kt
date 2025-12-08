@@ -17,11 +17,13 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.model.api.BaseItemDto
+import org.jellyfin.sdk.model.api.MediaSegmentType
 import org.koin.android.ext.android.inject
 import timber.log.Timber
 import java.time.Instant
 import java.util.UUID
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 fun CustomPlaybackOverlayFragment.toggleFavorite() {
 	val header = mSelectedProgramView as? GuideChannelHeader
@@ -188,6 +190,38 @@ fun CustomPlaybackOverlayFragment.recordProgram(program: BaseItemDto, isSeries: 
 	}
 }
 
-fun CustomPlaybackOverlayFragment.askToSkip(position: Duration) {
-	binding.skipOverlay.targetPosition = position
+fun CustomPlaybackOverlayFragment.askToSkip(position: Duration, segmentType: MediaSegmentType) {
+	// Post to main thread since this is called from ExoPlayer's playback thread
+	lifecycleScope.launch(Dispatchers.Main) {
+		val playbackController = playbackController
+		
+		// Only show "Play Next Episode" for OUTRO segments
+		val isOutro = segmentType == MediaSegmentType.OUTRO
+		val hasNextEpisode = playbackController?.hasNextItem() == true
+		val nextEpisode = playbackController?.nextItem
+		
+		if (isOutro && hasNextEpisode && nextEpisode != null) {
+			// Show "Play Next Episode" with countdown timer for outro segments
+			binding.skipOverlay.targetPosition = position
+			binding.skipOverlay.nextEpisodeTitle = nextEpisode.name
+			
+			// Set episode end position for timer calculation
+			val durationMs = playbackController.duration
+			if (durationMs > 0) {
+				binding.skipOverlay.episodeEndPosition = durationMs.milliseconds
+			}
+			
+			// Set callback to play next episode when button pressed or timer expires
+			binding.skipOverlay.onPlayNext = {
+				playbackController.next()
+			}
+		} else {
+			// Regular skip behavior for intros, recaps, etc.
+			binding.skipOverlay.targetPosition = position
+			binding.skipOverlay.segmentType = segmentType.name
+		}
+	}
 }
+
+
+

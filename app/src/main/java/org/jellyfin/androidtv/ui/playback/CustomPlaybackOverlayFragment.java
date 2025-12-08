@@ -489,11 +489,24 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                         return true;
                     }
 
-                    // Hide with seek
+                    // Hide with skip/next action
                     if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
-                        playbackControllerContainer.getValue().getPlaybackController().seek(binding.skipOverlay.getTargetPositionMs(), true);
+                        // Capture values before clearing
+                        kotlin.jvm.functions.Function0<kotlin.Unit> onPlayNext = binding.skipOverlay.getOnPlayNext();
+                        Long targetPosition = binding.skipOverlay.getTargetPositionMs();
+                        
+                        // Clear overlay immediately to hide button
+                        clearSkipOverlay();
+                        
+                        if (onPlayNext != null) {
+                            // Invoke the callback (which will call playbackController.next())
+                            onPlayNext.invoke();
+                        } else if (targetPosition != null) {
+                            // Regular skip - seek to target position
+                            playbackControllerContainer.getValue().getPlaybackController().seek(targetPosition, true);
+                        }
+                        
                         leanbackOverlayFragment.setShouldShowOverlay(false);
-                        if (binding != null) clearSkipOverlay();
                         return true;
                     }
                 }
@@ -1274,6 +1287,10 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
 
     public void clearSkipOverlay() {
         binding.skipOverlay.setTargetPositionMs(null);
+        binding.skipOverlay.setNextEpisodeTitle(null);
+        binding.skipOverlay.setEpisodeEndPositionMs(null);
+        binding.skipOverlay.setSegmentType(null);
+        binding.skipOverlay.setOnPlayNext(null);
     }
 
     private void prepareChapterAdapter() {
@@ -1342,5 +1359,9 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         WindowManager.LayoutParams params = getActivity().getWindow().getAttributes();
         params.preferredDisplayModeId = 0;
         getActivity().getWindow().setAttributes(params);
+    }
+
+    public PlaybackController getPlaybackController() {
+        return playbackControllerContainer.getValue().getPlaybackController();
     }
 }

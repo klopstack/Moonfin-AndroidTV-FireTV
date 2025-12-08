@@ -1,20 +1,15 @@
 package org.jellyfin.androidtv.ui.itemhandling
 
 import android.content.Context
-import androidx.core.content.ContextCompat
-import org.jellyfin.androidtv.R
+import android.graphics.drawable.Drawable
 import org.jellyfin.androidtv.constant.ImageType
 import org.jellyfin.androidtv.util.ImageHelper
 import org.jellyfin.androidtv.util.TimeUtils
 import org.jellyfin.androidtv.util.apiclient.seriesPrimaryImage
-import org.jellyfin.androidtv.util.getTimeFormatter
-import org.jellyfin.androidtv.util.locale
 import org.jellyfin.androidtv.util.sdk.getFullName
-import org.jellyfin.androidtv.util.sdk.getSubName
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.extensions.ticks
-import java.time.format.DateTimeFormatter
 
 open class BaseItemDtoBaseRowItem @JvmOverloads constructor(
 	item: BaseItemDto,
@@ -96,30 +91,7 @@ open class BaseItemDtoBaseRowItem @JvmOverloads constructor(
 
 	override fun getSummary(context: Context) = baseItem?.overview
 
-	override fun getSubText(context: Context) = when (baseItem?.type) {
-		BaseItemKind.TV_CHANNEL -> baseItem.number
-		BaseItemKind.TV_PROGRAM,
-		BaseItemKind.PROGRAM -> baseItem.episodeTitle ?: baseItem.channelName
-
-		BaseItemKind.RECORDING -> {
-			val title = listOfNotNull(
-				baseItem.channelName,
-				baseItem.episodeTitle
-			).joinToString(" - ")
-
-			val timestamp = buildString {
-				append(DateTimeFormatter.ofPattern("d MMM", context.locale).format(baseItem.startDate))
-				append(" ")
-				append(context.getTimeFormatter().format(baseItem.startDate))
-				append(" - ")
-				append(context.getTimeFormatter().format(baseItem.endDate))
-			}
-
-			"$title $timestamp"
-		}
-
-		else -> baseItem?.getSubName(context)
-	}
+	override fun getSubText(context: Context): String? = null
 
 	override fun getImageUrl(
 		context: Context,
@@ -157,22 +129,5 @@ open class BaseItemDtoBaseRowItem @JvmOverloads constructor(
 	override fun getBadgeImage(
 		context: Context,
 		imageHelper: ImageHelper,
-	) = when (baseItem?.type) {
-		BaseItemKind.LIVE_TV_PROGRAM,
-		BaseItemKind.PROGRAM -> when {
-			baseItem.seriesTimerId != null -> R.drawable.ic_record_series_red
-			baseItem.timerId != null -> R.drawable.ic_record_red
-
-			else -> null
-		}
-
-		else -> when {
-			baseItem?.criticRating != null -> when {
-				baseItem.criticRating!! > 59f -> R.drawable.ic_rt_fresh
-				else -> R.drawable.ic_rt_rotten
-			}
-
-			else -> null
-		}
-	}?.let { ContextCompat.getDrawable(context, it) }
+	): Drawable? = null
 }

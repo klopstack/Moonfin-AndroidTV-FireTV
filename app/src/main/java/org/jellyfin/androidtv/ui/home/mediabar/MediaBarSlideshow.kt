@@ -25,7 +25,7 @@ data class MediaBarSlideItem(
 	val rating: String?,
 	val year: Int?,
 	val genres: List<String>,
-	val runtime: String?,
+	val runtime: Long?,
 	val criticRating: Int?,
 	val communityRating: Float?,
 )

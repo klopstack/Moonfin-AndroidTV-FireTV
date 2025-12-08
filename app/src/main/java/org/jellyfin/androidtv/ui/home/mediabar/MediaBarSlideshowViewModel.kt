@@ -158,10 +158,7 @@ class MediaBarSlideshowViewModel(
 						rating = item.officialRating,
 						year = item.productionYear,
 						genres = item.genres.orEmpty().take(3),
-						runtime = item.runTimeTicks?.let { ticks ->
-							val minutes = (ticks / 600000000)
-							"${minutes}m"
-						},
+						runtime = item.runTimeTicks?.let { ticks -> (ticks / 10000) },
 						criticRating = item.criticRating?.toInt(),
 						communityRating = item.communityRating,
 					)

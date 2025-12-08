@@ -114,7 +114,7 @@ public class ItemRowView extends FrameLayout {
                 updateWatched();
                 break;
         }
-        formattedTime = TimeUtils.formatMillis(item.getRunTimeTicks() != null ? item.getRunTimeTicks()/10000 : 0);
+        formattedTime = TimeUtils.formatRuntimeHoursMinutes(mContext, item.getRunTimeTicks() != null ? item.getRunTimeTicks()/10000 : 0);
         mRunTime.setText(formattedTime);
     }
 

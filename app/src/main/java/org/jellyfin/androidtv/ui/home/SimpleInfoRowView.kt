@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.constant.RatingType
+import org.jellyfin.androidtv.ui.composable.getResolutionName
 import org.jellyfin.androidtv.util.TimeUtils
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -36,8 +37,8 @@ class SimpleInfoRowView @JvmOverloads constructor(
 		orientation = HORIZONTAL
 		gravity = Gravity.CENTER_VERTICAL
 		
-		// Pre-create a pool of TextViews for reuse
-		repeat(8) {
+		// Pre-create a pool of TextViews for reuse (increased for more metadata)
+		repeat(12) {
 			val textView = TextView(context).apply {
 				setTextColor(ContextCompat.getColor(context, android.R.color.white))
 				setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
@@ -52,7 +53,11 @@ class SimpleInfoRowView @JvmOverloads constructor(
 	
 	fun setItem(item: BaseItemDto?) {
 		// Hide all items first
-		items.forEach { it.visibility = GONE; it.text = "" }
+		items.forEach { 
+			it.visibility = GONE
+			it.text = ""
+			it.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+		}
 		
 		if (item == null) return
 		
@@ -64,9 +69,13 @@ class SimpleInfoRowView @JvmOverloads constructor(
 			item.communityRating?.let { rating ->
 				setItemText(index++, "⭐ ${String.format("%.1f", rating)}")
 			}
+			item.criticRating?.let { rating ->
+				val iconRes = if (rating >= 60f) R.drawable.ic_rt_fresh else R.drawable.ic_rt_rotten
+				setItemTextWithIcon(index++, "${rating.toInt()}%", iconRes)
+			}
 		}
 		
-		// Year or Date
+		// Date based on item type
 		val dateText = when (item.type) {
 			BaseItemKind.SERIES -> item.productionYear?.toString()
 			BaseItemKind.EPISODE -> item.premiereDate?.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
@@ -75,9 +84,13 @@ class SimpleInfoRowView @JvmOverloads constructor(
 		}
 		dateText?.let { setItemText(index++, it) }
 		
-		// Runtime
-		item.runTimeTicks?.ticks?.let { duration ->
-			setItemText(index++, "⏱ ${TimeUtils.formatMillis(duration.inWholeMilliseconds)}")
+		// Episode info (Season/Episode number)
+		if (item.type == BaseItemKind.EPISODE) {
+			val seasonNum = item.parentIndexNumber
+			val episodeNum = item.indexNumber
+			if (seasonNum != null && episodeNum != null) {
+				setItemText(index++, "S${seasonNum}E${episodeNum}")
+			}
 		}
 		
 		// Official Rating (e.g., PG-13)
@@ -87,48 +100,34 @@ class SimpleInfoRowView @JvmOverloads constructor(
 			}
 		}
 		
-		// Episode info
-		if (item.type == BaseItemKind.EPISODE) {
-			val seasonNum = item.parentIndexNumber
-			val episodeNum = item.indexNumber
-			if (seasonNum != null && episodeNum != null) {
-				setItemText(index++, "S${seasonNum}E${episodeNum}")
-			}
+		// Get media streams for detailed info
+		val mediaSource = item.mediaSources?.firstOrNull()
+		val videoStream = mediaSource?.mediaStreams?.firstOrNull { it.type == org.jellyfin.sdk.model.api.MediaStreamType.VIDEO }
+		
+		// Subtitle indicators
+		val hasSdhSubtitles = mediaSource?.mediaStreams?.any { 
+			it.type == org.jellyfin.sdk.model.api.MediaStreamType.SUBTITLE && it.isHearingImpaired 
+		} == true
+		val hasCcSubtitles = mediaSource?.mediaStreams?.any { 
+			it.type == org.jellyfin.sdk.model.api.MediaStreamType.SUBTITLE && !it.isHearingImpaired 
+		} == true
+		
+		if (hasSdhSubtitles) {
+			setItemText(index++, "SDH")
+		}
+		if (hasCcSubtitles) {
+			setItemText(index++, "CC")
 		}
 		
-		// Video resolution (if available)
-		val width = item.width
-		val height = item.height
-		if (width != null && height != null) {
-			val resolution = when {
-				height >= 2000 -> "4K"
-				height >= 1400 -> "1440p"
-				height >= 1000 -> "1080p"
-				height >= 700 -> "720p"
-				else -> "${height}p"
-			}
+		// Video resolution
+		if (videoStream?.width != null && videoStream.height != null) {
+			val resolution = getResolutionName(
+				context = context,
+				width = videoStream.width!!,
+				height = videoStream.height!!,
+				interlaced = videoStream.isInterlaced
+			)
 			setItemText(index++, resolution)
-		}
-		
-		// HDR/Dolby Vision
-		val videoStream = item.mediaStreams?.firstOrNull { it.type == org.jellyfin.sdk.model.api.MediaStreamType.VIDEO }
-		videoStream?.let { stream ->
-			when {
-				!stream.videoDoViTitle.isNullOrBlank() -> setItemText(index++, "DV")
-				stream.videoRangeType?.let { it != org.jellyfin.sdk.model.api.VideoRangeType.SDR && it != org.jellyfin.sdk.model.api.VideoRangeType.UNKNOWN } == true -> 
-					setItemText(index++, stream.videoRangeType!!.serialName.uppercase())
-			}
-		}
-		
-		// Audio codec (just the main one)
-		val audioStream = item.mediaStreams?.firstOrNull { it.type == org.jellyfin.sdk.model.api.MediaStreamType.AUDIO }
-		audioStream?.let { stream ->
-			when {
-				stream.profile?.contains("Dolby Atmos", ignoreCase = true) == true -> setItemText(index++, "Atmos")
-				stream.codec?.equals("AC3", ignoreCase = true) == true -> setItemText(index++, "AC3")
-				stream.codec?.equals("EAC3", ignoreCase = true) == true -> setItemText(index++, "EAC3")
-				stream.codec?.equals("DCA", ignoreCase = true) == true -> setItemText(index++, "DTS")
-			}
 		}
 	}
 	
@@ -136,6 +135,19 @@ class SimpleInfoRowView @JvmOverloads constructor(
 		if (index < items.size) {
 			items[index].apply {
 				this.text = text
+				visibility = VISIBLE
+			}
+		}
+	}
+	
+	private fun setItemTextWithIcon(index: Int, text: String, iconRes: Int) {
+		if (index < items.size) {
+			items[index].apply {
+				this.text = text
+				val drawable = ContextCompat.getDrawable(context, iconRes)
+				drawable?.setBounds(0, 0, dpToPx(16), dpToPx(16))
+				setCompoundDrawables(drawable, null, null, null)
+				compoundDrawablePadding = dpToPx(4)
 				visibility = VISIBLE
 			}
 		}

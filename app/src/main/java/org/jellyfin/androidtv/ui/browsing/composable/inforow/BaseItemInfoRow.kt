@@ -118,11 +118,12 @@ fun InfoRowSeriesStatus(
 fun BaseItemInfoRowRuntime(
 	runTime: Duration,
 ) {
+	val context = LocalContext.current
 	InfoRowItem(
 		icon = ImageVector.vectorResource(id = R.drawable.ic_time),
 		contentDescription = null,
 	) {
-		Text(TimeUtils.formatMillis(runTime.inWholeMilliseconds))
+		Text(TimeUtils.formatRuntimeHoursMinutes(context, runTime.inWholeMilliseconds))
 	}
 }
 

@@ -3,6 +3,7 @@ package org.jellyfin.androidtv.util.sdk
 import android.content.Context
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.model.ChapterItemInfo
+import org.jellyfin.androidtv.ui.composable.getResolutionName
 import org.jellyfin.androidtv.util.TimeUtils
 import org.jellyfin.androidtv.util.getQuantityString
 import org.jellyfin.androidtv.util.getTimeFormatter
@@ -134,22 +135,16 @@ fun BaseItemDto.getSubName(context: Context): String? = when (type) {
 
 		else -> {
 			// Show episode name with resolution if available
-			val resolutionStr = when {
-				height != null && height!! >= 2000 -> "4K"
-				height != null && height!! >= 1400 -> "1440p"
-				height != null && height!! >= 1000 -> "1080p"
-				height != null && height!! >= 700 -> "720p"
-				else -> {
-					// Try to get from media source
-					val mediaSource = mediaSources?.firstOrNull()
-					val videoStream = mediaSource?.mediaStreams?.firstOrNull { it.type == org.jellyfin.sdk.model.api.MediaStreamType.VIDEO }
-					when {
-						videoStream?.height != null && videoStream.height!! >= 2000 -> "4K"
-						videoStream?.height != null && videoStream.height!! >= 1400 -> "1440p"
-						videoStream?.height != null && videoStream.height!! >= 1000 -> "1080p"
-						videoStream?.height != null && videoStream.height!! >= 700 -> "720p"
-						else -> null
-					}
+			val resolutionStr = if (width != null && height != null) {
+				getResolutionName(context, width!!, height!!)
+			} else {
+				// Try to get from media source
+				val mediaSource = mediaSources?.firstOrNull()
+				val videoStream = mediaSource?.mediaStreams?.firstOrNull { it.type == org.jellyfin.sdk.model.api.MediaStreamType.VIDEO }
+				if (videoStream?.width != null && videoStream.height != null) {
+					getResolutionName(context, videoStream.width!!, videoStream.height!!, videoStream.isInterlaced)
+				} else {
+					null
 				}
 			}
 			
@@ -182,22 +177,16 @@ fun BaseItemDto.getSubName(context: Context): String? = when (type) {
 		val yearStr = productionYear?.toString()
 		
 		// Add resolution if available (from width/height or first media source)
-		val resolutionStr = when {
-			height != null && height!! >= 2000 -> "4K"
-			height != null && height!! >= 1400 -> "1440p"
-			height != null && height!! >= 1000 -> "1080p"
-			height != null && height!! >= 700 -> "720p"
-			else -> {
-				// Try to get from media source if direct properties not available
-				val mediaSource = mediaSources?.firstOrNull()
-				val videoStream = mediaSource?.mediaStreams?.firstOrNull { it.type == org.jellyfin.sdk.model.api.MediaStreamType.VIDEO }
-				when {
-					videoStream?.height != null && videoStream.height!! >= 2000 -> "4K"
-					videoStream?.height != null && videoStream.height!! >= 1400 -> "1440p"
-					videoStream?.height != null && videoStream.height!! >= 1000 -> "1080p"
-					videoStream?.height != null && videoStream.height!! >= 700 -> "720p"
-					else -> null
-				}
+		val resolutionStr = if (width != null && height != null) {
+			getResolutionName(context, width!!, height!!)
+		} else {
+			// Try to get from media source if direct properties not available
+			val mediaSource = mediaSources?.firstOrNull()
+			val videoStream = mediaSource?.mediaStreams?.firstOrNull { it.type == org.jellyfin.sdk.model.api.MediaStreamType.VIDEO }
+			if (videoStream?.width != null && videoStream.height != null) {
+				getResolutionName(context, videoStream.width!!, videoStream.height!!, videoStream.isInterlaced)
+			} else {
+				null
 			}
 		}
 		

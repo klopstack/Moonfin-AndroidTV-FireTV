@@ -867,7 +867,14 @@ class MediaDetailsFragment : Fragment() {
 
 		// Runtime
 		movieDetails?.runtime?.let { runtime ->
-			factRows.add("Runtime" to "$runtime minutes")
+			val hours = runtime / 60
+			val minutes = runtime % 60
+			val runtimeText = if (hours > 0) {
+				getString(R.string.runtime_hours_minutes, hours, minutes)
+			} else {
+				getString(R.string.runtime_minutes, minutes)
+			}
+			factRows.add("Runtime" to runtimeText)
 		}
 
 		// Budget (Movies only)

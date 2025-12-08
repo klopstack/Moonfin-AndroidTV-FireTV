@@ -38,6 +38,8 @@ import coil3.compose.AsyncImage
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.ui.base.Text
+import org.jellyfin.androidtv.util.TimeUtils
+import androidx.compose.ui.platform.LocalContext
 import org.koin.compose.koinInject
 
 /**
@@ -269,7 +271,7 @@ private fun MediaInfoOverlay(
 
 			item.runtime?.let { runtime ->
 				Text(
-					text = runtime,
+					text = TimeUtils.formatRuntimeHoursMinutes(LocalContext.current, runtime),
 					fontSize = 16.sp,
 					color = Color.White.copy(alpha = 0.9f)
 				)

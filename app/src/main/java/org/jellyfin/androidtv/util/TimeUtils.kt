@@ -52,6 +52,26 @@ object TimeUtils {
 	}
 	
 	/**
+	 * Format runtime in milliseconds to hours and minutes format (e.g., "1h 30m" or "45m").
+	 *
+	 * @param context Context for string resources
+	 * @param millis Time in milliseconds
+	 * @return Formatted runtime string
+	 */
+	@JvmStatic
+	fun formatRuntimeHoursMinutes(context: Context, millis: Long): String {
+		val totalMinutes = (millis / MILLIS_PER_MIN).toInt()
+		val hours = totalMinutes / 60
+		val minutes = totalMinutes % 60
+		
+		return if (hours > 0) {
+			context.getString(R.string.runtime_hours_minutes, hours, minutes)
+		} else {
+			context.getString(R.string.runtime_minutes, minutes)
+		}
+	}
+	
+	/**
 	 * Format seconds into a human-readable string (e.g., "5 seconds", "2 minutes", "3 hours").
 	 */
 	@JvmStatic

@@ -240,7 +240,6 @@ private fun MainToolbar(
 					},
 					contentPadding = if (userImageVisible) PaddingValues(0.dp) else IconButtonDefaults.ContentPadding,
 					interactionSource = interactionSource,
-					modifier = Modifier.scale(if (isFocused) 1.1f else 1f)
 				) {
 					if (!userImageVisible) {
 						Icon(
@@ -257,8 +256,8 @@ private fun MainToolbar(
 								.clip(IconButtonDefaults.Shape)
 								.then(
 									if (isFocused) Modifier.border(
-										width = 3.dp,
-										color = Color.White,
+										width = 2.dp,
+										color = JellyfinTheme.colorScheme.buttonFocused,
 										shape = IconButtonDefaults.Shape
 									) else Modifier
 								)

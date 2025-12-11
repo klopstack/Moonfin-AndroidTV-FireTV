@@ -386,6 +386,20 @@ private fun MainToolbar(
 				)
 			}
 		}
+			
+			// Settings button
+			IconButton(
+				onClick = {
+					settingsViewModel.show()
+				},
+				colors = toolbarButtonColors,
+			) {
+				Icon(
+					imageVector = ImageVector.vectorResource(R.drawable.ic_settings),
+					contentDescription = stringResource(R.string.lbl_settings),
+				)
+			}
+			
 			// Dynamic library buttons (conditional)
 			if (showLibrariesInToolbar) {
 				ProvideTextStyle(JellyfinTheme.typography.default.copy(fontWeight = FontWeight.Bold)) {
@@ -412,21 +426,6 @@ private fun MainToolbar(
 			horizontalArrangement = Arrangement.spacedBy(8.dp),
 			verticalAlignment = Alignment.CenterVertically,
 		) {
-			IconButton(
-				onClick = {
-					settingsViewModel.show()
-				},
-				colors = ButtonDefaults.colors(
-					containerColor = Color.Transparent,
-					focusedContainerColor = JellyfinTheme.colorScheme.buttonFocused,
-				),
-			) {
-				Icon(
-					imageVector = ImageVector.vectorResource(R.drawable.ic_settings),
-					contentDescription = stringResource(R.string.lbl_settings),
-				)
-			}
-			
 			ToolbarClock()
 		}
 	}

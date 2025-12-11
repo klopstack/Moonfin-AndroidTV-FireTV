@@ -30,6 +30,7 @@ import androidx.lifecycle.LifecycleOwnerKt;
 
 import org.jellyfin.androidtv.R;
 import org.jellyfin.androidtv.data.service.BackgroundService;
+import org.jellyfin.androidtv.data.service.BlurContext;
 import org.jellyfin.androidtv.databinding.FragmentAudioNowPlayingBinding;
 import org.jellyfin.androidtv.ui.itemhandling.AudioQueueBaseRowItem;
 import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem;
@@ -354,7 +355,7 @@ public class AudioNowPlayingFragment extends Fragment {
             }
             mCurrentNdx.setText(getString(R.string.lbl_now_playing_track, mediaManager.getValue().getCurrentAudioQueueDisplayPosition(), mediaManager.getValue().getCurrentAudioQueueDisplaySize()));
             addGenres(mGenreRow);
-            backgroundService.getValue().setBackground(item);
+            backgroundService.getValue().setBackground(item, BlurContext.DETAILS);
         }
     }
 

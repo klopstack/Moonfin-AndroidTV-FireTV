@@ -8,6 +8,7 @@ import androidx.leanback.widget.OnItemViewSelectedListener
 import androidx.leanback.widget.Row
 import org.jellyfin.androidtv.constant.QueryType
 import org.jellyfin.androidtv.data.service.BackgroundService
+import org.jellyfin.androidtv.data.service.BlurContext
 import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher
 import org.jellyfin.androidtv.ui.itemhandling.ItemRowAdapter
@@ -50,7 +51,7 @@ class SearchFragmentDelegate(
 	val onItemViewSelectedListener = OnItemViewSelectedListener { _, item, _, _ ->
 		val baseItem = item?.let { (item as BaseRowItem).baseItem }
 		if (baseItem != null) {
-			backgroundService.setBackground(baseItem)
+			backgroundService.setBackground(baseItem, BlurContext.BROWSING)
 		} else {
 			backgroundService.clearBackgrounds()
 		}

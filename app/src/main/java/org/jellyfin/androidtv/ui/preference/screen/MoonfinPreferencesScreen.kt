@@ -185,22 +185,42 @@ class MoonfinPreferencesScreen : OptionsFragment() {
 		category {
 			setTitle(R.string.pref_visual_settings)
 
-			list {
-				setTitle(R.string.pref_background_blur_amount)
-				
-				entries = mapOf(
-					"0" to getString(R.string.pref_blur_none),
-					"5" to getString(R.string.pref_blur_light),
-					"10" to getString(R.string.pref_blur_medium),
-					"15" to getString(R.string.pref_blur_strong),
-					"20" to getString(R.string.pref_blur_extra_strong)
-				)
-				
-				bind {
-					get { userSettingPreferences[UserSettingPreferences.backgroundBlurAmount].toString() }
-					set { value -> userSettingPreferences[UserSettingPreferences.backgroundBlurAmount] = value.toInt() }
-					default { "10" }
+			seekbar {
+				setTitle(R.string.pref_details_background_blur_amount)
+				setContent(R.string.pref_details_background_blur_amount_description)
+				min = 0
+				max = 20
+				increment = 5
+				valueFormatter = object : DurationSeekBarPreference.ValueFormatter() {
+					override fun display(value: Int) = when (value) {
+						0 -> getString(R.string.pref_blur_none)
+						5 -> getString(R.string.pref_blur_light)
+						10 -> getString(R.string.pref_blur_medium)
+						15 -> getString(R.string.pref_blur_strong)
+						20 -> getString(R.string.pref_blur_extra_strong)
+						else -> "${value}dp"
+					}
 				}
+				bind(userSettingPreferences, UserSettingPreferences.detailsBackgroundBlurAmount)
+			}
+			
+			seekbar {
+				setTitle(R.string.pref_browsing_background_blur_amount)
+				setContent(R.string.pref_browsing_background_blur_amount_description)
+				min = 0
+				max = 20
+				increment = 5
+				valueFormatter = object : DurationSeekBarPreference.ValueFormatter() {
+					override fun display(value: Int) = when (value) {
+						0 -> getString(R.string.pref_blur_none)
+						5 -> getString(R.string.pref_blur_light)
+						10 -> getString(R.string.pref_blur_medium)
+						15 -> getString(R.string.pref_blur_strong)
+						20 -> getString(R.string.pref_blur_extra_strong)
+						else -> "${value}dp"
+					}
+				}
+				bind(userSettingPreferences, UserSettingPreferences.browsingBackgroundBlurAmount)
 			}
 		}
 	}

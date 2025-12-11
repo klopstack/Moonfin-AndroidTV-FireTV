@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.service.BackgroundService
+import org.jellyfin.androidtv.data.service.BlurContext
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverItemDto
 import org.jellyfin.androidtv.ui.shared.toolbar.MainToolbar
 import org.jellyfin.androidtv.ui.shared.toolbar.MainToolbarActiveButton
@@ -214,7 +215,7 @@ class DiscoverFragment : Fragment() {
 
 		if (imageUrl != null) {
 			Timber.d("Loading backdrop for: ${item.title ?: item.name} - URL: $imageUrl")
-			backgroundService.setBackgroundUrl(imageUrl, enableBlur = true)
+			backgroundService.setBackgroundUrl(imageUrl, BlurContext.BROWSING)
 		} else {
 			Timber.d("No backdrop available for: ${item.title ?: item.name}")
 			backgroundService.clearBackgrounds()

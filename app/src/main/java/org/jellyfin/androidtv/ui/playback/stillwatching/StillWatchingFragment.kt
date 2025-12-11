@@ -39,6 +39,7 @@ import androidx.fragment.compose.content
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.service.BackgroundService
+import org.jellyfin.androidtv.data.service.BlurContext
 import org.jellyfin.androidtv.ui.background.AppBackground
 import org.jellyfin.androidtv.ui.base.JellyfinTheme
 import org.jellyfin.androidtv.ui.base.LocalTextStyle
@@ -80,7 +81,7 @@ fun StillWatchingScreen(
 	if (item == null) return
 
 	LaunchedEffect(item?.baseItem) {
-		backgroundService.setBackground(item?.baseItem)
+		backgroundService.setBackground(item?.baseItem, BlurContext.DETAILS)
 	}
 
 	LaunchedEffect(state) {

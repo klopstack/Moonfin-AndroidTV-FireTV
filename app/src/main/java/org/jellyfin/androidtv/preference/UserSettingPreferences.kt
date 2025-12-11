@@ -20,7 +20,12 @@ class UserSettingPreferences(
 		val mediaBarItemCount = stringPreference("mediaBarItemCount", "10")
 		val mediaBarOverlayOpacity = intPreference("mediaBarOverlayOpacity", 50)
 		val mediaBarOverlayColor = stringPreference("mediaBarOverlayColor", "gray")
+		
+		// Background blur settings
+		@Deprecated("Use detailsBackgroundBlurAmount or browsingBackgroundBlurAmount instead", ReplaceWith("detailsBackgroundBlurAmount"))
 		val backgroundBlurAmount = intPreference("backgroundBlurAmount", 10)
+		val detailsBackgroundBlurAmount = intPreference("detailsBackgroundBlurAmount", 10)
+		val browsingBackgroundBlurAmount = intPreference("browsingBackgroundBlurAmount", 10)
 
 		val homesection0 = enumPreference("homesection0", HomeSectionType.MEDIA_BAR)
 		val homesection1 = enumPreference("homesection1", HomeSectionType.RESUME)
@@ -55,4 +60,32 @@ class UserSettingPreferences(
 		get() = homesections
 			.map(::get)
 			.filterNot { it == HomeSectionType.NONE }
+	
+	init {
+		runMigrations {
+			// v1.3.1 to v1.4.0
+			migration(toVersion = 1) { prefs ->
+				// Split backgroundBlurAmount into separate settings for details and browsing
+				// Handle both String (old dropdown) and Int (already migrated) formats
+				val oldBlurKey = "backgroundBlurAmount"
+				var oldBlurAmount = 10 // default
+				
+				if (prefs.contains(oldBlurKey)) {
+					try {
+						// Try reading as String first (old dropdown format)
+						val stringValue = prefs.getString(oldBlurKey, null)
+						if (stringValue != null) {
+							oldBlurAmount = stringValue.toIntOrNull() ?: 10
+						}
+					} catch (e: ClassCastException) {
+						// Already stored as Int, read it directly
+						oldBlurAmount = prefs.getInt(oldBlurKey, 10)
+					}
+				}
+				
+				putInt(detailsBackgroundBlurAmount.key, oldBlurAmount)
+				putInt(browsingBackgroundBlurAmount.key, oldBlurAmount)
+			}
+		}
+	}
 }

@@ -41,6 +41,7 @@ import org.jellyfin.androidtv.data.querying.GetUserViewsRequest;
 import org.jellyfin.androidtv.data.repository.CustomMessageRepository;
 import org.jellyfin.androidtv.data.repository.UserViewsRepository;
 import org.jellyfin.androidtv.data.service.BackgroundService;
+import org.jellyfin.androidtv.data.service.BlurContext;
 import org.jellyfin.androidtv.databinding.HorizontalGridBrowseBinding;
 import org.jellyfin.androidtv.databinding.PopupEmptyBinding;
 import org.jellyfin.androidtv.preference.LibraryPreferences;
@@ -908,7 +909,7 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         public void run() {
             if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) return;
 
-            backgroundService.getValue().setBackground(mCurrentItem.getBaseItem());
+            backgroundService.getValue().setBackground(mCurrentItem.getBaseItem(), BlurContext.BROWSING);
             setItem(mCurrentItem);
         }
     };

@@ -762,11 +762,15 @@
     <string name="pref_visual_settings">Visual Settings</string>
     <string name="pref_background_blur_amount">Background Blur Amount</string>
     <string name="pref_background_blur_amount_description">Control blur intensity for all background images across the app</string>
-    <string name="pref_blur_none">No Blur</string>
-    <string name="pref_blur_light">Light (5dp)</string>
-    <string name="pref_blur_medium">Medium (10dp) - Default</string>
-    <string name="pref_blur_strong">Strong (15dp)</string>
-    <string name="pref_blur_extra_strong">Extra Strong (20dp)</string>
+    <string name="pref_browsing_background_blur_amount">Home and Jellyseerr Background Blur</string>
+    <string name="pref_browsing_background_blur_amount_description">Blur intensity for home screen and discovery backgrounds</string>
+        <string name="pref_details_background_blur_amount">Media Details Background Blur</string>
+    <string name="pref_details_background_blur_amount_description">Blur intensity for movie, TV show, and episode details pages</string>
+    <string name="pref_blur_none">None</string>
+    <string name="pref_blur_light">Light</string>
+    <string name="pref_blur_medium">Med</string>
+    <string name="pref_blur_strong">High</string>
+    <string name="pref_blur_extra_strong">Extra</string>
     
     <!-- Toolbar Customization -->
     <string name="pref_toolbar_customization">Toolbar Customization</string>

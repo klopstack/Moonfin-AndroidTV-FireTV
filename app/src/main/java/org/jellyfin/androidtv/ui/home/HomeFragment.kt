@@ -7,19 +7,28 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import coil3.load
-import coil3.request.crossfade
+import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.ui.home.mediabar.MediaBarSlideshowViewModel
+import org.jellyfin.androidtv.ui.home.mediabar.MediaBarState
 import org.jellyfin.androidtv.ui.shared.toolbar.MainToolbar
 import org.jellyfin.androidtv.ui.shared.toolbar.MainToolbarActiveButton
 import org.koin.android.ext.android.inject
@@ -29,10 +38,10 @@ class HomeFragment : Fragment() {
 	private val userSettingPreferences by inject<UserSettingPreferences>()
 
 	private var titleView: TextView? = null
-	private var logoView: ImageView? = null
+	private var logoView: ComposeView? = null
 	private var infoRowView: SimpleInfoRowView? = null
 	private var summaryView: TextView? = null
-	private var backgroundImage: ImageView? = null
+	private var backgroundImage: ComposeView? = null
 	private var rowsFragment: HomeRowsFragment? = null
 
 	override fun onCreateView(
@@ -44,10 +53,76 @@ class HomeFragment : Fragment() {
 
 		// Get references to views
 		titleView = view.findViewById(R.id.title)
-		logoView = view.findViewById(R.id.logo)
 		infoRowView = view.findViewById(R.id.infoRow)
 		summaryView = view.findViewById(R.id.summary)
-		backgroundImage = view.findViewById(R.id.backgroundImage)
+		
+		// Setup logo with AnimatedContent for smooth transitions
+		logoView = view.findViewById<ComposeView>(R.id.logo).apply {
+			setContent {
+				val state by mediaBarViewModel.state.collectAsState()
+				val playbackState by mediaBarViewModel.playbackState.collectAsState()
+				val isFocused by mediaBarViewModel.isFocused.collectAsState()
+				
+				val selectedPosition = rowsFragment?.selectedPositionFlow?.collectAsState(initial = -1)?.value ?: -1
+				val isMediaBarEnabled = userSettingPreferences.activeHomesections.contains(org.jellyfin.androidtv.constant.HomeSectionType.MEDIA_BAR)
+				val shouldShowMediaBar = isFocused || (selectedPosition == 0 && isMediaBarEnabled) || selectedPosition == -1
+				
+				val logoUrl = if (state is MediaBarState.Ready && shouldShowMediaBar) {
+					(state as MediaBarState.Ready).items.getOrNull(playbackState.currentIndex)?.logoUrl
+				} else null
+				
+				AnimatedContent(
+					targetState = logoUrl,
+					transitionSpec = {
+						fadeIn() togetherWith fadeOut()
+					},
+					label = "logo_transition"
+				) { url ->
+					if (url != null) {
+						AsyncImage(
+							model = url,
+							contentDescription = null,
+							modifier = Modifier.fillMaxSize(),
+							contentScale = ContentScale.Fit
+						)
+					}
+				}
+			}
+		}
+		
+		// Setup background with AnimatedContent for smooth transitions
+		backgroundImage = view.findViewById<ComposeView>(R.id.backgroundImage).apply {
+			setContent {
+				val state by mediaBarViewModel.state.collectAsState()
+				val playbackState by mediaBarViewModel.playbackState.collectAsState()
+				val isFocused by mediaBarViewModel.isFocused.collectAsState()
+				
+				val selectedPosition = rowsFragment?.selectedPositionFlow?.collectAsState(initial = -1)?.value ?: -1
+				val isMediaBarEnabled = userSettingPreferences.activeHomesections.contains(org.jellyfin.androidtv.constant.HomeSectionType.MEDIA_BAR)
+				val shouldShowMediaBar = isFocused || (selectedPosition == 0 && isMediaBarEnabled) || selectedPosition == -1
+				
+				val backdropUrl = if (state is MediaBarState.Ready && shouldShowMediaBar) {
+					(state as MediaBarState.Ready).items.getOrNull(playbackState.currentIndex)?.backdropUrl
+				} else null
+				
+				AnimatedContent(
+					targetState = backdropUrl,
+					transitionSpec = {
+						fadeIn() togetherWith fadeOut()
+					},
+					label = "backdrop_transition"
+				) { url ->
+					if (url != null) {
+						AsyncImage(
+							model = url,
+							contentDescription = null,
+							modifier = Modifier.fillMaxSize(),
+							contentScale = ContentScale.Crop
+						)
+					}
+				}
+			}
+		}
 
 		// Setup toolbar Compose
 		val toolbarView = view.findViewById<ComposeView>(R.id.toolbar)
@@ -78,82 +153,49 @@ class HomeFragment : Fragment() {
 			}
 			?.launchIn(lifecycleScope)
 
-		// Observe selected row position to hide media bar backdrop when moving to other rows
+		// Update logo visibility based on whether we're showing media bar or not
 		rowsFragment?.selectedPositionFlow
 			?.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
 			?.onEach { position ->
-				updateMediaBarBackground()
+				updateLogoVisibility()
 			}
 			?.launchIn(lifecycleScope)
 
-		// Observe media bar state changes (Loading -> Ready transition)
+		// Observe media bar state changes
 		mediaBarViewModel.state
 			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
 			.onEach { state ->
-				updateMediaBarBackground()
+				updateLogoVisibility()
 			}
 			.launchIn(lifecycleScope)
 
-		// Observe media bar focus state for background
+		// Observe media bar focus state
 		mediaBarViewModel.isFocused
 			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
 			.onEach { isFocused ->
-				updateMediaBarBackground()
-			}
-			.launchIn(lifecycleScope)
-
-		// Observe playback state changes for background updates
-		mediaBarViewModel.playbackState
-			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
-			.onEach { playbackState ->
-				// Update background when current index changes
-				updateMediaBarBackground()
+				updateLogoVisibility()
 			}
 			.launchIn(lifecycleScope)
 	}
 
-	private fun updateMediaBarBackground() {
+	private fun updateLogoVisibility() {
 		val state = mediaBarViewModel.state.value
 		val isFocused = mediaBarViewModel.isFocused.value
 		val selectedPosition = rowsFragment?.selectedPositionFlow?.value ?: -1
 		
-		// Check if the media bar is actually enabled in settings
 		val isMediaBarEnabled = userSettingPreferences.activeHomesections.contains(org.jellyfin.androidtv.constant.HomeSectionType.MEDIA_BAR)
-		
-		// Determine if we should show media bar content
-		// Show if: media bar is focused OR (we're at position 0 AND media bar is enabled) OR position is -1 (toolbar/no selection)
 		val shouldShowMediaBar = isFocused || (selectedPosition == 0 && isMediaBarEnabled) || selectedPosition == -1
 		
-		if (state is org.jellyfin.androidtv.ui.home.mediabar.MediaBarState.Ready && shouldShowMediaBar) {
+		if (state is MediaBarState.Ready && shouldShowMediaBar) {
 			val playbackState = mediaBarViewModel.playbackState.value
 			val currentItem = state.items.getOrNull(playbackState.currentIndex)
-			val backdropUrl = currentItem?.backdropUrl
-			val logoUrl = currentItem?.logoUrl
+			val hasLogo = currentItem?.logoUrl != null
 			
-			// Show background if we have a backdrop URL
-			if (backdropUrl != null) {
-				backgroundImage?.isVisible = true
-				backgroundImage?.load(backdropUrl) {
-					crossfade(400) // 400ms crossfade - faster and smoother
-				}
-			} else {
-				backgroundImage?.isVisible = false
-			}
-			
-			// Show logo if available, otherwise show title
-			if (logoUrl != null) {
-				logoView?.isVisible = true
-				titleView?.isVisible = false
-				logoView?.load(logoUrl) {
-					crossfade(300) // 300ms crossfade - faster and smoother
-				}
-			} else {
-				logoView?.isVisible = false
-				titleView?.isVisible = true
-			}
+			// Show logo view when we have a logo, otherwise show title
+			logoView?.isVisible = hasLogo
+			titleView?.isVisible = !hasLogo
 		} else {
-			// Hide background and logo when on other rows
-			backgroundImage?.isVisible = false
+			// Hide logo when on other rows
 			logoView?.isVisible = false
 			titleView?.isVisible = true
 		}

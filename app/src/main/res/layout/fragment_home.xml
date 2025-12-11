@@ -5,13 +5,11 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Background image container -->
-    <ImageView
+    <!-- Background image container using Compose for smooth transitions -->
+    <androidx.compose.ui.platform.ComposeView
         android:id="@+id/backgroundImage"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -32,15 +30,13 @@
             android:layout_height="wrap_content" />
     </FrameLayout>
 
-    <!-- Logo at 80dp from top (shown when available) -->
-    <ImageView
+    <!-- Logo at 80dp from top (shown when available) using Compose for smooth transitions -->
+    <androidx.compose.ui.platform.ComposeView
         android:id="@+id/logo"
         android:layout_width="wrap_content"
         android:layout_height="60dp"
         android:layout_marginStart="24dp"
         android:layout_marginTop="80dp"
-        android:adjustViewBounds="true"
-        android:scaleType="fitStart"
         android:visibility="gone"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />

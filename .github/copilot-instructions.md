@@ -4,6 +4,33 @@
 
 **Moonfin** is an enhanced fork of the official Jellyfin Android TV client, optimized for Android TV, Nvidia Shield, and Fire TV devices. The key differentiator is **Jellyseerr integration** - the first native Jellyfin client with TMDB-based content discovery and requesting.
 
+## Development Environment
+
+**Prerequisites:**
+- **Java 21** (required - not Java 25 or other versions)
+- **Android SDK** (Platform API 35, Build Tools 35.0.0)
+- **local.properties** file with `sdk.dir` pointing to Android SDK location
+
+**Quick setup:**
+```bash
+# Set Java 21
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
+
+# Create local.properties
+echo "sdk.dir=$HOME/Android/Sdk" > local.properties
+
+# Build debug APK
+./gradlew assembleDebug
+```
+
+For detailed setup instructions, see [DEVELOPMENT_SETUP.md](../DEVELOPMENT_SETUP.md).
+
+**Important files (gitignored):**
+- `local.properties` - Android SDK location (required for builds)
+- `keystore.properties` - Release signing credentials (see [KEYSTORE_SETUP.md](../KEYSTORE_SETUP.md))
+- `moonfin-release.keystore` - Release keystore file
+- `~/.android/debug.keystore` - Debug keystore (shared across projects)
+
 ## Architecture
 
 ### Multi-Module Gradle Structure
@@ -113,12 +140,19 @@ moonfin.version=v1.3.1
 ./gradlew detekt
 ```
 
-**Keystore setup:** Copy `keystore.properties.template` → `keystore.properties` and configure signing credentials.
+**Output locations:**
+- Debug APK: `app/build/outputs/apk/debug/moonfin-androidtv-v*.*.?-debug.apk`
+- Release APK: `app/build/outputs/apk/release/moonfin-androidtv-v*.*.?-release.apk`
+
+**Keystore setup:** Copy `keystore.properties.template` → `keystore.properties` and configure signing credentials. See [KEYSTORE_SETUP.md](../KEYSTORE_SETUP.md) for details.
 
 ### Build Types
 
 - **Debug:** Application ID `org.moonfin.androidtv.debug`, name "Moonfin Debug"
+  - Uses Android debug keystore (`~/.android/debug.keystore`)
+  - Explicitly configured to use debug signing (prevents release key conflicts)
 - **Release:** Application ID `org.moonfin.androidtv`, name "Moonfin"
+  - Uses custom release keystore when `keystore.properties` exists
 
 ## Code Conventions
 
@@ -165,13 +199,76 @@ The app uses a custom `PlaybackManager` (from `playback:core`) with plugins:
 
 ## Key Files & Directories
 
-- `app/src/main/java/org/jellyfin/androidtv/ui/home/` - Home screen logic
-- `app/src/main/java/org/jellyfin/androidtv/ui/shared/toolbar/MainToolbar.kt` - Compose-based toolbar
-- `app/src/main/java/org/jellyfin/androidtv/ui/jellyseerr/` - Jellyseerr discovery features
-- `app/src/main/java/org/jellyfin/androidtv/preference/` - User preferences
+### Core Infrastructure
 - `app/src/main/java/org/jellyfin/androidtv/di/` - Koin DI modules
+- `app/src/main/java/org/jellyfin/androidtv/preference/` - User preferences
 - `app/src/main/res/values/strings.xml` - Localized strings (70+ languages)
 - `playback/jellyfin/src/main/kotlin/playsession/` - Playback session reporting to Jellyfin
+
+### UI Components by Section
+
+#### Home Screen
+- `app/src/main/java/org/jellyfin/androidtv/ui/home/HomeFragment.kt` - Main home fragment container with backdrop/logo management
+- `app/src/main/res/layout/fragment_home.xml` - Home screen layout (ConstraintLayout)
+- `app/src/main/java/org/jellyfin/androidtv/ui/home/HomeRowsFragment.kt` - Leanback BrowseSupportFragment for rows
+- `app/src/main/java/org/jellyfin/androidtv/ui/home/SimpleInfoRowView.kt` - Lightweight metadata row (year, rating, runtime)
+
+#### Toolbar
+- `app/src/main/java/org/jellyfin/androidtv/ui/shared/toolbar/MainToolbar.kt` - Compose toolbar with library buttons
+- `app/src/main/java/org/jellyfin/androidtv/ui/shared/toolbar/MainToolbarViewModel.kt` - Toolbar state & library data
+
+#### Media Bar (Featured Carousel)
+- `app/src/main/java/org/jellyfin/androidtv/ui/home/mediabar/MediaBarSlideshowView.kt` - Compose carousel UI with AnimatedContent transitions
+- `app/src/main/java/org/jellyfin/androidtv/ui/home/mediabar/MediaBarSlideshowViewModel.kt` - Carousel state, auto-advance, navigation
+- `app/src/main/java/org/jellyfin/androidtv/ui/home/mediabar/MediaBarSlideshow.kt` - Data models (MediaBarSlideItem, MediaBarState)
+- `app/src/main/java/org/jellyfin/androidtv/ui/home/HomeFragmentMediaBarRow.kt` - Leanback row integration
+- `app/src/main/java/org/jellyfin/androidtv/ui/home/MediaBarPresenter.kt` - Leanback presenter wrapper
+
+#### Home Rows
+- `app/src/main/java/org/jellyfin/androidtv/ui/home/HomeFragmentRow.kt` - Interface for home rows
+- `app/src/main/java/org/jellyfin/androidtv/ui/home/HomeFragmentBrowseRowDef.kt` - Standard browse rows (Continue Watching, Next Up, etc.)
+- `app/src/main/java/org/jellyfin/androidtv/ui/home/HomeFragmentLatestRow.kt` - Latest media rows
+
+#### Item Details
+- `app/src/main/java/org/jellyfin/androidtv/ui/itemdetail/FullDetailsFragment.java` - Full details screen (legacy Java)
+- `app/src/main/java/org/jellyfin/androidtv/ui/itemdetail/ItemListFragment.kt` - Lists (seasons, episodes, etc.)
+
+#### Jellyseerr Discovery
+- `app/src/main/java/org/jellyfin/androidtv/ui/jellyseerr/JellyseerrDiscoverFragment.kt` - Main discovery screen
+- `app/src/main/java/org/jellyfin/androidtv/ui/jellyseerr/MediaDetailsFragment.kt` - TMDB media details
+- `app/src/main/java/org/jellyfin/androidtv/ui/jellyseerr/PersonDetailsFragment.kt` - Cast/crew details
+- `app/src/main/java/org/jellyfin/androidtv/ui/jellyseerr/JellyseerrViewModel.kt` - Discovery state management
+- `app/src/main/java/org/jellyfin/androidtv/data/repository/JellyseerrRepository.kt` - Jellyseerr API client
+- `app/src/main/java/org/jellyfin/androidtv/data/model/jellyseerr/` - Jellyseerr data models
+
+#### Settings
+- `app/src/main/java/org/jellyfin/androidtv/ui/preference/screen/MoonfinPreferencesScreen.kt` - Moonfin-specific settings (Media Bar, backdrop blur, etc.)
+- `app/src/main/java/org/jellyfin/androidtv/ui/preference/screen/UserPreferencesScreen.kt` - User preferences screen
+- `preference/src/main/kotlin/org/jellyfin/preference/store/` - Preference storage implementations
+
+#### Playback
+- `app/src/main/java/org/jellyfin/androidtv/ui/playback/VideoQueueManager.kt` - Video queue management
+- `app/src/main/java/org/jellyfin/androidtv/ui/playback/PlaybackController.java` - Legacy playback controller (Java)
+- `playback/core/src/main/kotlin/org/jellyfin/playback/core/PlaybackManager.kt` - Modern playback manager
+- `app/src/main/java/org/jellyfin/androidtv/ui/playback/overlay/LeanbackOverlayFragment.java` - Video player overlay
+
+#### Presenters (Leanback Card Views)
+- `app/src/main/java/org/jellyfin/androidtv/ui/presentation/CardPresenter.kt` - Standard media card presenter
+- `app/src/main/java/org/jellyfin/androidtv/ui/presentation/PositionableListRowPresenter.kt` - Row presenter base
+- `app/src/main/java/org/jellyfin/androidtv/ui/card/DefaultCardView.kt` - Default card view implementation
+
+#### Background Management
+- `app/src/main/java/org/jellyfin/androidtv/ui/background/BackgroundService.kt` - Backdrop image management
+- `app/src/main/java/org/jellyfin/androidtv/ui/background/BackgroundAdapter.kt` - Background blur/fade logic
+
+#### Navigation
+- `app/src/main/java/org/jellyfin/androidtv/ui/navigation/NavigationRepository.kt` - App navigation coordinator
+- `app/src/main/java/org/jellyfin/androidtv/ui/navigation/Destinations.kt` - Navigation destination definitions
+
+#### Drawables & Icons
+- `app/src/main/res/drawable/moonfin_ic_channel_background.xml` - App icon background (grid pattern)
+- `app/src/main/res/mipmap-*/` - App icon resources (various densities)
+- `app/src/main/res/drawable/` - UI icons and shapes
 
 ## Testing
 

@@ -253,14 +253,14 @@ private fun MainToolbar(
 							contentScale = ContentScale.Crop,
 							modifier = Modifier
 								.aspectRatio(1f)
-								.clip(IconButtonDefaults.Shape)
 								.then(
 									if (isFocused) Modifier.border(
-										width = 2.dp,
+										width = 3.dp,
 										color = JellyfinTheme.colorScheme.buttonFocused,
 										shape = IconButtonDefaults.Shape
 									) else Modifier
 								)
+								.clip(IconButtonDefaults.Shape)
 						)
 					}
 				}

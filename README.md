@@ -126,10 +126,13 @@ Your session is saved securely and will reconnect automatically.
 
 ## Building from Source
 
+### Quick Start
+
+See [DEVELOPMENT_SETUP.md](DEVELOPMENT_SETUP.md) for complete setup instructions.
+
 ### Prerequisites
-- Android Studio Arctic Fox or newer
-- JDK 11 or newer
-- Android SDK with API 21+ installed
+- Java 21 (not Java 25 or other versions)
+- Android SDK (API 35, Build Tools 35.0.0)
 
 ### Steps
 
@@ -139,25 +142,25 @@ git clone https://github.com/Moonfin-Client/AndroidTV-FireTV.git
 cd AndroidTV-FireTV
 ```
 
-2. **Build debug version:**
+2. **Configure SDK location:**
 ```bash
+echo "sdk.dir=$HOME/Android/Sdk" > local.properties
+```
+
+3. **Build debug version:**
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
 ./gradlew assembleDebug
 ```
 
-3. **Install to connected device:**
+4. **Install to connected device:**
 ```bash
 ./gradlew installDebug
 ```
 
-4. **Build release version:**
+5. **Build release version:**
 
-First, create a `keystore.properties` file in the root directory (use `keystore.properties.template` as a guide):
-```properties
-storeFile=/path/to/your/keystore.jks
-storePassword=your_store_password
-keyAlias=your_key_alias
-keyPassword=your_key_password
-```
+See [KEYSTORE_SETUP.md](KEYSTORE_SETUP.md) for keystore configuration.
 
 Then build:
 ```bash
@@ -167,6 +170,11 @@ Then build:
 The APK will be in `app/build/outputs/apk/release/`
 
 ## Development
+
+### Developer Resources
+- **Setup Guide:** [DEVELOPMENT_SETUP.md](DEVELOPMENT_SETUP.md) - Full environment setup
+- **Keystore Guide:** [KEYSTORE_SETUP.md](KEYSTORE_SETUP.md) - Release signing configuration
+- **Architecture:** [.github/copilot-instructions.md](.github/copilot-instructions.md) - Code structure & patterns
 
 ### Developer Notes
 - Uses Gradle wrapper (no need to install Gradle separately)

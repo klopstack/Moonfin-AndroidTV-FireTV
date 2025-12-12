@@ -134,6 +134,7 @@ class ServerFragment : Fragment() {
 		binding.editButton.setOnClickListener {
 			binding.actionsContainer.isVisible = true
 			binding.editButton.isVisible = false
+			binding.addUserButton.requestFocus()
 		}
 
 		startupViewModel.loadUsers(server)

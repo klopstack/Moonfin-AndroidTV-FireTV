@@ -102,11 +102,26 @@ fun MainToolbar(
 	val userViewsRepository = koinInject<UserViewsRepository>()
 	val jellyseerrPreferences = koinInject<JellyseerrPreferences>(named("global"))
 	val userPreferences = koinInject<UserPreferences>()
+	val imageLoader = koinInject<coil3.ImageLoader>()
 	val scope = rememberCoroutineScope()
 
 	// Prevent user image to disappear when signing out by skipping null values
 	val currentUser by remember { userRepository.currentUser.filterNotNull() }.collectAsState(null)
 	val userImage = remember(currentUser) { currentUser?.primaryImage?.getUrl(api) }
+
+	// Preload user image into cache as soon as we have the URL
+	LaunchedEffect(userImage) {
+		if (userImage != null) {
+			withContext(Dispatchers.IO) {
+				val request = coil3.request.ImageRequest.Builder(context)
+					.data(userImage)
+					.memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+					.diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+					.build()
+				imageLoader.execute(request)
+			}
+		}
+	}
 
 	var jellyseerrEnabled by remember { mutableStateOf(false) }
 	LaunchedEffect(currentUser) {

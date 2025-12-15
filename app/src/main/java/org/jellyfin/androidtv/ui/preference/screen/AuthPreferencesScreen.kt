@@ -107,6 +107,17 @@ class AuthPreferencesScreen : OptionsFragment() {
 					bind(authenticationPreferences, AuthenticationPreferences.alwaysAuthenticate)
 				}
 			}
+
+			category {
+				setTitle(R.string.lbl_security)
+
+				link {
+					setTitle(R.string.lbl_pin_code)
+					setContent(R.string.lbl_pin_code_description)
+					icon = R.drawable.ic_lock
+					withFragment<PinCodePreferencesScreen>()
+				}
+			}
 		}
 
 		if (showAbout) aboutCategory()

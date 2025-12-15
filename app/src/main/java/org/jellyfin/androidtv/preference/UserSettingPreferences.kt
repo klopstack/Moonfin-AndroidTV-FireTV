@@ -8,11 +8,25 @@ import org.jellyfin.preference.enumPreference
 import org.jellyfin.preference.intPreference
 import org.jellyfin.preference.stringPreference
 import org.jellyfin.preference.store.SharedPreferenceStore
+import java.util.UUID
 
+/**
+ * User-specific settings and preferences.
+ * 
+ * Can be instantiated with a userId for per-user settings (like PIN codes),
+ * or without userId for global user settings.
+ */
 class UserSettingPreferences(
 	context: Context,
+	userId: UUID? = null,
 ) : SharedPreferenceStore(
-	sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+	sharedPreferences = if (userId != null) {
+		// User-specific preferences (PIN codes, etc.)
+		context.getSharedPreferences("user_settings_${userId}", Context.MODE_PRIVATE)
+	} else {
+		// Global user settings (shared across all users)
+		PreferenceManager.getDefaultSharedPreferences(context)
+	}
 ) {
 	companion object {
 		val skipBackLength = intPreference("skipBackLength", 10_000)
@@ -36,6 +50,17 @@ class UserSettingPreferences(
 		// Theme music settings
 		val themeMusicEnabled = booleanPreference("themeMusicEnabled", false)
 		val themeMusicVolume = intPreference("themeMusicVolume", 30) // 0-100
+
+		/* Security */
+		/**
+		 * Optional PIN code for user account protection (stored as SHA-256 hash)
+		 */
+		val userPinHash = stringPreference("user_pin_hash", "")
+
+		/**
+		 * Whether PIN is enabled for this user
+		 */
+		val userPinEnabled = booleanPreference("user_pin_enabled", false)
 	}
 
 	val homesections = listOf(

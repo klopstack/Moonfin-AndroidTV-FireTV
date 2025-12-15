@@ -83,6 +83,28 @@ fun SettingsMainScreen() {
 		ListButton(
 			leadingContent = {
 				Icon(
+					painterResource(R.drawable.ic_lock),
+					contentDescription = null
+				)
+			},
+			headingContent = { Text(stringResource(R.string.lbl_pin_code)) },
+			captionContent = { Text(stringResource(R.string.lbl_pin_code_description)) },
+			onClick = {
+				val intent = Intent(context, PreferencesActivity::class.java).apply {
+					putExtras(
+						bundleOf(
+							PreferencesActivity.EXTRA_SCREEN to org.jellyfin.androidtv.ui.preference.screen.PinCodePreferencesScreen::class.qualifiedName,
+							PreferencesActivity.EXTRA_SCREEN_ARGS to bundleOf(),
+						)
+					)
+				}
+				context.startActivity(intent)
+			}
+		)
+
+		ListButton(
+			leadingContent = {
+				Icon(
 					painterResource(R.drawable.ic_adjust),
 					contentDescription = null
 				)

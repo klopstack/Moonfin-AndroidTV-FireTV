@@ -41,6 +41,7 @@ import org.jellyfin.androidtv.ui.card.UserCardView
 import org.jellyfin.androidtv.ui.startup.StartupViewModel
 import org.jellyfin.androidtv.util.ListAdapter
 import org.jellyfin.androidtv.util.MarkdownRenderer
+import org.jellyfin.androidtv.util.PinCodeUtil
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
@@ -58,6 +59,9 @@ class ServerFragment : Fragment() {
 	private var _binding: FragmentServerBinding? = null
 	private val binding get() = _binding!!
 
+	private var pendingPinUser: User? = null
+	private var pendingPinServer: Server? = null
+
 	private val serverIdArgument get() = arguments?.getString(ARG_SERVER_ID)?.ifBlank { null }?.toUUIDOrNull()
 
 	override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
@@ -70,39 +74,23 @@ class ServerFragment : Fragment() {
 
 		_binding = FragmentServerBinding.inflate(inflater, container, false)
 
-		val userAdapter = UserAdapter(requireContext(), server, startupViewModel, authenticationRepository, serverUserRepository)
-		userAdapter.onItemPressed = { user ->
-			startupViewModel.authenticate(server, user).onEach { state ->
-				when (state) {
-					// Ignored states
-					AuthenticatingState -> Unit
-					AuthenticatedState -> Unit
-					// Actions
-					RequireSignInState -> navigateFragment<UserLoginFragment>(bundleOf(
-						UserLoginFragment.ARG_SERVER_ID to server.id.toString(),
-						UserLoginFragment.ARG_USERNAME to user.name,
-					))
-					// Errors
-					ServerUnavailableState,
-					is ApiClientErrorLoginState -> Toast.makeText(context, R.string.server_connection_failed, Toast.LENGTH_LONG).show()
-
-					is ServerVersionNotSupported -> Toast.makeText(
-						context,
-						getString(
-							R.string.server_issue_outdated_version,
-							state.server.version,
-							ServerRepository.recommendedServerVersion.toString()
-						),
-						Toast.LENGTH_LONG
-					).show()
-				}
-			}.launchIn(lifecycleScope)
+	val userAdapter = UserAdapter(requireContext(), server, startupViewModel, authenticationRepository, serverUserRepository)
+	userAdapter.onItemPressed = { user ->
+		// Check if user has PIN protection enabled
+		if (PinCodeUtil.isPinEnabled(requireContext(), user.id)) {
+			showPinEntry(server, user)
+		} else {
+			authenticateUser(server, user)
 		}
-		binding.users.adapter = userAdapter
+	}
+	binding.users.adapter = userAdapter
 
-		startupViewModel.users
-			.flowWithLifecycle(viewLifecycleOwner.lifecycle, Lifecycle.State.STARTED)
-			.onEach { users ->
+	// Setup PIN entry controls
+	setupPinEntry()
+
+	startupViewModel.users
+		.flowWithLifecycle(viewLifecycleOwner.lifecycle, Lifecycle.State.STARTED)
+		.onEach { users ->
 				userAdapter.items = users
 				
 				// Calculate centering padding once layout is complete
@@ -155,6 +143,95 @@ class ServerFragment : Fragment() {
 		super.onDestroyView()
 
 		_binding = null
+	}
+
+	private fun setupPinEntry() {
+		// Submit on Enter/Done key
+		binding.pinInput.setOnEditorActionListener { _, actionId, _ ->
+			if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+				verifyAndSubmitPin()
+				true
+			} else {
+				false
+			}
+		}
+
+		// Handle Back button to cancel PIN entry
+		binding.pinEntryContainer.isFocusableInTouchMode = true
+		binding.pinEntryContainer.setOnKeyListener { _, keyCode, event ->
+			if (keyCode == android.view.KeyEvent.KEYCODE_BACK && event.action == android.view.KeyEvent.ACTION_UP) {
+				hidePinEntry()
+				pendingPinUser = null
+				pendingPinServer = null
+				true
+			} else {
+				false
+			}
+		}
+	}
+
+	private fun verifyAndSubmitPin() {
+		val pin = binding.pinInput.text.toString()
+		if (pin.isNotEmpty() && pendingPinUser != null) {
+			val user = pendingPinUser!!
+			val userPrefs = org.jellyfin.androidtv.preference.UserSettingPreferences(requireContext(), user.id)
+			val storedHash = userPrefs[org.jellyfin.androidtv.preference.UserSettingPreferences.userPinHash]
+			
+			if (PinCodeUtil.hashPin(pin) == storedHash) {
+				// Correct PIN
+				hidePinEntry()
+				authenticateUser(pendingPinServer!!, user)
+				pendingPinUser = null
+				pendingPinServer = null
+			} else {
+				// Incorrect PIN
+				binding.pinError.isVisible = true
+				binding.pinInput.text?.clear()
+			}
+		}
+	}
+
+	private fun showPinEntry(server: Server, user: User) {
+		pendingPinUser = user
+		pendingPinServer = server
+		binding.pinEntryContainer.isVisible = true
+		binding.pinError.isVisible = false
+		binding.pinInput.text?.clear()
+		binding.pinInput.requestFocus()
+	}
+
+	private fun hidePinEntry() {
+		binding.pinEntryContainer.isVisible = false
+		binding.pinError.isVisible = false
+		binding.pinInput.text?.clear()
+	}
+
+	private fun authenticateUser(server: Server, user: User) {
+		startupViewModel.authenticate(server, user).onEach { state ->
+			when (state) {
+				// Ignored states
+				AuthenticatingState -> Unit
+				AuthenticatedState -> Unit
+				// Actions
+				RequireSignInState -> navigateFragment<UserLoginFragment>(bundleOf(
+					UserLoginFragment.ARG_SERVER_ID to server.id.toString(),
+					UserLoginFragment.ARG_USERNAME to user.name,
+				))
+				// Errors
+				ServerUnavailableState,
+				is ApiClientErrorLoginState -> Toast.makeText(context, R.string.server_connection_failed, Toast.LENGTH_LONG).show()
+
+				is ServerVersionNotSupported -> Toast.makeText(
+					context,
+					getString(
+						R.string.server_issue_outdated_version,
+						state.server.version,
+						ServerRepository.recommendedServerVersion.toString()
+					),
+					Toast.LENGTH_LONG
+				).show()
+			}
+		}.launchIn(lifecycleScope)
 	}
 
 	private fun onServerChange(server: Server) {

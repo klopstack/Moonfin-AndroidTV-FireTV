@@ -21,6 +21,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Extract version from gradle.properties
+      id: version
+      run: |
+        VERSION=$(grep '^moonfin.version=' gradle.properties | cut -d'=' -f2 | sed 's/^v//')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+
     - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
@@ -119,3 +126,26 @@ jobs:
         name: detekt-results
         path: build/reports/detekt/
         retention-days: 7
+
+    - name: Create GitHub Release
+      if: github.ref == 'refs/heads/master' && (github.event.inputs.release_build == 'true' || github.event_name == 'push')
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        name: Moonfin v${{ steps.version.outputs.version }}
+        body: |
+          ## Moonfin for Android TV v${{ steps.version.outputs.version }}
+
+          Automated release build from master branch.
+
+          ### Installation
+          Download the APK below and sideload it onto your Android TV device.
+
+          ### Changes
+          See the [commit history](https://github.com/${{ github.repository }}/commits/master) for details.
+        files: |
+          app/build/outputs/apk/release/*.apk
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.version, '-rc') || contains(steps.version.outputs.version, '-beta') || contains(steps.version.outputs.version, '-alpha') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

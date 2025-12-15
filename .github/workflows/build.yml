@@ -27,7 +27,7 @@ jobs:
     - name: Extract version from gradle.properties
       id: version
       run: |
-        VERSION=$(grep '^moonfin.version=' gradle.properties | cut -d'=' -f2 | sed 's/^v//')
+        VERSION=$(grep '^flickpickle.version=' gradle.properties | cut -d'=' -f2 | sed 's/^v//')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
 
@@ -135,9 +135,9 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ steps.version.outputs.version }}
-        name: Moonfin v${{ steps.version.outputs.version }}
+        name: FlickPickle v${{ steps.version.outputs.version }}
         body: |
-          ## Moonfin for Android TV v${{ steps.version.outputs.version }}
+          ## FlickPickle for Android TV v${{ steps.version.outputs.version }}
 
           Automated release build from master branch.
 

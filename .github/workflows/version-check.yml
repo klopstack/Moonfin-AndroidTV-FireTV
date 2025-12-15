@@ -17,7 +17,7 @@ jobs:
     - name: Get PR version
       id: pr_version
       run: |
-        VERSION=$(grep '^moonfin.version=' gradle.properties | cut -d'=' -f2 | sed 's/^v//')
+        VERSION=$(grep '^flickpickle.version=' gradle.properties | cut -d'=' -f2 | sed 's/^v//')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "PR Version: $VERSION"
 
@@ -29,7 +29,7 @@ jobs:
     - name: Get base version
       id: base_version
       run: |
-        VERSION=$(grep '^moonfin.version=' gradle.properties | cut -d'=' -f2 | sed 's/^v//')
+        VERSION=$(grep '^flickpickle.version=' gradle.properties | cut -d'=' -f2 | sed 's/^v//')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Base Version: $VERSION"
 
@@ -47,7 +47,7 @@ jobs:
           echo "The version in gradle.properties must be incremented for PRs."
           echo "Current version: $BASE_VERSION"
           echo ""
-          echo "Please update moonfin.version in gradle.properties to a new version:"
+          echo "Please update flickpickle.version in gradle.properties to a new version:"
           echo "  - Patch bump (bug fixes): ${BASE_VERSION%.*}.$((${BASE_VERSION##*.}+1))"
           echo "  - Minor bump (new features): ${BASE_VERSION%.*.*}.$((${BASE_VERSION#*.*.}+1)).0"
           echo "  - Pre-release: $BASE_VERSION-rc.1"

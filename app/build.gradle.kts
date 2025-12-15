@@ -18,7 +18,7 @@ android {
 		targetSdk = libs.versions.android.targetSdk.get().toInt()
 
 		// Release version - custom applicationId to avoid conflict with official Jellyfin
-		applicationId = "org.moonfin.androidtv"
+		applicationId = "org.flickpickle.androidtv"
 		versionName = project.getVersionName()
 		versionCode = getVersionCode(versionName!!)
 	}
@@ -64,7 +64,7 @@ android {
 			resValue("string", "app_search_suggest_intent_data", "content://${namespace}.content/intent")
 
 			// Set flavored application name
-			resValue("string", "app_name", "Moonfin")
+			resValue("string", "app_name", "FlickPickle")
 
 			buildConfigField("boolean", "DEVELOPMENT", "false")
 		}
@@ -83,7 +83,7 @@ android {
 		resValue("string", "app_search_suggest_intent_data", "content://${namespace + applicationIdSuffix}.content/intent")
 
 		// Set flavored application name
-		resValue("string", "app_name", "Moonfin Debug")
+		resValue("string", "app_name", "FlickPickle Debug")
 
 		buildConfigField("boolean", "DEVELOPMENT", (defaultConfig.versionCode!! < 100).toString())
 	}

@@ -62,7 +62,7 @@ jobs:
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
         if [ ! -z "$KEYSTORE_BASE64" ]; then
-          echo "$KEYSTORE_BASE64" | base64 -d > release-keystore.jks
+          echo "$KEYSTORE_BASE64" | base64 -d > app/release-keystore.jks
           echo "storeFile=release-keystore.jks" > keystore.properties
           echo "storePassword=$KEYSTORE_PASSWORD" >> keystore.properties
           echo "keyAlias=$KEY_ALIAS" >> keystore.properties

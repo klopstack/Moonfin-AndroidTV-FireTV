@@ -58,10 +58,11 @@ import org.jellyfin.androidtv.ui.base.button.IconButtonDefaults
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher
 import org.jellyfin.androidtv.ui.navigation.ActivityDestinations
 import org.jellyfin.androidtv.ui.navigation.Destinations
+import org.jellyfin.androidtv.preference.JellyseerrPreferences
+import org.jellyfin.preference.store.PreferenceStore
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.androidtv.ui.playback.MediaManager
 import org.jellyfin.androidtv.preference.UserSettingPreferences
-import org.jellyfin.androidtv.preference.JellyseerrPreferences
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.ui.settings.compat.SettingsViewModel
 import org.jellyfin.androidtv.util.apiclient.getUrl
@@ -95,20 +96,45 @@ fun MainToolbar(
 	activeButton: MainToolbarActiveButton = MainToolbarActiveButton.None,
 	activeLibraryId: UUID? = null,
 ) {
+	val context = LocalContext.current
 	val userRepository = koinInject<UserRepository>()
 	val api = koinInject<ApiClient>()
 	val userViewsRepository = koinInject<UserViewsRepository>()
 	val jellyseerrPreferences = koinInject<JellyseerrPreferences>(named("global"))
 	val userPreferences = koinInject<UserPreferences>()
+	val imageLoader = koinInject<coil3.ImageLoader>()
 	val scope = rememberCoroutineScope()
 
 	// Prevent user image to disappear when signing out by skipping null values
 	val currentUser by remember { userRepository.currentUser.filterNotNull() }.collectAsState(null)
 	val userImage = remember(currentUser) { currentUser?.primaryImage?.getUrl(api) }
 
+	// Preload user image into cache as soon as we have the URL
+	LaunchedEffect(userImage) {
+		if (userImage != null) {
+			withContext(Dispatchers.IO) {
+				val request = coil3.request.ImageRequest.Builder(context)
+					.data(userImage)
+					.memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+					.diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+					.build()
+				imageLoader.execute(request)
+			}
+		}
+	}
+
 	var jellyseerrEnabled by remember { mutableStateOf(false) }
-	LaunchedEffect(Unit) {
-		jellyseerrEnabled = jellyseerrPreferences[JellyseerrPreferences.enabled]
+	LaunchedEffect(currentUser) {
+		// Check if Jellyseerr is globally enabled
+		val globalEnabled = jellyseerrPreferences[JellyseerrPreferences.enabled]
+		if (globalEnabled && currentUser != null) {
+			// Check if current user has an API key
+			val userJellyseerrPrefs = JellyseerrPreferences(context = context, userId = currentUser!!.id.toString())
+			val hasApiKey = userJellyseerrPrefs[JellyseerrPreferences.apiKey].isNotEmpty()
+			jellyseerrEnabled = hasApiKey
+		} else {
+			jellyseerrEnabled = false
+		}
 	}
 
 	// Load toolbar customization preferences

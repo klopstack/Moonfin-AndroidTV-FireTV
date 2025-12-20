@@ -2,6 +2,7 @@ package org.jellyfin.androidtv.ui.browsing
 
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -288,5 +289,11 @@ class MainActivity : FragmentActivity() {
 		exitConfirmationDialog?.dismiss()
 		exitConfirmationDialog = null
 		super.onDestroy()
+	}
+
+	override fun onConfigurationChanged(newConfig: Configuration) {
+		super.onConfigurationChanged(newConfig)
+		Timber.d("Configuration changed - preserving activity and playback state")
+		applyTheme()
 	}
 }

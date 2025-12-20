@@ -118,59 +118,63 @@ class MediaBarSlideshowViewModel(
 	 */
 	private fun loadSlideshowItems() {
 		viewModelScope.launch {
-		try {
-			_state.value = MediaBarState.Loading
-			val config = getConfig()
-			val contentType = userSettingPreferences[UserSettingPreferences.mediaBarContentType]
+			try {
+				_state.value = MediaBarState.Loading
+				val config = getConfig()
+				val contentType = userSettingPreferences[UserSettingPreferences.mediaBarContentType]
 
-			// Fetch items based on user preference
-			val allItems: List<org.jellyfin.sdk.model.api.BaseItemDto> = withContext(Dispatchers.IO) {
-			when (contentType) {
-				"movies" -> {
-					fetchItems(BaseItemKind.MOVIE, config.maxItems).items.orEmpty()
+				// Fetch items based on user preference
+				val allItems: List<org.jellyfin.sdk.model.api.BaseItemDto> = withContext(Dispatchers.IO) {
+					when (contentType) {
+						"movies" -> {
+							fetchItems(BaseItemKind.MOVIE, config.maxItems).items.orEmpty()
+						}
+						"tv" -> {
+							fetchItems(BaseItemKind.SERIES, config.maxItems).items.orEmpty()
+						}
+						else -> { // "both"
+							val movies = async { fetchItems(BaseItemKind.MOVIE, config.maxItems) }
+							val shows = async { fetchItems(BaseItemKind.SERIES, config.maxItems) }
+							(movies.await().items.orEmpty() + shows.await().items.orEmpty())
+						}
+					}
+						.filter { it.backdropImageTags?.isNotEmpty() == true }
+						.shuffled()
+						.take(config.maxItems)
 				}
-				"tv" -> {
-					fetchItems(BaseItemKind.SERIES, config.maxItems).items.orEmpty()
-				}
-				else -> { // "both"
-					val movies = async { fetchItems(BaseItemKind.MOVIE, config.maxItems) }
-					val shows = async { fetchItems(BaseItemKind.SERIES, config.maxItems) }
-					(movies.await().items.orEmpty() + shows.await().items.orEmpty())
-				}
-			}
 
-			items = allItems.map { item ->
-				MediaBarSlideItem(
-					itemId = item.id,
-					title = item.name.orEmpty(),
-					overview = item.overview,
-					backdropUrl = item.backdropImageTags?.firstOrNull()?.let { tag ->
-						api.imageApi.getItemImageUrl(
-							itemId = item.id,
-							imageType = ImageType.BACKDROP,
-							tag = tag,
-							maxWidth = 1920,
-							quality = 90
-						)
-					},
-					logoUrl = item.imageTags?.get(ImageType.LOGO)?.let { tag ->
-						api.imageApi.getItemImageUrl(
-							itemId = item.id,
-							imageType = ImageType.LOGO,
-							tag = tag,
-							maxWidth = 800,
-						)
-					},
-					rating = item.officialRating,
-					year = item.productionYear,
-					genres = item.genres.orEmpty().take(3),
-					runtime = item.runTimeTicks?.let { ticks -> (ticks / 10000) },
-					criticRating = item.criticRating?.toInt(),
-					communityRating = item.communityRating,
-				)
-			}
+				items = allItems.map { item ->
+					MediaBarSlideItem(
+						itemId = item.id,
+						title = item.name.orEmpty(),
+						overview = item.overview,
+						backdropUrl = item.backdropImageTags?.firstOrNull()?.let { tag ->
+							api.imageApi.getItemImageUrl(
+								itemId = item.id,
+								imageType = ImageType.BACKDROP,
+								tag = tag,
+								maxWidth = 1920,
+								quality = 90
+							)
+						},
+						logoUrl = item.imageTags?.get(ImageType.LOGO)?.let { tag ->
+							api.imageApi.getItemImageUrl(
+								itemId = item.id,
+								imageType = ImageType.LOGO,
+								tag = tag,
+								maxWidth = 800,
+							)
+						},
+						rating = item.officialRating,
+						year = item.productionYear,
+						genres = item.genres.orEmpty().take(3),
+						runtime = item.runTimeTicks?.let { ticks -> (ticks / 10000) },
+						criticRating = item.criticRating?.toInt(),
+						communityRating = item.communityRating,
+					)
+				}
 
-			if (items.isNotEmpty()) {
+				if (items.isNotEmpty()) {
 					_state.value = MediaBarState.Ready(items)
 					startAutoPlay()
 				} else {

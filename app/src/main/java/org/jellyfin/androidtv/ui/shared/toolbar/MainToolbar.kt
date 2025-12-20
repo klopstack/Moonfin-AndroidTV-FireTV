@@ -429,6 +429,20 @@ private fun MainToolbar(
 				)
 			}
 		}
+			
+			// Settings button
+			IconButton(
+				onClick = {
+					settingsViewModel.show()
+				},
+				colors = toolbarButtonColors,
+			) {
+				Icon(
+					imageVector = ImageVector.vectorResource(R.drawable.ic_settings),
+					contentDescription = stringResource(R.string.lbl_settings),
+				)
+			}
+			
 			// Dynamic library buttons (conditional)
 			if (showLibrariesInToolbar) {
 				ProvideTextStyle(JellyfinTheme.typography.default.copy(fontWeight = FontWeight.Bold)) {

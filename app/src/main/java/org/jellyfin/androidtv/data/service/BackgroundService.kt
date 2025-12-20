@@ -27,6 +27,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+enum class BlurContext {
+	DETAILS,
+	BROWSING,
+	NONE
+}
+
 class BackgroundService(
 	private val context: Context,
 	private val jellyfin: Jellyfin,
@@ -49,22 +55,23 @@ class BackgroundService(
 	private var _backgrounds = emptyList<ImageBitmap>()
 	private var _currentIndex = 0
 	private var _currentBackground = MutableStateFlow<ImageBitmap?>(null)
-	private var _blurBackground = MutableStateFlow(false)
+	private var _blurContext = MutableStateFlow(BlurContext.NONE)
 	private var _enabled = MutableStateFlow(true)
 	val currentBackground get() = _currentBackground.asStateFlow()
-	val blurBackground get() = _blurBackground.asStateFlow()
+	val blurContext get() = _blurContext.asStateFlow()
 	val enabled get() = _enabled.asStateFlow()
 
 	/**
 	 * Use all available backdrops from [baseItem] as background.
+	 * @param blurContext The context to determine which blur amount preference to use
 	 */
-	fun setBackground(baseItem: BaseItemDto?) {
+	fun setBackground(baseItem: BaseItemDto?, blurContext: BlurContext = BlurContext.DETAILS) {
 		// Check if item is set and backgrounds are enabled
 		if (baseItem == null || !userPreferences[UserPreferences.backdropEnabled])
 			return clearBackgrounds()
 
-		// Enable blur for backdrops
-		_blurBackground.value = true
+		// Set blur context
+		_blurContext.value = blurContext
 
 		// Get all backdrop urls
 		val backdropUrls = (baseItem.itemBackdropImages + baseItem.parentBackdropImages)
@@ -86,8 +93,8 @@ class BackgroundService(
 		if (!server.splashscreenEnabled)
 			return clearBackgrounds()
 
-		// Disable blur on splashscreen
-		_blurBackground.value = false
+		// No blur on splashscreen
+		_blurContext.value = BlurContext.NONE
 
 		// Manually grab the backdrop URL
 		val api = jellyfin.createApi(baseUrl = server.address)
@@ -98,14 +105,15 @@ class BackgroundService(
 
 	/**
 	 * Use a direct image URL as background (e.g., TMDB images for Jellyseerr).
+	 * @param blurContext The context to determine which blur amount preference to use
 	 */
-	fun setBackgroundUrl(imageUrl: String, enableBlur: Boolean = true) {
+	fun setBackgroundUrl(imageUrl: String, blurContext: BlurContext = BlurContext.BROWSING) {
 		// Check if backgrounds are enabled
 		if (!userPreferences[UserPreferences.backdropEnabled])
 			return clearBackgrounds()
 
-		// Set blur preference
-		_blurBackground.value = enableBlur
+		// Set blur context
+		_blurContext.value = blurContext
 
 		loadBackgrounds(setOf(imageUrl))
 	}

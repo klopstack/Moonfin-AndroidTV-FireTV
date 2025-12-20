@@ -619,6 +619,15 @@
     <string name="settings">Settings</string>
     <string name="settings_description">Change the app to your own liking</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="pref_playback_next_up">Next up</string>
+    <string name="pref_playback_media_segments">Media segments</string>
+    <string name="pref_customization_subtitles">Subtitles</string>
+    <string name="pref_playback_prerolls">Prerolls</string>
+    <string name="pref_playback_inactivity_prompt">Inactivity prompt</string>
+    <string name="pref_prerolls_enabled">Enable cinema mode</string>
+    <string name="pref_prerolls_enabled_description">Play custom intros before movies</string>
+    <string name="pref_media_queueing">Queue all episodes</string>
+    <string name="pref_media_queueing_description">Add subsequent episodes to the queue when playing TV series</string>
     <plurals name="seconds">
         <item quantity="one">%1$s second</item>
         <item quantity="other">%1$s seconds</item>
@@ -785,11 +794,15 @@
     <string name="pref_visual_settings">Visual Settings</string>
     <string name="pref_background_blur_amount">Background Blur Amount</string>
     <string name="pref_background_blur_amount_description">Control blur intensity for all background images across the app</string>
-    <string name="pref_blur_none">No Blur</string>
-    <string name="pref_blur_light">Light (5dp)</string>
-    <string name="pref_blur_medium">Medium (10dp) - Default</string>
-    <string name="pref_blur_strong">Strong (15dp)</string>
-    <string name="pref_blur_extra_strong">Extra Strong (20dp)</string>
+    <string name="pref_browsing_background_blur_amount">Home and Jellyseerr Background Blur</string>
+    <string name="pref_browsing_background_blur_amount_description">Blur intensity for home screen and discovery backgrounds</string>
+        <string name="pref_details_background_blur_amount">Media Details Background Blur</string>
+    <string name="pref_details_background_blur_amount_description">Blur intensity for movie, TV show, and episode details pages</string>
+    <string name="pref_blur_none">None</string>
+    <string name="pref_blur_light">Light</string>
+    <string name="pref_blur_medium">Med</string>
+    <string name="pref_blur_strong">High</string>
+    <string name="pref_blur_extra_strong">Extra</string>
     
     <!-- Toolbar Customization -->
     <string name="pref_toolbar_customization">Toolbar Customization</string>

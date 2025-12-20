@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.jellyfin.androidtv.constant.Extras
 import org.jellyfin.androidtv.data.service.BackgroundService
+import org.jellyfin.androidtv.data.service.BlurContext
 import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher
 import org.jellyfin.androidtv.ui.itemhandling.ItemRowAdapter
@@ -62,7 +63,7 @@ abstract class BrowseFolderFragment : BrowseSupportFragment(), RowLoader {
 				val adapter = (row as? ListRow)?.adapter
 				if (adapter is ItemRowAdapter) adapter.loadMoreItemsIfNeeded(adapter.indexOf(item))
 
-				backgroundService.setBackground(item.baseItem)
+				backgroundService.setBackground(item.baseItem, BlurContext.BROWSING)
 			}
 		}
 

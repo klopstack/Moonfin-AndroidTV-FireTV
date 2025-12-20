@@ -46,6 +46,7 @@ import org.jellyfin.androidtv.data.querying.GetSpecialsRequest;
 import org.jellyfin.androidtv.data.querying.GetTrailersRequest;
 import org.jellyfin.androidtv.data.repository.CustomMessageRepository;
 import org.jellyfin.androidtv.data.service.BackgroundService;
+import org.jellyfin.androidtv.data.service.BlurContext;
 import org.jellyfin.androidtv.databinding.FragmentFullDetailsBinding;
 import org.jellyfin.androidtv.preference.UserPreferences;
 import org.jellyfin.androidtv.preference.constant.ClockBehavior;
@@ -493,7 +494,7 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
         if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) return;
 
         mBaseItem = item;
-        backgroundService.getValue().setBackground(item);
+        backgroundService.getValue().setBackground(item, BlurContext.DETAILS);
         if (mBaseItem != null) {
             if (mChannelId != null) {
                 mBaseItem = JavaCompat.copyWithParentId(mBaseItem, mChannelId);

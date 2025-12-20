@@ -26,6 +26,7 @@ import androidx.lifecycle.Lifecycle;
 import org.jellyfin.androidtv.R;
 import org.jellyfin.androidtv.data.model.DataRefreshService;
 import org.jellyfin.androidtv.data.service.BackgroundService;
+import org.jellyfin.androidtv.data.service.BlurContext;
 import org.jellyfin.androidtv.databinding.FragmentItemListBinding;
 import org.jellyfin.androidtv.databinding.ViewRowDetailsBinding;
 import org.jellyfin.androidtv.ui.AsyncImageView;
@@ -475,6 +476,6 @@ public class ItemListFragment extends Fragment implements View.OnKeyListener {
         if (item.getBackdropImageTags() == null || item.getBackdropImageTags().isEmpty() && mItems != null && !mItems.isEmpty())
             item = mItems.get(new Random().nextInt(mItems.size()));
 
-        backgroundService.getValue().setBackground(item);
+        backgroundService.getValue().setBackground(item, BlurContext.DETAILS);
     }
 }

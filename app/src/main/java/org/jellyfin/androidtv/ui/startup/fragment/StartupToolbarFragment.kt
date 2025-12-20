@@ -12,8 +12,9 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.fragment.app.replace
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.ui.base.JellyfinTheme
 import org.jellyfin.androidtv.ui.preference.PreferencesActivity
-import org.jellyfin.androidtv.ui.preference.screen.AuthPreferencesScreen
+import org.jellyfin.androidtv.ui.preference.screen.CustomizationPreferencesScreen
 import org.jellyfin.androidtv.ui.shared.toolbar.StartupToolbar
 
 class StartupToolbarFragment : Fragment() {
@@ -21,10 +22,10 @@ class StartupToolbarFragment : Fragment() {
 		inflater: LayoutInflater,
 		container: ViewGroup?,
 		savedInstanceState: Bundle?
-	): View {
-		return ComposeView(requireContext()).apply {
-			setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-			setContent {
+	): View = ComposeView(requireContext()).apply {
+		setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+		setContent {
+			JellyfinTheme {
 				StartupToolbar(
 					openHelp = {
 						parentFragmentManager.commit {
@@ -33,15 +34,16 @@ class StartupToolbarFragment : Fragment() {
 						}
 					},
 					openSettings = {
-						val intent = Intent(requireContext(), PreferencesActivity::class.java)
-						intent.putExtra(PreferencesActivity.EXTRA_SCREEN, AuthPreferencesScreen::class.qualifiedName)
-						intent.putExtra(
-							PreferencesActivity.EXTRA_SCREEN_ARGS, bundleOf(
-								AuthPreferencesScreen.ARG_SHOW_ABOUT to true
+						val intent = Intent(requireContext(), PreferencesActivity::class.java).apply {
+							putExtras(
+								bundleOf(
+									PreferencesActivity.EXTRA_SCREEN to CustomizationPreferencesScreen::class.qualifiedName,
+									PreferencesActivity.EXTRA_SCREEN_ARGS to bundleOf(),
+								)
 							)
-						)
+						}
 						startActivity(intent)
-					},
+					}
 				)
 			}
 		}

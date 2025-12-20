@@ -36,6 +36,7 @@ import org.jellyfin.androidtv.data.repository.CustomMessageRepository
 import org.jellyfin.androidtv.data.repository.NotificationsRepository
 import org.jellyfin.androidtv.data.repository.UserViewsRepository
 import org.jellyfin.androidtv.data.service.BackgroundService
+import org.jellyfin.androidtv.data.service.BlurContext
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.ui.browsing.CompositeClickedListener
@@ -422,7 +423,7 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 
 				// Debounce background loading - only load after user stops navigating for 200ms
 				backgroundDebouncer.debounce {
-					backgroundService.setBackground(item.baseItem)
+					backgroundService.setBackground(item.baseItem, BlurContext.BROWSING)
 				}
 			}
 		}

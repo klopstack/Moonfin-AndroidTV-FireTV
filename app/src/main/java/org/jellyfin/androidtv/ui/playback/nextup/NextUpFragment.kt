@@ -39,6 +39,7 @@ import androidx.fragment.compose.content
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.service.BackgroundService
+import org.jellyfin.androidtv.data.service.BlurContext
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.constant.NEXTUP_TIMER_DISABLED
 import org.jellyfin.androidtv.ui.background.AppBackground
@@ -79,7 +80,7 @@ fun NextUpScreen(
 	if (item == null) return
 
 	LaunchedEffect(item?.baseItem) {
-		backgroundService.setBackground(item?.baseItem)
+		backgroundService.setBackground(item?.baseItem, BlurContext.DETAILS)
 	}
 
 	LaunchedEffect(state) {

@@ -37,6 +37,7 @@ import org.jellyfin.androidtv.data.model.DataRefreshService;
 import org.jellyfin.androidtv.data.querying.GetUserViewsRequest;
 import org.jellyfin.androidtv.data.repository.CustomMessageRepository;
 import org.jellyfin.androidtv.data.service.BackgroundService;
+import org.jellyfin.androidtv.data.service.BlurContext;
 import org.jellyfin.androidtv.databinding.EnhancedDetailBrowseBinding;
 import org.jellyfin.androidtv.ui.GridButton;
 import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem;
@@ -476,7 +477,7 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.
             ItemRowAdapter adapter = (ItemRowAdapter) ((ListRow) row).getAdapter();
             adapter.loadMoreItemsIfNeeded(adapter.indexOf(rowItem));
 
-            backgroundService.getValue().setBackground(rowItem.getBaseItem());
+            backgroundService.getValue().setBackground(rowItem.getBaseItem(), BlurContext.BROWSING);
         }
     }
 }

@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.service.BackgroundService
+import org.jellyfin.androidtv.data.service.BlurContext
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.ui.settings.compat.rememberPreference
 import org.koin.compose.koinInject
@@ -67,9 +68,17 @@ fun AppBackground() {
 	val backgroundService = koinInject<BackgroundService>()
 	val userSettingPreferences = koinInject<UserSettingPreferences>()
 	val currentBackground by backgroundService.currentBackground.collectAsState()
-	val blurBackground by backgroundService.blurBackground.collectAsState()
+	val blurContext by backgroundService.blurContext.collectAsState()
 	val enabled by backgroundService.enabled.collectAsState()
-	val blurAmount by rememberPreference(userSettingPreferences, UserSettingPreferences.backgroundBlurAmount)
+	
+	val detailsBlurAmount by rememberPreference(userSettingPreferences, UserSettingPreferences.detailsBackgroundBlurAmount)
+	val browsingBlurAmount by rememberPreference(userSettingPreferences, UserSettingPreferences.browsingBackgroundBlurAmount)
+	
+	val blurAmount = when (blurContext) {
+		BlurContext.DETAILS -> detailsBlurAmount
+		BlurContext.BROWSING -> browsingBlurAmount
+		BlurContext.NONE -> 0
+	}
 
 	if (enabled) {
 		AnimatedContent(
@@ -89,7 +98,7 @@ fun AppBackground() {
 					colorFilter = ColorFilter.tint(colorResource(R.color.background_filter), BlendMode.SrcAtop),
 					modifier = Modifier
 						.fillMaxSize()
-						.then(if (blurBackground) Modifier.blur(blurAmount.dp) else Modifier)
+						.then(if (blurAmount > 0) Modifier.blur(blurAmount.dp) else Modifier)
 				)
 			} else {
 				AppThemeBackground()

@@ -5,9 +5,12 @@ import android.content.Context
 import android.text.InputType
 import android.view.Gravity
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.content.getSystemService
 import org.jellyfin.androidtv.R
 
 object PinCodeDialog {
@@ -60,8 +63,8 @@ object PinCodeDialog {
 				setPadding(20, 20, 20, 20)
 			}
 			container.addView(confirmInput)
-
-			AlertDialog.Builder(context)
+			
+			val dialog = AlertDialog.Builder(context)
 				.setView(container)
 				.setPositiveButton(android.R.string.ok) { _, _ ->
 					val pin = pinInput.text.toString()
@@ -95,15 +98,35 @@ object PinCodeDialog {
 						else -> onComplete(pin)
 					}
 				}
-				.setNegativeButton(android.R.string.cancel) { _, _ ->
-					onComplete(null)
-				}
-				.show()
-				.also {
-					pinInput.requestFocus()
-				}
+				.setNegativeButton(android.R.string.cancel) { _, _ -> onComplete(null) }
+				.create()
+			
+			// First PIN field: move to confirmation, keep keyboard open
+			pinInput.setOnEditorActionListener { _, actionId, _ ->
+				if (actionId == EditorInfo.IME_ACTION_DONE || actionId == EditorInfo.IME_ACTION_NEXT) {
+					confirmInput.requestFocus()
+					true
+				} else false
+			}
+			
+			// Confirmation field: hide keyboard and focus OK button
+			confirmInput.setOnEditorActionListener { _, actionId, _ ->
+				if (actionId == EditorInfo.IME_ACTION_DONE) {
+					confirmInput.clearFocus()
+					val imm = context.getSystemService<InputMethodManager>()
+					imm?.hideSoftInputFromWindow(confirmInput.windowToken, 0)
+					// Focus OK button after keyboard dismissed
+					confirmInput.postDelayed({
+						dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus()
+					}, 150)
+					true
+				} else false
+			}
+			
+			dialog.show()
+			pinInput.requestFocus()
 		} else {
-			AlertDialog.Builder(context)
+			val dialog = AlertDialog.Builder(context)
 				.setView(container)
 				.setPositiveButton(android.R.string.ok) { _, _ ->
 					val pin = pinInput.text.toString()
@@ -118,13 +141,24 @@ object PinCodeDialog {
 						onComplete(pin)
 					}
 				}
-				.setNegativeButton(android.R.string.cancel) { _, _ ->
-					onComplete(null)
-				}
-				.show()
-				.also {
-					pinInput.requestFocus()
-				}
+				.setNegativeButton(android.R.string.cancel) { _, _ -> onComplete(null) }
+				.create()
+			
+			// Hide keyboard and focus OK button when done pressed
+			pinInput.setOnEditorActionListener { _, actionId, _ ->
+				if (actionId == EditorInfo.IME_ACTION_DONE) {
+					pinInput.clearFocus()
+					val imm = context.getSystemService<InputMethodManager>()
+					imm?.hideSoftInputFromWindow(pinInput.windowToken, 0)
+					pinInput.postDelayed({
+						dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus()
+					}, 150)
+					true
+				} else false
+			}
+			
+			dialog.show()
+			pinInput.requestFocus()
 		}
 	}
 }

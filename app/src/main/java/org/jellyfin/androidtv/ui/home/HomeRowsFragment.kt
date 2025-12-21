@@ -148,7 +148,6 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 			if (userSettingPreferences[UserSettingPreferences.mediaBarEnabled]) {
 				rows.add(mediaBarRow)
 			}
-
 			// Actually add the sections
 			val mergeContinueWatching = userPreferences[UserPreferences.mergeContinueWatchingNextUp]
 			var mergedRowAdded = false

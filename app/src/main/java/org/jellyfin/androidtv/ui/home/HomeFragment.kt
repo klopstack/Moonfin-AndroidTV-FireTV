@@ -250,8 +250,9 @@ class HomeFragment : Fragment() {
 		val isMediaBarEnabled = userSettingPreferences[UserSettingPreferences.mediaBarEnabled]
 
 		// Determine if we should show media bar content
-		// Show if: media bar is focused OR (we're at position 0 AND media bar is enabled) OR position is -1 (toolbar/no selection)
-		val isOnMediaBar = isFocused || (selectedPosition == 0 && isMediaBarEnabled) || selectedPosition == -1
+		// Show if: media bar is enabled AND (media bar is focused OR we're at position 0 OR position is -1 (toolbar/no selection))
+		// Important: If media bar is disabled, we should NEVER show its backdrop (even if isFocused somehow becomes true)
+		val isOnMediaBar = isMediaBarEnabled && (isFocused || selectedPosition == 0 || selectedPosition == -1)
 
 		Timber.d("updateLogoVisibility: position=%d, isFocused=%b, isOnMediaBar=%b, logoUrl=%s",
 			selectedPosition, isFocused, isOnMediaBar, selectedItemState?.logoUrl?.take(50))
@@ -276,7 +277,7 @@ class HomeFragment : Fragment() {
 	}
 
 	private fun updateDetailsVisibility(position: Int) {
-		val isMediaBarEnabled = userSettingPreferences.activeHomesections.contains(org.jellyfin.androidtv.constant.HomeSectionType.MEDIA_BAR)
+		val isMediaBarEnabled = userSettingPreferences[UserSettingPreferences.mediaBarEnabled]
 		val shouldShowDetails = position <= 0 || (position == 1 && !isMediaBarEnabled)
 
 		// Animate details widgets (title/logo/name, infoRow, summary)

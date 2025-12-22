@@ -250,19 +250,24 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var subtitlesOffsetPosition = floatPreference("subtitles_offset_position", 0.08f)
 
 		/**
-		 * Show screensaver in app
-		 */
-		var screensaverInAppEnabled = booleanPreference("screensaver_inapp_enabled", true)
+	 * Force subtitles to default to None instead of server default
+	 */
+	var subtitlesDefaultToNone = booleanPreference("subtitles_default_to_none", false)
 
-		/**
-		 * Screensaver mode (library or logo)
-		 */
-		var screensaverMode = stringPreference("pref_screensaver_mode", "library")
+	/**
+	 * Show screensaver in app
+	 */
+	var screensaverInAppEnabled = booleanPreference("screensaver_inapp_enabled", true)
 
-		/**
-		 * Screen dimming level for the screensaver (1-100%).
-		 * 0 means no dimming.
-		 */
+	/**
+	 * Screensaver mode (library or logo)
+	 */
+	var screensaverMode = stringPreference("pref_screensaver_mode", "library")
+
+	/**
+	 * Screen dimming level for the screensaver (1-100%).
+	 * 0 means no dimming.
+	 */
 		var screensaverDimmingLevel = intPreference("pref_screensaver_dimming_level", 0)
 
 		/**

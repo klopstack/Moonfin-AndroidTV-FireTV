@@ -512,6 +512,8 @@
     <string name="pref_playback_description">Video, subtitles, live tv, next up</string>
     <string name="pref_video">Video</string>
     <string name="pref_subtitles">Subtitles</string>
+    <string name="pref_subtitles_default_to_none">Default subtitles to None</string>
+    <string name="pref_subtitles_default_to_none_description">Always start playback with subtitles off, ignoring server default</string>
     <string name="pref_audio">Audio</string>
     <string name="pref_direct_stream_live_off">Transcoding is used when necessary</string>
     <string name="pref_direct_stream_live_on">Transcoding is disabled</string>

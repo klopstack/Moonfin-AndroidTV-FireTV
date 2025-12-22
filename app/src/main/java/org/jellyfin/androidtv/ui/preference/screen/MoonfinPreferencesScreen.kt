@@ -104,6 +104,12 @@ class MoonfinPreferencesScreen : OptionsFragment() {
 				)
 				bind(userPreferences, UserPreferences.seasonalSurprise)
 			}
+
+			checkbox {
+				setTitle(R.string.pref_subtitles_default_to_none)
+				setContent(R.string.pref_subtitles_default_to_none_description)
+				bind(userPreferences, UserPreferences.subtitlesDefaultToNone)
+			}
 		}
 
 		// Media Bar Settings

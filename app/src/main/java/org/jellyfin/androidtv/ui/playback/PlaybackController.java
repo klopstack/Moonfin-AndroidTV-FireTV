@@ -669,10 +669,16 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         }
 
         // get subtitle info
-        mCurrentOptions.setSubtitleStreamIndex(response.getMediaSource().getDefaultSubtitleStreamIndex() != null ? response.getMediaSource().getDefaultSubtitleStreamIndex() : null);
+        boolean subtitlesDefaultToNone = userPreferences.getValue().get(UserPreferences.Companion.getSubtitlesDefaultToNone());
+        if (subtitlesDefaultToNone) {
+            mCurrentOptions.setSubtitleStreamIndex(-1);
+            Timber.i("default sub index set to -1 (None) - server default was %s", response.getMediaSource().getDefaultSubtitleStreamIndex());
+        } else {
+            mCurrentOptions.setSubtitleStreamIndex(response.getMediaSource().getDefaultSubtitleStreamIndex() != null ? response.getMediaSource().getDefaultSubtitleStreamIndex() : null);
+            Timber.i("default sub index set to %s remote default %s", mCurrentOptions.getSubtitleStreamIndex(), response.getMediaSource().getDefaultSubtitleStreamIndex());
+        }
         setDefaultAudioIndex(response);
         Timber.i("default audio index set to %s remote default %s", mDefaultAudioIndex, response.getMediaSource().getDefaultAudioStreamIndex());
-        Timber.i("default sub index set to %s remote default %s", mCurrentOptions.getSubtitleStreamIndex(), response.getMediaSource().getDefaultSubtitleStreamIndex());
 
         Long mbPos = position * 10000;
 
@@ -1280,6 +1286,12 @@ public class PlaybackController implements PlaybackControllerNotifiable {
                 eligibleAudioTrack = getCurrentMediaSource().getDefaultAudioStreamIndex();
             }
             switchAudioStream(eligibleAudioTrack);
+        }
+
+        // Force disable subtitles if preference is enabled and default is None
+        boolean subtitlesDefaultToNone = userPreferences.getValue().get(UserPreferences.Companion.getSubtitlesDefaultToNone());
+        if (subtitlesDefaultToNone && (mCurrentOptions.getSubtitleStreamIndex() == null || mCurrentOptions.getSubtitleStreamIndex() == -1)) {
+            PlaybackControllerHelperKt.disableDefaultSubtitles(this);
         }
     }
 

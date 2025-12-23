@@ -441,6 +441,7 @@
     <string name="home_sections_reset">Reset to defaults</string>
     <string name="home_section_media_bar">Featured media</string>
     <string name="home_section_latest_media">Recently added media</string>
+    <string name="home_section_recently_released">Recently released</string>
     <string name="home_section_library">My media</string>
     <string name="home_section_library_small">My media (small)</string>
     <string name="home_section_resume">Continue watching</string>

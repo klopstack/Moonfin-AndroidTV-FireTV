@@ -14,7 +14,10 @@ import org.jellyfin.androidtv.ui.playback.MoonfinPlaylistManager
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.MediaType
+import org.jellyfin.sdk.model.api.SortOrder
+import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.api.request.GetNextUpRequest
 import org.jellyfin.sdk.model.api.request.GetRecommendedProgramsRequest
 import org.jellyfin.sdk.model.api.request.GetRecordingsRequest
@@ -40,6 +43,32 @@ class HomeFragmentHelper(
 			// Use normal row for current server only
 			HomeFragmentLatestRow(userRepository, userViews)
 		}
+	}
+
+	fun loadRecentlyReleased(): HomeFragmentRow {
+		// Query items sorted by premiere/release date (most recent first)
+		val query = GetItemsRequest(
+			startIndex = 0,
+			limit = ITEM_LIMIT_RECENTLY_RELEASED,
+			fields = ItemRepository.itemFields,
+			includeItemTypes = setOf(BaseItemKind.MOVIE, BaseItemKind.SERIES),
+			sortBy = setOf(ItemSortBy.PREMIERE_DATE),
+			sortOrder = setOf(SortOrder.DESCENDING),
+			recursive = true,
+			imageTypeLimit = 1,
+			enableTotalRecordCount = false,
+		)
+
+		return HomeFragmentBrowseRowDefRow(
+			BrowseRowDef(
+				context.getString(R.string.home_section_recently_released),
+				query,
+				0,
+				false,
+				true,
+				arrayOf(ChangeTriggerType.LibraryUpdated)
+			)
+		)
 	}
 
 	fun loadResume(title: String, includeMediaTypes: Collection<MediaType>): HomeFragmentRow {
@@ -188,5 +217,6 @@ class HomeFragmentHelper(
 		private const val ITEM_LIMIT_RECORDINGS = 40
 		private const val ITEM_LIMIT_NEXT_UP = 50
 		private const val ITEM_LIMIT_ON_NOW = 20
+		private const val ITEM_LIMIT_RECENTLY_RELEASED = 50
 	}
 }

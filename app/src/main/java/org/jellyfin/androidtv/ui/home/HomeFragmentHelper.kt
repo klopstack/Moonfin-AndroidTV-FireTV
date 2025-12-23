@@ -48,22 +48,20 @@ class HomeFragmentHelper(
 	fun loadRecentlyReleased(): HomeFragmentRow {
 		// Query items sorted by premiere/release date (most recent first)
 		val query = GetItemsRequest(
-			startIndex = 0,
-			limit = ITEM_LIMIT_RECENTLY_RELEASED,
 			fields = ItemRepository.itemFields,
 			includeItemTypes = setOf(BaseItemKind.MOVIE, BaseItemKind.SERIES),
 			sortBy = setOf(ItemSortBy.PREMIERE_DATE),
 			sortOrder = setOf(SortOrder.DESCENDING),
 			recursive = true,
 			imageTypeLimit = 1,
-			enableTotalRecordCount = false,
+			enableTotalRecordCount = true,
 		)
 
 		return HomeFragmentBrowseRowDefRow(
 			BrowseRowDef(
 				context.getString(R.string.home_section_recently_released),
 				query,
-				0,
+				HOME_ROW_CHUNK_SIZE,
 				false,
 				true,
 				arrayOf(ChangeTriggerType.LibraryUpdated)
@@ -73,7 +71,7 @@ class HomeFragmentHelper(
 
 	fun loadResume(title: String, includeMediaTypes: Collection<MediaType>): HomeFragmentRow {
 		val query = GetResumeItemsRequest(
-			limit = ITEM_LIMIT_RESUME,
+			limit = HOME_ROW_MAX_ITEMS,
 			fields = ItemRepository.itemFields,
 			imageTypeLimit = 1,
 			enableTotalRecordCount = false,
@@ -81,7 +79,7 @@ class HomeFragmentHelper(
 			excludeItemTypes = setOf(BaseItemKind.AUDIO_BOOK),
 		)
 
-		return HomeFragmentBrowseRowDefRow(BrowseRowDef(title, query, 0, userPreferences[UserPreferences.seriesThumbnailsEnabled], true, arrayOf(ChangeTriggerType.TvPlayback, ChangeTriggerType.MoviePlayback)))
+		return HomeFragmentBrowseRowDefRow(BrowseRowDef(title, query, HOME_ROW_CHUNK_SIZE, userPreferences[UserPreferences.seriesThumbnailsEnabled], true, arrayOf(ChangeTriggerType.TvPlayback, ChangeTriggerType.MoviePlayback)))
 	}
 
 	fun loadResumeVideo(): HomeFragmentRow {
@@ -90,7 +88,7 @@ class HomeFragmentHelper(
 		
 		return if (enableMultiServer) {
 			// Use aggregated row that shows items from all servers
-			HomeFragmentAggregatedResumeRow(ITEM_LIMIT_RESUME)
+			HomeFragmentAggregatedResumeRow(HOME_ROW_MAX_ITEMS)
 		} else {
 			// Use normal row for current server only
 			loadResume(context.getString(R.string.lbl_continue_watching), listOf(MediaType.VIDEO))
@@ -104,12 +102,12 @@ class HomeFragmentHelper(
 		if (enableMultiServer) {
 			// Use aggregated row that shows items from all servers
 			// Note: This combines both resume and next up automatically
-			return HomeFragmentAggregatedResumeRow(ITEM_LIMIT_RESUME + ITEM_LIMIT_NEXT_UP)
+			return HomeFragmentAggregatedResumeRow(HOME_ROW_MAX_ITEMS)
 		}
 		
 		// Use normal merged row for current server only
 		val resumeQuery = GetResumeItemsRequest(
-			limit = ITEM_LIMIT_RESUME,
+			limit = HOME_ROW_MAX_ITEMS,
 			fields = ItemRepository.itemFields,
 			imageTypeLimit = 1,
 			enableTotalRecordCount = false,
@@ -119,7 +117,7 @@ class HomeFragmentHelper(
 
 		val nextUpQuery = GetNextUpRequest(
 			imageTypeLimit = 1,
-			limit = ITEM_LIMIT_NEXT_UP,
+			limit = HOME_ROW_MAX_ITEMS,
 			enableResumable = false,
 			fields = ItemRepository.itemFields
 		)
@@ -128,6 +126,7 @@ class HomeFragmentHelper(
 			context.getString(R.string.lbl_continue_watching),
 			resumeQuery,
 			nextUpQuery,
+			HOME_ROW_CHUNK_SIZE,
 			userPreferences[UserPreferences.seriesThumbnailsEnabled],
 			true,
 			arrayOf(ChangeTriggerType.TvPlayback, ChangeTriggerType.MoviePlayback)
@@ -144,10 +143,10 @@ class HomeFragmentHelper(
 		val query = GetRecordingsRequest(
 			fields = ItemRepository.itemFields,
 			enableImages = true,
-			limit = ITEM_LIMIT_RECORDINGS
+			limit = HOME_ROW_MAX_ITEMS
 		)
 
-		return HomeFragmentBrowseRowDefRow(BrowseRowDef(context.getString(R.string.lbl_recordings), query))
+		return HomeFragmentBrowseRowDefRow(BrowseRowDef(context.getString(R.string.lbl_recordings), query, HOME_ROW_CHUNK_SIZE))
 	}
 
 	fun loadNextUp(): HomeFragmentRow {
@@ -156,18 +155,18 @@ class HomeFragmentHelper(
 		
 		if (enableMultiServer) {
 			// Use aggregated row that shows items from all servers
-			return HomeFragmentAggregatedNextUpRow(ITEM_LIMIT_NEXT_UP)
+			return HomeFragmentAggregatedNextUpRow(HOME_ROW_MAX_ITEMS)
 		}
 		
 		// Use normal row for current server only
 		val query = GetNextUpRequest(
 			imageTypeLimit = 1,
-			limit = ITEM_LIMIT_NEXT_UP,
+			limit = HOME_ROW_MAX_ITEMS,
 			enableResumable = false,
 			fields = ItemRepository.itemFields
 		)
 
-		val browseRowDef = BrowseRowDef(context.getString(R.string.lbl_next_up), query, arrayOf(ChangeTriggerType.TvPlayback))
+		val browseRowDef = BrowseRowDef(context.getString(R.string.lbl_next_up), query, HOME_ROW_CHUNK_SIZE, arrayOf(ChangeTriggerType.TvPlayback))
 		browseRowDef.setSectionType(HomeSectionType.NEXT_UP)
 		return HomeFragmentBrowseRowDefRow(browseRowDef)
 	}
@@ -178,10 +177,10 @@ class HomeFragmentHelper(
 			fields = ItemRepository.itemFields,
 			imageTypeLimit = 1,
 			enableTotalRecordCount = false,
-			limit = ITEM_LIMIT_ON_NOW
+			limit = HOME_ROW_MAX_ITEMS
 		)
 
-		return HomeFragmentBrowseRowDefRow(BrowseRowDef(context.getString(R.string.lbl_on_now), query))
+		return HomeFragmentBrowseRowDefRow(BrowseRowDef(context.getString(R.string.lbl_on_now), query, HOME_ROW_CHUNK_SIZE))
 	}
 
 	fun loadPlaylists(): HomeFragmentRow {
@@ -212,11 +211,9 @@ class HomeFragmentHelper(
 	}
 
 	companion object {
-		// Maximum amount of items loaded for a row
-		private const val ITEM_LIMIT_RESUME = 50
-		private const val ITEM_LIMIT_RECORDINGS = 40
-		private const val ITEM_LIMIT_NEXT_UP = 50
-		private const val ITEM_LIMIT_ON_NOW = 20
-		private const val ITEM_LIMIT_RECENTLY_RELEASED = 50
+		// Initial items to load for a row (pagination chunk size)
+		private const val HOME_ROW_CHUNK_SIZE = 15
+		// Maximum total items that can be loaded for a row
+		private const val HOME_ROW_MAX_ITEMS = 100
 	}
 }

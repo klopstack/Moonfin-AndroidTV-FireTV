@@ -13,8 +13,7 @@ import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.repository.MultiServerRepository
 import org.jellyfin.androidtv.data.repository.ParentalControlsRepository
 import org.jellyfin.androidtv.preference.UserPreferences
-import org.jellyfin.androidtv.ui.itemhandling.AggregatedItemBaseRowItem
-import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem
+import org.jellyfin.androidtv.ui.itemhandling.AggregatedItemRowAdapter
 import org.jellyfin.androidtv.ui.presentation.CardPresenter
 import org.jellyfin.androidtv.ui.presentation.MutableObjectAdapter
 import org.koin.core.component.KoinComponent
@@ -24,6 +23,7 @@ import timber.log.Timber
 /**
  * Home rows that display Recently Added items aggregated from all logged-in servers.
  * Creates one row per library across all servers, with format "Recently added in Library (ServerName)".
+ * Supports pagination - loads 15 items initially, then more as the user scrolls.
  */
 class HomeFragmentAggregatedLatestRow : HomeFragmentRow, KoinComponent {
 	private val multiServerRepository by inject<MultiServerRepository>()
@@ -31,7 +31,8 @@ class HomeFragmentAggregatedLatestRow : HomeFragmentRow, KoinComponent {
 	private val parentalControlsRepository by inject<ParentalControlsRepository>()
 
 	companion object {
-		private const val ITEM_LIMIT = 20
+		private const val MAX_ITEMS = 100
+		private const val CHUNK_SIZE = 15
 	}
 
 	override fun addToRowsAdapter(context: Context, cardPresenter: CardPresenter, rowsAdapter: MutableObjectAdapter<Row>) {
@@ -53,35 +54,32 @@ class HomeFragmentAggregatedLatestRow : HomeFragmentRow, KoinComponent {
 						val items = withContext(Dispatchers.IO) {
 							multiServerRepository.getAggregatedLatestItems(
 								parentId = aggLib.library.id,
-								limit = ITEM_LIMIT,
+								limit = MAX_ITEMS,
 								serverId = aggLib.server.id // Only query this specific server
 							)
 						}
 
 						if (items.isEmpty()) return@forEach
 
-						// Apply parental controls filtering
-						val filteredItems = items.filter { aggItem ->
-							!parentalControlsRepository.shouldFilterItem(aggItem.item)
-						}
-						Timber.d("HomeFragmentAggregatedLatestRow: Filtered ${items.size} -> ${filteredItems.size} items for ${aggLib.displayName}")
-						if (filteredItems.isEmpty()) return@forEach
+						// Create paginating adapter (filtering happens inside)
+						val adapter = AggregatedItemRowAdapter(
+							presenter = cardPresenter,
+							allItems = items,
+							parentalControlsRepository = parentalControlsRepository,
+							userPreferences = userPreferences,
+							chunkSize = CHUNK_SIZE,
+							preferParentThumb = preferParentThumb,
+							staticHeight = true
+						)
+
+						if (!adapter.hasItems()) return@forEach
+
+						// Load initial chunk
+						adapter.loadInitialItems()
 
 						val header = HeaderItem(context.getString(R.string.lbl_latest_in, aggLib.displayName))
-						val adapter = MutableObjectAdapter<BaseRowItem>(cardPresenter)
-
-						filteredItems.forEach { aggItem ->
-							Timber.d("HomeFragmentAggregatedLatestRow: Adding item ${aggItem.item.id} with serverId=${aggItem.item.serverId} from server ${aggItem.server.name} (baseUrl=${aggItem.apiClient.baseUrl})")
-							adapter.add(
-								AggregatedItemBaseRowItem(
-									aggregatedItem = aggItem,
-									preferParentThumb = preferParentThumb,
-								)
-							)
-						}
-
 						rowsAdapter.add(ListRow(header, adapter))
-						Timber.d("HomeFragmentAggregatedLatestRow: Added row for ${aggLib.displayName} with ${filteredItems.size} items")
+						Timber.d("HomeFragmentAggregatedLatestRow: Added row for ${aggLib.displayName} with ${adapter.size()}/${adapter.getTotalItems()} items (paginated)")
 					} catch (e: Exception) {
 						Timber.e(e, "HomeFragmentAggregatedLatestRow: Error loading latest items for ${aggLib.displayName}")
 					}

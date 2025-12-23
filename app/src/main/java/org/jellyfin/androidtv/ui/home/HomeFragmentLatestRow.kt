@@ -32,11 +32,11 @@ class HomeFragmentLatestRow(
 					imageTypeLimit = 1,
 					parentId = item.id,
 					groupItems = true,
-					limit = ITEM_LIMIT,
+					limit = ITEM_MAX_LIMIT,
 				)
 
 				val title = context.getString(R.string.lbl_latest_in, item.name)
-				HomeFragmentBrowseRowDefRow(BrowseRowDef(title, request, arrayOf(ChangeTriggerType.LibraryUpdated)))
+				HomeFragmentBrowseRowDefRow(BrowseRowDef(title, request, ITEM_CHUNK_SIZE, arrayOf(ChangeTriggerType.LibraryUpdated)))
 			}.forEach { row ->
 				// Add row to adapter
 				row.addToRowsAdapter(context, cardPresenter, rowsAdapter)
@@ -52,7 +52,9 @@ class HomeFragmentLatestRow(
 			CollectionType.BOOKS,
 		)
 
-		// Maximum amount of items loaded for a row
-		private const val ITEM_LIMIT = 50
+		// Initial items to load for a row (pagination chunk size)
+		private const val ITEM_CHUNK_SIZE = 15
+		// Maximum total items that can be loaded for a row
+		private const val ITEM_MAX_LIMIT = 100
 	}
 }

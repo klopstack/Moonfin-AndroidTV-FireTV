@@ -41,6 +41,7 @@ import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.ui.browsing.CompositeClickedListener
 import org.jellyfin.androidtv.ui.browsing.CompositeSelectedListener
+import org.jellyfin.androidtv.ui.itemhandling.AggregatedItemRowAdapter
 import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher
 import org.jellyfin.androidtv.ui.itemhandling.ItemRowAdapter
@@ -432,8 +433,15 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 				currentItem = item
 				currentRow = row as ListRow
 
-				val itemRowAdapter = row.adapter as? ItemRowAdapter
-				itemRowAdapter?.loadMoreItemsIfNeeded(itemRowAdapter.indexOf(item))
+				// Handle pagination for both ItemRowAdapter and AggregatedItemRowAdapter
+				when (val adapter = row.adapter) {
+					is ItemRowAdapter -> adapter.loadMoreItemsIfNeeded(adapter.indexOf(item))
+					is AggregatedItemRowAdapter -> {
+						val pos = adapter.indexOf(item)
+						Timber.d("HomeRowsFragment: AggregatedItemRowAdapter selected item at pos=$pos, adapter.size=${adapter.size()}")
+						adapter.loadMoreItemsIfNeeded(pos)
+					}
+				}
 
 				// Debounce UI updates - only update after user stops navigating for 150ms
 				selectionDebouncer.debounce {

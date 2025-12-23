@@ -4,19 +4,16 @@ import android.content.Context
 import androidx.leanback.widget.HeaderItem
 import androidx.leanback.widget.ListRow
 import androidx.leanback.widget.Row
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jellyfin.androidtv.R
-import org.jellyfin.androidtv.constant.ChangeTriggerType
 import org.jellyfin.androidtv.data.repository.MultiServerRepository
 import org.jellyfin.androidtv.data.repository.ParentalControlsRepository
 import org.jellyfin.androidtv.preference.UserPreferences
-import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem
-import org.jellyfin.androidtv.ui.itemhandling.AggregatedItemBaseRowItem
+import org.jellyfin.androidtv.ui.itemhandling.AggregatedItemRowAdapter
 import org.jellyfin.androidtv.ui.presentation.CardPresenter
 import org.jellyfin.androidtv.ui.presentation.MutableObjectAdapter
 import org.koin.core.component.KoinComponent
@@ -26,9 +23,10 @@ import timber.log.Timber
 /**
  * Home row that displays Continue Watching items aggregated from all logged-in servers.
  * Items are sorted by most recent playback date across all servers.
+ * Supports pagination - loads 15 items initially, then more as the user scrolls.
  */
 class HomeFragmentAggregatedResumeRow(
-	private val limit: Int = 50,
+	private val maxItems: Int = AggregatedItemRowAdapter.MAX_ITEMS,
 ) : HomeFragmentRow, KoinComponent {
 	private val multiServerRepository by inject<MultiServerRepository>()
 	private val userPreferences by inject<UserPreferences>()
@@ -36,10 +34,10 @@ class HomeFragmentAggregatedResumeRow(
 
 	override fun addToRowsAdapter(context: Context, cardPresenter: CardPresenter, rowsAdapter: MutableObjectAdapter<Row>) {
 		val header = HeaderItem(context.getString(R.string.lbl_continue_watching))
-		val adapter = MutableObjectAdapter<BaseRowItem>(cardPresenter)
-		val row = ListRow(header, adapter)
-
-		// Add row immediately (will be populated async)
+		
+		// Create a placeholder row that will be updated
+		val placeholderAdapter = MutableObjectAdapter<Any>(cardPresenter)
+		val row = ListRow(header, placeholderAdapter)
 		rowsAdapter.add(row)
 
 		// Load items asynchronously
@@ -47,31 +45,42 @@ class HomeFragmentAggregatedResumeRow(
 		lifecycleOwner.lifecycleScope.launch {
 			try {
 				val items = withContext(Dispatchers.IO) {
-					multiServerRepository.getAggregatedResumeItems(limit)
+					multiServerRepository.getAggregatedResumeItems(maxItems)
 				}
 
 				Timber.d("HomeFragmentAggregatedResumeRow: Loaded ${items.size} resume items from multiple servers")
 
-				// Apply parental controls filtering
-				val filteredItems = items.filter { aggItem ->
-					!parentalControlsRepository.shouldFilterItem(aggItem.item)
-				}
-				Timber.d("HomeFragmentAggregatedResumeRow: Filtered ${items.size} -> ${filteredItems.size} items")
-
-				if (filteredItems.isEmpty()) {
-					// Remove row if no items
+				if (items.isEmpty()) {
 					rowsAdapter.remove(row)
 					return@launch
 				}
 
-				// Populate adapter with items
+				// Create paginating adapter with all items (filtering happens inside)
 				val preferParentThumb = userPreferences[UserPreferences.seriesThumbnailsEnabled]
-				filteredItems.forEach { aggItem ->
-					adapter.add(AggregatedItemBaseRowItem(
-						aggregatedItem = aggItem,
-						preferParentThumb = preferParentThumb,
-						staticHeight = true
-					))
+				val adapter = AggregatedItemRowAdapter(
+					presenter = cardPresenter,
+					allItems = items,
+					parentalControlsRepository = parentalControlsRepository,
+					userPreferences = userPreferences,
+					chunkSize = AggregatedItemRowAdapter.DEFAULT_CHUNK_SIZE,
+					preferParentThumb = preferParentThumb,
+					staticHeight = true
+				)
+
+				if (!adapter.hasItems()) {
+					rowsAdapter.remove(row)
+					return@launch
+				}
+
+				// Load initial chunk
+				adapter.loadInitialItems()
+				Timber.d("HomeFragmentAggregatedResumeRow: Initial load complete, showing ${adapter.size()}/${adapter.getTotalItems()} items")
+
+				// Replace placeholder with real adapter
+				val index = rowsAdapter.indexOf(row)
+				if (index >= 0) {
+					rowsAdapter.removeAt(index, 1)
+					rowsAdapter.add(index, ListRow(header, adapter))
 				}
 			} catch (e: Exception) {
 				Timber.e(e, "HomeFragmentAggregatedResumeRow: Error loading resume items")

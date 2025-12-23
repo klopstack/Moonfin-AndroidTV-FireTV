@@ -19,19 +19,23 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.constant.JellyseerrRowType
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverItemDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrMediaInfoDto
+import org.jellyfin.androidtv.preference.JellyseerrPreferences
 import org.jellyfin.androidtv.ui.navigation.Destinations
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.androidtv.ui.presentation.PositionableListRowPresenter
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.koin.core.qualifier.named
 import timber.log.Timber
 import kotlinx.serialization.json.Json
 
 class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 	private val viewModel: JellyseerrViewModel by viewModel()
 	private val navigationRepository: NavigationRepository by inject()
+	private val jellyseerrPreferences: JellyseerrPreferences by inject(named("global"))
 	private var hasSetupRows = false
 	
 	// Flow to track selected item for display in parent fragment
@@ -44,9 +48,23 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 	private var isReturningFromDetail = false
 	private var isRestoringPosition = false
 
+	// API pagination loading flags
+	private var isLoadingRequests = false
+	private var isLoadingTrending = false
+	private var isLoadingMovies = false
+	private var isLoadingUpcomingMovies = false
+	private var isLoadingTv = false
+	private var isLoadingUpcomingTv = false
+	
+	// Map to track which row index corresponds to which row type
+	private val rowTypeToIndex = mutableMapOf<JellyseerrRowType, Int>()
+	private val indexToRowType = mutableMapOf<Int, JellyseerrRowType>()
+
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		setupRows()
+		setupObservers()
+		loadContent()
 	}
 
 	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -140,6 +158,25 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 				isReturningFromDetail = true
 				Timber.d("JellyseerrDiscoverRowsFragment: Item clicked - capturing position: row=$lastFocusedPosition, col=$lastFocusedSubPosition, currentSelectedPosition=${selectedPosition}")
 				onContentSelected(item)
+			} else if (item is org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrGenreDto) {
+				// Genre card clicked - navigate to browse by genre
+				// Determine media type based on row type
+				val rowType = indexToRowType[lastFocusedPosition]
+				val mediaType = when (rowType) {
+					JellyseerrRowType.MOVIE_GENRES -> "movie"
+					JellyseerrRowType.SERIES_GENRES -> "tv"
+					else -> "movie"
+				}
+				isReturningFromDetail = true
+				onGenreSelected(item, mediaType)
+			} else if (item is org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrStudioDto) {
+				// Studio card clicked - navigate to browse by studio
+				isReturningFromDetail = true
+				onStudioSelected(item)
+			} else if (item is org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrNetworkDto) {
+				// Network card clicked - navigate to browse by network
+				isReturningFromDetail = true
+				onNetworkSelected(item)
 			}
 		}
 		
@@ -165,11 +202,50 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 					val rowAdapter = row.adapter as? ArrayObjectAdapter
 					if (rowAdapter != null) {
 						// Find the index of this item in the row
+						var itemPosition = -1
 						for (i in 0 until rowAdapter.size()) {
 							if (rowAdapter.get(i) === item) {
+								itemPosition = i
 								lastFocusedSubPosition = i
 								Timber.d("JellyseerrDiscoverRowsFragment: Updated lastFocusedSubPosition to $i")
 								break
+							}
+						}
+						
+						// Check if we need to load more items for pagination
+						// Trigger API call when within last 10 items of the row
+						if (itemPosition >= rowAdapter.size() - 10 && itemPosition >= 0 && rowAdapter.size() > 0) {
+							val rowType = indexToRowType[newPosition]
+							when (rowType) {
+								JellyseerrRowType.RECENT_REQUESTS -> {
+									// Requests are loaded once, no API pagination
+								}
+								JellyseerrRowType.TRENDING -> {
+									if (!isLoadingTrending) {
+										loadMoreTrending()
+									}
+								}
+								JellyseerrRowType.POPULAR_MOVIES -> {
+									if (!isLoadingMovies) {
+										loadMoreMovies()
+									}
+								}
+								JellyseerrRowType.UPCOMING_MOVIES -> {
+									if (!isLoadingUpcomingMovies) {
+										loadMoreUpcomingMovies()
+									}
+								}
+								JellyseerrRowType.POPULAR_SERIES -> {
+									if (!isLoadingTv) {
+										loadMoreTv()
+									}
+								}
+								JellyseerrRowType.UPCOMING_SERIES -> {
+									if (!isLoadingUpcomingTv) {
+										loadMoreUpcomingTv()
+									}
+								}
+								else -> { }
 							}
 						}
 					}
@@ -185,36 +261,40 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 		}
 		val rowsAdapter = ArrayObjectAdapter(rowPresenter)
 
-		// Add rows
-		val trendingHeader = HeaderItem(0, "Trending")
-		val trendingAdapter = ArrayObjectAdapter(MediaCardPresenter())
-		trendingAdapter.setItems(emptyList<JellyseerrDiscoverItemDto>(), null)
-		rowsAdapter.add(ListRow(trendingHeader, trendingAdapter))
-
-		val moviesHeader = HeaderItem(1, "Popular Movies")
-		val moviesAdapter = ArrayObjectAdapter(MediaCardPresenter())
-		rowsAdapter.add(ListRow(moviesHeader, moviesAdapter))
-
-		val tvHeader = HeaderItem(2, "Popular TV Series")
-		val tvAdapter = ArrayObjectAdapter(MediaCardPresenter())
-		rowsAdapter.add(ListRow(tvHeader, tvAdapter))
-
-		val upcomingMoviesHeader = HeaderItem(3, "Upcoming Movies")
-		val upcomingMoviesAdapter = ArrayObjectAdapter(MediaCardPresenter())
-		rowsAdapter.add(ListRow(upcomingMoviesHeader, upcomingMoviesAdapter))
-
-		val upcomingTvHeader = HeaderItem(4, "Upcoming TV Series")
-		val upcomingTvAdapter = ArrayObjectAdapter(MediaCardPresenter())
-		rowsAdapter.add(ListRow(upcomingTvHeader, upcomingTvAdapter))
-
-		val requestsHeader = HeaderItem(5, "Your Requests")
-		val requestsAdapter = ArrayObjectAdapter(MediaCardPresenter())
-		rowsAdapter.add(ListRow(requestsHeader, requestsAdapter))
+		// Get active rows from configuration (enabled rows in order)
+		val activeRows = jellyseerrPreferences.activeRows
+		Timber.d("JellyseerrDiscoverRowsFragment: Setting up ${activeRows.size} active rows")
+		
+		// Clear the mappings
+		rowTypeToIndex.clear()
+		indexToRowType.clear()
+		
+		// Add rows based on configuration
+		activeRows.forEachIndexed { index, rowType ->
+			rowTypeToIndex[rowType] = index
+			indexToRowType[index] = rowType
+			
+			val (headerTitle, presenter) = when (rowType) {
+				JellyseerrRowType.RECENT_REQUESTS -> getString(R.string.jellyseerr_row_recent_requests) to MediaCardPresenter()
+				JellyseerrRowType.TRENDING -> getString(R.string.jellyseerr_row_trending) to MediaCardPresenter()
+				JellyseerrRowType.POPULAR_MOVIES -> getString(R.string.jellyseerr_row_popular_movies) to MediaCardPresenter()
+				JellyseerrRowType.MOVIE_GENRES -> getString(R.string.jellyseerr_row_movie_genres) to GenreCardPresenter()
+				JellyseerrRowType.UPCOMING_MOVIES -> getString(R.string.jellyseerr_row_upcoming_movies) to MediaCardPresenter()
+				JellyseerrRowType.STUDIOS -> getString(R.string.jellyseerr_row_studios) to NetworkStudioCardPresenter()
+				JellyseerrRowType.POPULAR_SERIES -> getString(R.string.jellyseerr_row_popular_series) to MediaCardPresenter()
+				JellyseerrRowType.SERIES_GENRES -> getString(R.string.jellyseerr_row_series_genres) to GenreCardPresenter()
+				JellyseerrRowType.UPCOMING_SERIES -> getString(R.string.jellyseerr_row_upcoming_series) to MediaCardPresenter()
+				JellyseerrRowType.NETWORKS -> getString(R.string.jellyseerr_row_networks) to NetworkStudioCardPresenter()
+			}
+			
+			val header = HeaderItem(index.toLong(), headerTitle)
+			val rowAdapter = ArrayObjectAdapter(presenter)
+			rowsAdapter.add(ListRow(header, rowAdapter))
+			
+			Timber.d("JellyseerrDiscoverRowsFragment: Added row $index: $headerTitle (type=$rowType)")
+		}
 
 		adapter = rowsAdapter
-		
-		setupObservers()
-		loadContent()
 	}
 
 	private fun setupObservers() {
@@ -235,36 +315,70 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 			}
 		}
 		
+		// Trending
 		lifecycleScope.launch {
 			viewModel.trending.collect { trending ->
-				updateRow(0, trending)
+				updateRowByType(JellyseerrRowType.TRENDING, trending)
 			}
 		}
 
+		// Popular Movies
 		lifecycleScope.launch {
 			viewModel.trendingMovies.collect { movies ->
-				updateRow(1, movies)
+				updateRowByType(JellyseerrRowType.POPULAR_MOVIES, movies)
 			}
 		}
 
+		// Popular Series
 		lifecycleScope.launch {
 			viewModel.trendingTv.collect { tv ->
-				updateRow(2, tv)
+				updateRowByType(JellyseerrRowType.POPULAR_SERIES, tv)
 			}
 		}
 
+		// Movie Genres
+		lifecycleScope.launch {
+			viewModel.movieGenres.collect { genres ->
+				updateRowGenericByType(JellyseerrRowType.MOVIE_GENRES, genres)
+			}
+		}
+
+		// Series Genres
+		lifecycleScope.launch {
+			viewModel.tvGenres.collect { genres ->
+				updateRowGenericByType(JellyseerrRowType.SERIES_GENRES, genres)
+			}
+		}
+
+		// Studios
+		lifecycleScope.launch {
+			viewModel.studios.collect { studios ->
+				updateRowGenericByType(JellyseerrRowType.STUDIOS, studios)
+			}
+		}
+
+		// Networks
+		lifecycleScope.launch {
+			viewModel.networks.collect { networks ->
+				updateRowGenericByType(JellyseerrRowType.NETWORKS, networks)
+			}
+		}
+
+		// Upcoming Movies
 		lifecycleScope.launch {
 			viewModel.upcomingMovies.collect { movies ->
-				updateRow(3, movies)
+				updateRowByType(JellyseerrRowType.UPCOMING_MOVIES, movies)
 			}
 		}
 
+		// Upcoming Series
 		lifecycleScope.launch {
 			viewModel.upcomingTv.collect { tv ->
-				updateRow(4, tv)
+				updateRowByType(JellyseerrRowType.UPCOMING_SERIES, tv)
 			}
 		}
 
+		// Recent Requests
 		lifecycleScope.launch {
 			viewModel.userRequests.collect { requests ->
 				val requestsAsItems = requests.map { request ->
@@ -278,34 +392,109 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 						mediaType = request.type,
 						posterPath = request.media?.posterPath,
 						backdropPath = request.media?.backdropPath,
-					mediaInfo = JellyseerrMediaInfoDto(
-						id = request.media?.id,
-						tmdbId = request.media?.tmdbId,
-						tvdbId = request.media?.tvdbId,
-						status = request.media?.status,
-						status4k = request.media?.status4k
-					)
+						mediaInfo = JellyseerrMediaInfoDto(
+							id = request.media?.id,
+							tmdbId = request.media?.tmdbId,
+							tvdbId = request.media?.tvdbId,
+							status = request.media?.status,
+							status4k = request.media?.status4k
+						)
 					)
 				}.filter { it.posterPath != null || it.backdropPath != null }
-				updateRow(5, requestsAsItems)
+				updateRowByType(JellyseerrRowType.RECENT_REQUESTS, requestsAsItems)
 			}
 		}
 	}
 
+	private fun updateRowByType(rowType: JellyseerrRowType, items: List<JellyseerrDiscoverItemDto>) {
+		val index = rowTypeToIndex[rowType] ?: return
+		Timber.d("JellyseerrDiscoverRowsFragment: updateRowByType called for type=$rowType (index=$index) with ${items.size} items")
+		updateRow(index, items)
+	}
+
+	private fun updateRowGenericByType(rowType: JellyseerrRowType, items: List<Any>) {
+		val index = rowTypeToIndex[rowType] ?: return
+		updateRowGeneric(index, items)
+	}
+
 	private fun updateRow(index: Int, items: List<JellyseerrDiscoverItemDto>) {
+		Timber.d("JellyseerrDiscoverRowsFragment: updateRow called for index=$index with ${items.size} items")
 		val rowsAdapter = adapter as? ArrayObjectAdapter
 		if (rowsAdapter != null && index < rowsAdapter.size()) {
 			val listRow = rowsAdapter.get(index) as? ListRow
 			listRow?.adapter?.let { rowAdapter ->
 				if (rowAdapter is ArrayObjectAdapter) {
-					rowAdapter.setItems(items, null)
+					Timber.d("JellyseerrDiscoverRowsFragment: Setting row $index - showing ${items.size} items")
+					
+					// Defer adapter update to avoid modifying RecyclerView during layout/scroll
+					view?.post {
+						rowAdapter.setItems(items, null)
+					}
+				}
+			}
+		} else {
+			Timber.w("JellyseerrDiscoverRowsFragment: Cannot update row $index - adapter=${rowsAdapter != null}, size=${rowsAdapter?.size()}")
+		}
+	}
+
+	private fun updateRowGeneric(index: Int, items: List<Any>) {
+		val rowsAdapter = adapter as? ArrayObjectAdapter
+		if (rowsAdapter != null && index < rowsAdapter.size()) {
+			val listRow = rowsAdapter.get(index) as? ListRow
+			listRow?.adapter?.let { rowAdapter ->
+				if (rowAdapter is ArrayObjectAdapter) {
+					// Defer adapter update to avoid modifying RecyclerView during layout/scroll
+					view?.post {
+						rowAdapter.setItems(items, null)
+					}
 				}
 			}
 		}
 	}
 
+	private fun loadMoreTrending() {
+		if (isLoadingTrending) return
+		isLoadingTrending = true
+		Timber.d("JellyseerrDiscoverRowsFragment: Loading more trending via API")
+		viewModel.loadNextTrendingPage()
+		isLoadingTrending = false
+	}
+
+	private fun loadMoreMovies() {
+		if (isLoadingMovies) return
+		isLoadingMovies = true
+		Timber.d("JellyseerrDiscoverRowsFragment: Loading more movies via API")
+		viewModel.loadNextTrendingMoviesPage()
+		isLoadingMovies = false
+	}
+
+	private fun loadMoreUpcomingMovies() {
+		if (isLoadingUpcomingMovies) return
+		isLoadingUpcomingMovies = true
+		Timber.d("JellyseerrDiscoverRowsFragment: Loading more upcoming movies via API")
+		viewModel.loadNextUpcomingMoviesPage()
+		isLoadingUpcomingMovies = false
+	}
+
+	private fun loadMoreTv() {
+		if (isLoadingTv) return
+		isLoadingTv = true
+		Timber.d("JellyseerrDiscoverRowsFragment: Loading more TV via API")
+		viewModel.loadNextTrendingTvPage()
+		isLoadingTv = false
+	}
+
+	private fun loadMoreUpcomingTv() {
+		if (isLoadingUpcomingTv) return
+		isLoadingUpcomingTv = true
+		Timber.d("JellyseerrDiscoverRowsFragment: Loading more upcoming TV via API")
+		viewModel.loadNextUpcomingTvPage()
+		isLoadingUpcomingTv = false
+	}
+
 	private fun loadContent() {
 		viewModel.loadTrendingContent()
+		viewModel.loadGenres()
 		viewModel.loadRequests()
 	}
 
@@ -313,5 +502,20 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 		// Use navigation system for proper focus restoration and back button handling
 		val itemJson = Json.encodeToString(JellyseerrDiscoverItemDto.serializer(), item)
 		navigationRepository.navigate(Destinations.jellyseerrMediaDetails(itemJson))
+	}
+
+	private fun onGenreSelected(genre: org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrGenreDto, mediaType: String) {
+		// Navigate to browse by genre fragment
+		navigationRepository.navigate(Destinations.jellyseerrBrowseByGenre(genre.id, genre.name, mediaType))
+	}
+
+	private fun onStudioSelected(studio: org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrStudioDto) {
+		// Navigate to browse by studio fragment (movies only)
+		navigationRepository.navigate(Destinations.jellyseerrBrowseByStudio(studio.id, studio.name))
+	}
+
+	private fun onNetworkSelected(network: org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrNetworkDto) {
+		// Navigate to browse by network fragment (TV only)
+		navigationRepository.navigate(Destinations.jellyseerrBrowseByNetwork(network.id, network.name))
 	}
 }

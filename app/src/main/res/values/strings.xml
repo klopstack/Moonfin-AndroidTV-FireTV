@@ -805,6 +805,21 @@
     <string name="jellyseerr_profile_error">Unable to load profiles. Check connection.</string>
     <string name="jellyseerr_profile_admin_required">Admin permissions required to configure quality profiles</string>
     
+    <!-- Jellyseerr Row Configuration -->
+    <string name="jellyseerr_rows_title">Discover Rows</string>
+    <string name="jellyseerr_rows_description">Enable, disable, and reorder rows on the Jellyseerr discover screen</string>
+    <string name="jellyseerr_rows_reset">Reset to Defaults</string>
+    <string name="jellyseerr_row_recent_requests">Recent Requests</string>
+    <string name="jellyseerr_row_trending">Trending</string>
+    <string name="jellyseerr_row_popular_movies">Popular Movies</string>
+    <string name="jellyseerr_row_movie_genres">Movie Genres</string>
+    <string name="jellyseerr_row_upcoming_movies">Upcoming Movies</string>
+    <string name="jellyseerr_row_studios">Studios</string>
+    <string name="jellyseerr_row_popular_series">Popular Series</string>
+    <string name="jellyseerr_row_series_genres">Series Genres</string>
+    <string name="jellyseerr_row_upcoming_series">Upcoming Series</string>
+    <string name="jellyseerr_row_networks">Networks</string>
+    
     <string name="enabled">Enabled</string>
     <string name="disabled">Disabled</string>
     

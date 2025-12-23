@@ -13,6 +13,7 @@ import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrBlacklistPageDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrCreateRequestDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverItemDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverPageDto
+import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrGenreDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrHttpClient
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrListResponse
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrMovieDetailsDto
@@ -20,6 +21,8 @@ import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrPersonCombinedCr
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrPersonDetailsDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrRadarrSettingsDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrRequestDto
+import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrServiceServerDetailsDto
+import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrServiceServerDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrSonarrSettingsDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrTvDetailsDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrUserDto
@@ -27,9 +30,9 @@ import org.jellyfin.androidtv.data.service.jellyseerr.Seasons
 import org.jellyfin.androidtv.preference.JellyseerrPreferences
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
+import timber.log.Timber
 import org.koin.core.parameter.parametersOf
 import org.koin.core.qualifier.named
-import timber.log.Timber
 
 /**
  * Repository for Jellyseerr operations
@@ -195,6 +198,16 @@ interface JellyseerrRepository {
 	suspend fun getSimilarTv(tmdbId: Int, page: Int = 1): Result<JellyseerrDiscoverPageDto>
 
 	/**
+	 * Get movie recommendations for a given movie ID
+	 */
+	suspend fun getRecommendationsMovies(tmdbId: Int, page: Int = 1): Result<JellyseerrDiscoverPageDto>
+
+	/**
+	 * Get TV show recommendations for a given TV show ID
+	 */
+	suspend fun getRecommendationsTv(tmdbId: Int, page: Int = 1): Result<JellyseerrDiscoverPageDto>
+
+	/**
 	 * Get person details by ID
 	 */
 	suspend fun getPersonDetails(personId: Int): Result<JellyseerrPersonDetailsDto>
@@ -210,12 +223,70 @@ interface JellyseerrRepository {
 	suspend fun getBlacklist(): Result<JellyseerrBlacklistPageDto>
 
 	/**
-	 * Get all Radarr server configurations
+	 * Get genre slider for movies
+	 */
+	suspend fun getGenreSliderMovies(): Result<List<JellyseerrGenreDto>>
+
+	/**
+	 * Get genre slider for TV shows
+	 */
+	suspend fun getGenreSliderTv(): Result<List<JellyseerrGenreDto>>
+
+	/**
+	 * Discover movies with optional filters
+	 */
+	suspend fun discoverMovies(
+		page: Int = 1,
+		sortBy: String = "popularity.desc",
+		genre: Int? = null,
+		studio: Int? = null,
+		keywords: Int? = null,
+		language: String = "en"
+	): Result<JellyseerrDiscoverPageDto>
+
+	/**
+	 * Discover TV shows with optional filters
+	 */
+	suspend fun discoverTv(
+		page: Int = 1,
+		sortBy: String = "popularity.desc",
+		genre: Int? = null,
+		network: Int? = null,
+		keywords: Int? = null,
+		language: String = "en"
+	): Result<JellyseerrDiscoverPageDto>
+
+	/**
+	 * Get list of Radarr servers available to the current user
+	 * Uses /api/v1/service/radarr - available to all authenticated users
+	 */
+	suspend fun getRadarrServers(): Result<List<JellyseerrServiceServerDto>>
+
+	/**
+	 * Get detailed info for a specific Radarr server
+	 * Uses /api/v1/service/radarr/:id - available to all authenticated users
+	 */
+	suspend fun getRadarrServerDetails(serverId: Int): Result<JellyseerrServiceServerDetailsDto>
+
+	/**
+	 * Get list of Sonarr servers available to the current user
+	 * Uses /api/v1/service/sonarr - available to all authenticated users
+	 */
+	suspend fun getSonarrServers(): Result<List<JellyseerrServiceServerDto>>
+
+	/**
+	 * Get detailed info for a specific Sonarr server
+	 * Uses /api/v1/service/sonarr/:id - available to all authenticated users
+	 */
+	suspend fun getSonarrServerDetails(serverId: Int): Result<JellyseerrServiceServerDetailsDto>
+
+	/**
+	 * Get all Radarr server configurations (ADMIN ONLY)
 	 */
 	suspend fun getRadarrSettings(): Result<List<JellyseerrRadarrSettingsDto>>
 
 	/**
-	 * Get all Sonarr server configurations
+	 * Get all Sonarr server configurations (ADMIN ONLY)
 	 */
 	suspend fun getSonarrSettings(): Result<List<JellyseerrSonarrSettingsDto>>
 
@@ -774,6 +845,26 @@ class JellyseerrRepositoryImpl(
 		client.getSimilarTv(tmdbId, page)
 	}
 
+	override suspend fun getRecommendationsMovies(tmdbId: Int, page: Int): Result<JellyseerrDiscoverPageDto> = withContext(Dispatchers.IO) {
+		ensureInitialized()
+
+		val client = httpClient ?: run {
+			return@withContext Result.failure(IllegalStateException("Jellyseerr not initialized"))
+		}
+
+		client.getRecommendationsMovies(tmdbId, page)
+	}
+
+	override suspend fun getRecommendationsTv(tmdbId: Int, page: Int): Result<JellyseerrDiscoverPageDto> = withContext(Dispatchers.IO) {
+		ensureInitialized()
+
+		val client = httpClient ?: run {
+			return@withContext Result.failure(IllegalStateException("Jellyseerr not initialized"))
+		}
+
+		client.getRecommendationsTv(tmdbId, page)
+	}
+
 	override suspend fun getPersonDetails(personId: Int): Result<JellyseerrPersonDetailsDto> = withContext(Dispatchers.IO) {
 		ensureInitialized()
 
@@ -802,6 +893,100 @@ class JellyseerrRepositoryImpl(
 		}
 
 		client.getBlacklist()
+	}
+
+	override suspend fun getGenreSliderMovies(): Result<List<JellyseerrGenreDto>> = withContext(Dispatchers.IO) {
+		ensureInitialized()
+
+		val client = httpClient ?: run {
+			return@withContext Result.failure(IllegalStateException("Jellyseerr not initialized"))
+		}
+
+		client.getGenreSliderMovies()
+	}
+
+	override suspend fun getGenreSliderTv(): Result<List<JellyseerrGenreDto>> = withContext(Dispatchers.IO) {
+		ensureInitialized()
+
+		val client = httpClient ?: run {
+			return@withContext Result.failure(IllegalStateException("Jellyseerr not initialized"))
+		}
+
+		client.getGenreSliderTv()
+	}
+
+	override suspend fun discoverMovies(
+		page: Int,
+		sortBy: String,
+		genre: Int?,
+		studio: Int?,
+		keywords: Int?,
+		language: String
+	): Result<JellyseerrDiscoverPageDto> = withContext(Dispatchers.IO) {
+		ensureInitialized()
+
+		val client = httpClient ?: run {
+			return@withContext Result.failure(IllegalStateException("Jellyseerr not initialized"))
+		}
+
+		client.discoverMovies(page, sortBy, genre, studio, keywords, language)
+	}
+
+	override suspend fun discoverTv(
+		page: Int,
+		sortBy: String,
+		genre: Int?,
+		network: Int?,
+		keywords: Int?,
+		language: String
+	): Result<JellyseerrDiscoverPageDto> = withContext(Dispatchers.IO) {
+		ensureInitialized()
+
+		val client = httpClient ?: run {
+			return@withContext Result.failure(IllegalStateException("Jellyseerr not initialized"))
+		}
+
+		client.discoverTv(page, sortBy, genre, network, keywords, language)
+	}
+
+	override suspend fun getRadarrServers(): Result<List<JellyseerrServiceServerDto>> = withContext(Dispatchers.IO) {
+		ensureInitialized()
+
+		val client = httpClient ?: run {
+			return@withContext Result.failure(IllegalStateException("Jellyseerr not initialized"))
+		}
+
+		client.getRadarrServers()
+	}
+
+	override suspend fun getRadarrServerDetails(serverId: Int): Result<JellyseerrServiceServerDetailsDto> = withContext(Dispatchers.IO) {
+		ensureInitialized()
+
+		val client = httpClient ?: run {
+			return@withContext Result.failure(IllegalStateException("Jellyseerr not initialized"))
+		}
+
+		client.getRadarrServerDetails(serverId)
+	}
+
+	override suspend fun getSonarrServers(): Result<List<JellyseerrServiceServerDto>> = withContext(Dispatchers.IO) {
+		ensureInitialized()
+
+		val client = httpClient ?: run {
+			return@withContext Result.failure(IllegalStateException("Jellyseerr not initialized"))
+		}
+
+		client.getSonarrServers()
+	}
+
+	override suspend fun getSonarrServerDetails(serverId: Int): Result<JellyseerrServiceServerDetailsDto> = withContext(Dispatchers.IO) {
+		ensureInitialized()
+
+		val client = httpClient ?: run {
+			return@withContext Result.failure(IllegalStateException("Jellyseerr not initialized"))
+		}
+
+		client.getSonarrServerDetails(serverId)
 	}
 
 	override suspend fun getRadarrSettings(): Result<List<JellyseerrRadarrSettingsDto>> = withContext(Dispatchers.IO) {

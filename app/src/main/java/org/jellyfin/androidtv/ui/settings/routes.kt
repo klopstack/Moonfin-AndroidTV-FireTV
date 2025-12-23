@@ -3,6 +3,8 @@ package org.jellyfin.androidtv.ui.settings
 import org.jellyfin.androidtv.ui.navigation.RouteComposable
 import org.jellyfin.androidtv.ui.preference.screen.CustomizationPreferencesScreen
 import org.jellyfin.androidtv.ui.preference.screen.HomeSectionsConfigScreen
+import org.jellyfin.androidtv.ui.preference.screen.JellyseerrPreferencesScreen
+import org.jellyfin.androidtv.ui.preference.screen.JellyseerrRowsConfigScreen
 import org.jellyfin.androidtv.ui.settings.screen.SettingsDeveloperScreen
 import org.jellyfin.androidtv.ui.settings.screen.SettingsMainScreen
 import org.jellyfin.androidtv.ui.settings.screen.SettingsTelemetryScreen
@@ -40,6 +42,8 @@ object Routes {
 	const val PLAYBACK_MEDIA_SEGMENTS = "/playback/media-segments"
 	const val PLAYBACK_MEDIA_SEGMENT = "/playback/media-segments/{segmentType}"
 	const val HOME_SECTIONS = "/home-sections"
+	const val JELLYSEERR = "/jellyseerr"
+	const val JELLYSEERR_ROWS = "/jellyseerr/rows"
 	const val TELEMETRY = "/telemetry"
 	const val DEVELOPER = "/developer"
 	const val LICENSES = "/licenses"
@@ -101,6 +105,12 @@ val routes = mapOf<String, RouteComposable>(
 	},
 	Routes.HOME_SECTIONS to {
 		HomeSectionsConfigScreen()
+	},
+	Routes.JELLYSEERR to {
+		JellyseerrPreferencesScreen()
+	},
+	Routes.JELLYSEERR_ROWS to {
+		JellyseerrRowsConfigScreen()
 	},
 	Routes.TELEMETRY to {
 		SettingsTelemetryScreen()

@@ -14,14 +14,12 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 
-/**
- * Dialog for selecting seasons to request for TV shows
- */
 class SeasonSelectionDialog(
 	context: Context,
 	private val showName: String,
 	private val numberOfSeasons: Int,
 	private val is4k: Boolean,
+	private val unavailableSeasons: Set<Int> = emptySet(),
 	private val onConfirm: (selectedSeasons: List<Int>) -> Unit
 ) : Dialog(context) {
 
@@ -33,88 +31,90 @@ class SeasonSelectionDialog(
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		
-		// Create root container - optimized for TV screens
 		val rootContainer = LinearLayout(context).apply {
 			orientation = LinearLayout.VERTICAL
-			setBackgroundColor(Color.parseColor("#1F2937")) // gray-800
-			setPadding(24.dp(context), 24.dp(context), 32.dp(context), 24.dp(context)) // Reduced left padding from 48dp to 24dp
+			setBackgroundColor(Color.parseColor("#1F2937"))
+			setPadding(24.dp(context), 24.dp(context), 32.dp(context), 24.dp(context))
 			layoutParams = ViewGroup.LayoutParams(
-				600.dp(context), // Reduced from 800dp
+				600.dp(context),
 				ViewGroup.LayoutParams.WRAP_CONTENT
 			)
 		}
 		
-		// Title
 		val titleText = TextView(context).apply {
 			text = "Select Seasons"
-			textSize = 20f // Reduced from 24f
+			textSize = 20f
 			setTextColor(Color.WHITE)
 			setTypeface(typeface, android.graphics.Typeface.BOLD)
 			layoutParams = LinearLayout.LayoutParams(
 				LinearLayout.LayoutParams.MATCH_PARENT,
 				LinearLayout.LayoutParams.WRAP_CONTENT
 			).apply {
-				bottomMargin = 6.dp(context) // Reduced from 8dp
+				bottomMargin = 6.dp(context)
 			}
 		}
 		rootContainer.addView(titleText)
 		
-		// Show name and quality
 		val subtitleText = TextView(context).apply {
 			text = "$showName ${if (is4k) "(4K)" else "(HD)"}"
-			textSize = 14f // Reduced from 16f
-			setTextColor(Color.parseColor("#9CA3AF")) // gray-400
+			textSize = 14f
+			setTextColor(Color.parseColor("#9CA3AF"))
 			layoutParams = LinearLayout.LayoutParams(
 				LinearLayout.LayoutParams.MATCH_PARENT,
 				LinearLayout.LayoutParams.WRAP_CONTENT
 			).apply {
-				bottomMargin = 16.dp(context) // Reduced from 24dp
+				bottomMargin = 16.dp(context)
 			}
 		}
 		rootContainer.addView(subtitleText)
 		
-		// Select All checkbox
-		selectAllCheckbox = CheckBox(context).apply {
-			text = "Select All Seasons"
-			textSize = 15f // Reduced from 18f
-			setTextColor(Color.WHITE)
-			isChecked = true
-			isFocusable = true
-			isFocusableInTouchMode = true
-			scaleX = 1.2f // Reduced from 1.5f
-			scaleY = 1.2f
-			layoutParams = LinearLayout.LayoutParams(
-				LinearLayout.LayoutParams.MATCH_PARENT,
-				LinearLayout.LayoutParams.WRAP_CONTENT
-			).apply {
-				bottomMargin = 12.dp(context) // Reduced from 16dp
-				leftMargin = 40.dp(context) // Move to match season checkboxes
-			}
-			setOnCheckedChangeListener { _, isChecked ->
-				seasonCheckboxes.forEach { it.isChecked = isChecked }
-			}
-		}
-		rootContainer.addView(selectAllCheckbox)
+		val availableSeasons = (1..numberOfSeasons).filter { it !in unavailableSeasons }
 		
-		// Separator
+		if (availableSeasons.isNotEmpty()) {
+			selectAllCheckbox = CheckBox(context).apply {
+				text = if (unavailableSeasons.isEmpty()) "Select All Seasons" else "Select All Available"
+				textSize = 15f
+				setTextColor(Color.WHITE)
+				isChecked = true
+				isFocusable = true
+				isFocusableInTouchMode = true
+				scaleX = 1.2f
+				scaleY = 1.2f
+				layoutParams = LinearLayout.LayoutParams(
+					LinearLayout.LayoutParams.MATCH_PARENT,
+					LinearLayout.LayoutParams.WRAP_CONTENT
+				).apply {
+					bottomMargin = 12.dp(context)
+					leftMargin = 40.dp(context)
+				}
+				setOnCheckedChangeListener { _, isChecked ->
+					seasonCheckboxes.forEachIndexed { index, checkbox ->
+						if ((index + 1) !in unavailableSeasons) {
+							checkbox.isChecked = isChecked
+						}
+					}
+				}
+			}
+			rootContainer.addView(selectAllCheckbox)
+		}
+		
 		val separator = View(context).apply {
-			setBackgroundColor(Color.parseColor("#374151")) // gray-700
+			setBackgroundColor(Color.parseColor("#374151"))
 			layoutParams = LinearLayout.LayoutParams(
 				LinearLayout.LayoutParams.MATCH_PARENT,
-				1.dp(context) // Reduced from 2dp
+				1.dp(context)
 			).apply {
-				bottomMargin = 12.dp(context) // Reduced from 16dp
+				bottomMargin = 12.dp(context)
 			}
 		}
 		rootContainer.addView(separator)
 		
-		// Scrollable season list - limit height for better visibility
 		val scrollView = ScrollView(context).apply {
 			layoutParams = LinearLayout.LayoutParams(
 				LinearLayout.LayoutParams.MATCH_PARENT,
-				280.dp(context) // Reduced from 400dp for better fit
+				280.dp(context)
 			)
-			isVerticalScrollBarEnabled = true // Enable scroll indicator
+			isVerticalScrollBarEnabled = true
 			scrollBarStyle = View.SCROLLBARS_OUTSIDE_OVERLAY
 		}
 		
@@ -126,26 +126,30 @@ class SeasonSelectionDialog(
 			)
 		}
 		
-		// Add checkbox for each season - more compact
 		for (season in 1..numberOfSeasons) {
+			val isUnavailable = season in unavailableSeasons
 			val checkbox = CheckBox(context).apply {
-				text = "Season $season"
-				textSize = 14f // Reduced from 16f
-				setTextColor(Color.WHITE)
-				isChecked = true
-				isFocusable = true
-				isFocusableInTouchMode = true
-				scaleX = 1.1f // Reduced from 1.3f
+				text = if (isUnavailable) "Season $season (Already Requested)" else "Season $season"
+				textSize = 14f
+				setTextColor(if (isUnavailable) Color.parseColor("#6B7280") else Color.WHITE)
+				isChecked = !isUnavailable
+				isEnabled = !isUnavailable
+				isFocusable = !isUnavailable
+				isFocusableInTouchMode = !isUnavailable
+				scaleX = 1.1f
 				scaleY = 1.1f
+				alpha = if (isUnavailable) 0.5f else 1.0f
 				layoutParams = LinearLayout.LayoutParams(
 					LinearLayout.LayoutParams.MATCH_PARENT,
 					LinearLayout.LayoutParams.WRAP_CONTENT
 				).apply {
-					bottomMargin = 4.dp(context) // Reduced from 8dp
-					leftMargin = 40.dp(context) // Move checkboxes to the right
+					bottomMargin = 4.dp(context)
+					leftMargin = 40.dp(context)
 				}
-				setOnCheckedChangeListener { _, _ ->
-					updateSelectAllCheckbox()
+				if (!isUnavailable) {
+					setOnCheckedChangeListener { _, _ ->
+						updateSelectAllCheckbox()
+					}
 				}
 			}
 			seasonCheckboxes.add(checkbox)
@@ -155,19 +159,17 @@ class SeasonSelectionDialog(
 		scrollView.addView(seasonsContainer)
 		rootContainer.addView(scrollView)
 		
-		// Buttons container - centered with spacing
 		val buttonsContainer = LinearLayout(context).apply {
 			orientation = LinearLayout.HORIZONTAL
-			gravity = Gravity.CENTER // Center the buttons
+			gravity = Gravity.CENTER
 			layoutParams = LinearLayout.LayoutParams(
 				LinearLayout.LayoutParams.MATCH_PARENT,
 				LinearLayout.LayoutParams.WRAP_CONTENT
 			).apply {
-				topMargin = 16.dp(context) // Reduced from 24dp
+				topMargin = 16.dp(context)
 			}
 		}
 		
-		// Cancel button
 		cancelButton = TextView(context).apply {
 			text = "Cancel"
 			textSize = 14f
@@ -178,13 +180,12 @@ class SeasonSelectionDialog(
 			isFocusableInTouchMode = true
 			gravity = Gravity.CENTER
 			
-			// Create state list drawable for focus
 			val normalBg = android.graphics.drawable.GradientDrawable().apply {
-				setColor(Color.parseColor("#6B7280")) // gray-500
+				setColor(Color.parseColor("#6B7280"))
 				cornerRadius = 6.dp(context).toFloat()
 			}
 			val focusedBg = android.graphics.drawable.GradientDrawable().apply {
-				setColor(Color.parseColor("#9CA3AF")) // gray-400 (lighter when focused)
+				setColor(Color.parseColor("#9CA3AF"))
 				cornerRadius = 6.dp(context).toFloat()
 				setStroke(2.dp(context), Color.WHITE)
 			}
@@ -206,7 +207,6 @@ class SeasonSelectionDialog(
 		}
 		buttonsContainer.addView(cancelButton)
 		
-		// Confirm button
 		confirmButton = TextView(context).apply {
 			text = "Request Selected"
 			textSize = 14f
@@ -217,13 +217,12 @@ class SeasonSelectionDialog(
 			isFocusableInTouchMode = true
 			gravity = Gravity.CENTER
 			
-			// Create state list drawable for focus
 			val normalBg = android.graphics.drawable.GradientDrawable().apply {
-				setColor(Color.parseColor("#3B82F6")) // blue-500
+				setColor(Color.parseColor("#3B82F6"))
 				cornerRadius = 6.dp(context).toFloat()
 			}
 			val focusedBg = android.graphics.drawable.GradientDrawable().apply {
-				setColor(Color.parseColor("#60A5FA")) // blue-400 (lighter when focused)
+				setColor(Color.parseColor("#60A5FA"))
 				cornerRadius = 6.dp(context).toFloat()
 				setStroke(2.dp(context), Color.WHITE)
 			}
@@ -254,33 +253,36 @@ class SeasonSelectionDialog(
 		
 		setContentView(rootContainer)
 		
-		// Make dialog background transparent
 		window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-		
-		// Center the dialog on screen
 		window?.setLayout(
 			ViewGroup.LayoutParams.WRAP_CONTENT,
 			ViewGroup.LayoutParams.WRAP_CONTENT
 		)
 		window?.setGravity(Gravity.CENTER)
 		
-		// Request focus on confirm button by default
 		confirmButton.post {
 			confirmButton.requestFocus()
 		}
 	}
 	
 	private fun updateSelectAllCheckbox() {
-		val allChecked = seasonCheckboxes.all { it.isChecked }
+		// Only consider available (enabled) season checkboxes
+		val availableCheckboxes = seasonCheckboxes.filter { it.isEnabled }
+		if (availableCheckboxes.isEmpty()) return
+		
+		val allAvailableChecked = availableCheckboxes.all { it.isChecked }
 		selectAllCheckbox?.setOnCheckedChangeListener(null)
-		selectAllCheckbox?.isChecked = allChecked
+		selectAllCheckbox?.isChecked = allAvailableChecked
 		selectAllCheckbox?.setOnCheckedChangeListener { _, isChecked ->
-			seasonCheckboxes.forEach { it.isChecked = isChecked }
+			seasonCheckboxes.forEachIndexed { index, checkbox ->
+				if ((index + 1) !in unavailableSeasons) {
+					checkbox.isChecked = isChecked
+				}
+			}
 		}
 	}
 	
 	override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-		// Handle back button
 		if (keyCode == KeyEvent.KEYCODE_BACK) {
 			dismiss()
 			return true

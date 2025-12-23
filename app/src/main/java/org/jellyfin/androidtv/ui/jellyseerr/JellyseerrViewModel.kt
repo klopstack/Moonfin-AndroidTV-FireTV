@@ -8,7 +8,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.data.repository.JellyseerrRepository
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverItemDto
+import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrGenreDto
+import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrNetworkDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrRequestDto
+import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrStudioDto
 import org.jellyfin.androidtv.data.service.jellyseerr.Seasons
 import org.jellyfin.androidtv.preference.JellyseerrPreferences
 import org.jellyfin.androidtv.util.ErrorHandler
@@ -25,13 +28,53 @@ sealed class JellyseerrLoadingState {
 	data class Error(val message: String) : JellyseerrLoadingState()
 }
 
-/**
- * ViewModel for managing Jellyseerr integration UI
- */
 class JellyseerrViewModel(
 	private val jellyseerrRepository: JellyseerrRepository,
 	private val jellyseerrPreferences: JellyseerrPreferences,
 ) : ViewModel() {
+
+	companion object {
+		// Popular TV networks (from Seerr - using duotone filtered URLs)
+		val POPULAR_NETWORKS = listOf(
+			JellyseerrNetworkDto(id = 213, name = "Netflix", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/wwemzKWzjKYJFfCeiB57q3r4Bcm.png"),
+			JellyseerrNetworkDto(id = 2739, name = "Disney+", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/gJ8VX6JSu3ciXHuC2dDGAo2lvwM.png"),
+			JellyseerrNetworkDto(id = 1024, name = "Prime Video", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/ifhbNuuVnlwYy5oXA5VIb2YR8AZ.png"),
+			JellyseerrNetworkDto(id = 2552, name = "Apple TV+", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/4KAy34EHvRM25Ih8wb82AuGU7zJ.png"),
+			JellyseerrNetworkDto(id = 453, name = "Hulu", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/pqUTCleNUiTLAVlelGxUgWn1ELh.png"),
+			JellyseerrNetworkDto(id = 49, name = "HBO", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/tuomPhY2UtuPTqqFnKMVHvSb724.png"),
+			JellyseerrNetworkDto(id = 4353, name = "Discovery+", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/1D1bS3Dyw4ScYnFWTlBOvJXC3nb.png"),
+			JellyseerrNetworkDto(id = 2, name = "ABC", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/ndAvF4JLsliGreX87jAc9GdjmJY.png"),
+			JellyseerrNetworkDto(id = 19, name = "FOX", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/1DSpHrWyOORkL9N2QHX7Adt31mQ.png"),
+			JellyseerrNetworkDto(id = 359, name = "Cinemax", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/6mSHSquNpfLgDdv6VnOOvC5Uz2h.png"),
+			JellyseerrNetworkDto(id = 174, name = "AMC", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/pmvRmATOCaDykE6JrVoeYxlFHw3.png"),
+			JellyseerrNetworkDto(id = 67, name = "Showtime", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/Allse9kbjiP6ExaQrnSpIhkurEi.png"),
+			JellyseerrNetworkDto(id = 318, name = "Starz", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/8GJjw3HHsAJYwIWKIPBPfqMxlEa.png"),
+			JellyseerrNetworkDto(id = 71, name = "The CW", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/ge9hzeaU7nMtQ4PjkFlc68dGAJ9.png"),
+			JellyseerrNetworkDto(id = 6, name = "NBC", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/o3OedEP0f9mfZr33jz2BfXOUK5.png"),
+			JellyseerrNetworkDto(id = 16, name = "CBS", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/nm8d7P7MJNiBLdgIzUK0gkuEA4r.png"),
+			JellyseerrNetworkDto(id = 4330, name = "Paramount+", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/fi83B1oztoS47xxcemFdPMhIzK.png"),
+			JellyseerrNetworkDto(id = 4, name = "BBC One", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/mVn7xESaTNmjBUyUtGNvDQd3CT1.png"),
+			JellyseerrNetworkDto(id = 56, name = "Cartoon Network", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/c5OC6oVCg6QP4eqzW6XIq17CQjI.png"),
+			JellyseerrNetworkDto(id = 80, name = "Adult Swim", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/9AKyspxVzywuaMuZ1Bvilu8sXly.png"),
+			JellyseerrNetworkDto(id = 13, name = "Nickelodeon", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/ikZXxg6GnwpzqiZbRPhJGaZapqB.png"),
+			JellyseerrNetworkDto(id = 3353, name = "Peacock", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/gIAcGTjKKr0KOHL5s4O36roJ8p7.png"),
+		)
+		
+		// Popular movie studios (from Seerr - using duotone filtered URLs)
+		val POPULAR_STUDIOS = listOf(
+			JellyseerrStudioDto(id = 2, name = "Disney", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/wdrCwmRnLFJhEoH8GSfymY85KHT.png"),
+			JellyseerrStudioDto(id = 127928, name = "20th Century Studios", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/h0rjX5vjW5r8yEnUBStFarjcLT4.png"),
+			JellyseerrStudioDto(id = 34, name = "Sony Pictures", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/GagSvqWlyPdkFHMfQ3pNq6ix9P.png"),
+			JellyseerrStudioDto(id = 174, name = "Warner Bros. Pictures", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/ky0xOc5OrhzkZ1N6KyUxacfQsCk.png"),
+			JellyseerrStudioDto(id = 33, name = "Universal", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/8lvHyhjr8oUKOOy2dKXoALWKdp0.png"),
+			JellyseerrStudioDto(id = 4, name = "Paramount", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/fycMZt242LVjagMByZOLUGbCvv3.png"),
+			JellyseerrStudioDto(id = 3, name = "Pixar", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/1TjvGVDMYsj6JBxOAkUHpPEwLf7.png"),
+			JellyseerrStudioDto(id = 521, name = "DreamWorks", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/kP7t6RwGz2AvvTkvnI1uteEwHet.png"),
+			JellyseerrStudioDto(id = 420, name = "Marvel Studios", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/hUzeosd33nzE5MCNsZxCGEKTXaQ.png"),
+			JellyseerrStudioDto(id = 9993, name = "DC", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/2Tc1P3Ac8M479naPp1kYT3izLS5.png"),
+			JellyseerrStudioDto(id = 41077, name = "A24", logoPath = "https://image.tmdb.org/t/p/w780_filter(duotone,ffffff,bababa)/1ZXsGaFPgrgS6ZZGS37AqD5uU12.png"),
+		)
+	}
 
 	private val _loadingState = MutableStateFlow<JellyseerrLoadingState>(JellyseerrLoadingState.Idle)
 	val loadingState: StateFlow<JellyseerrLoadingState> = _loadingState.asStateFlow()
@@ -51,12 +94,31 @@ class JellyseerrViewModel(
 	private val _upcomingTv = MutableStateFlow<List<JellyseerrDiscoverItemDto>>(emptyList())
 	val upcomingTv: StateFlow<List<JellyseerrDiscoverItemDto>> = _upcomingTv.asStateFlow()
 
-	// Cache of blacklisted TMDB IDs
+	private val _movieGenres = MutableStateFlow<List<JellyseerrGenreDto>>(emptyList())
+	val movieGenres: StateFlow<List<JellyseerrGenreDto>> = _movieGenres.asStateFlow()
+
+	private val _tvGenres = MutableStateFlow<List<JellyseerrGenreDto>>(emptyList())
+	val tvGenres: StateFlow<List<JellyseerrGenreDto>> = _tvGenres.asStateFlow()
+	
+	private val _networks = MutableStateFlow(POPULAR_NETWORKS)
+	val networks: StateFlow<List<JellyseerrNetworkDto>> = _networks.asStateFlow()
+	
+	private val _studios = MutableStateFlow(POPULAR_STUDIOS)
+	val studios: StateFlow<List<JellyseerrStudioDto>> = _studios.asStateFlow()
+
 	private var blacklistedTmdbIds = setOf<Int>()
 
-	/**
-	 * Fetch and cache the blacklist
-	 */
+	private var trendingCurrentPage = 3
+	private var trendingMoviesCurrentPage = 3
+	private var trendingTvCurrentPage = 3
+	private var upcomingMoviesCurrentPage = 3
+	private var upcomingTvCurrentPage = 3
+	private var isLoadingMoreTrending = false
+	private var isLoadingMoreTrendingMovies = false
+	private var isLoadingMoreTrendingTv = false
+	private var isLoadingMoreUpcomingMovies = false
+	private var isLoadingMoreUpcomingTv = false
+
 	private suspend fun fetchBlacklist() {
 		val result = ErrorHandler.catchingWarning("fetch Jellyseerr blacklist") {
 			jellyseerrRepository.getBlacklist()
@@ -68,9 +130,6 @@ class JellyseerrViewModel(
 		}
 	}
 
-	/**
-	 * Filter out items that are in the blacklist
-	 */
 	private fun List<JellyseerrDiscoverItemDto>.filterBlacklist(): List<JellyseerrDiscoverItemDto> {
 		return filter { item ->
 			// Always block if in blacklist
@@ -83,9 +142,6 @@ class JellyseerrViewModel(
 		}
 	}
 
-	/**
-	 * Filter out NSFW content if blocking is enabled
-	 */
 	private fun List<JellyseerrDiscoverItemDto>.filterNsfw(): List<JellyseerrDiscoverItemDto> {
 		val blockNsfw = jellyseerrPreferences[JellyseerrPreferences.blockNsfw]
 		
@@ -208,7 +264,7 @@ class JellyseerrViewModel(
 			val allUpcomingTv = mutableListOf<JellyseerrDiscoverItemDto>()
 			var hasPermissionError = false
 			
-			// Fetch first 3 pages to get enough content
+			// Fetch first 3 pages initially, more can be loaded via pagination
 				for (page in 1..3) {
 				val offset = (page - 1) * itemsPerPage
 				val trendingResult = jellyseerrRepository.getTrending(limit = itemsPerPage, offset = offset)
@@ -282,6 +338,13 @@ class JellyseerrViewModel(
 				_upcomingMovies.emit(upcomingMovies)
 				_upcomingTv.emit(upcomingTv)
 				_loadingState.emit(JellyseerrLoadingState.Success())
+				
+				// Reset page counters
+				trendingCurrentPage = 3
+				trendingMoviesCurrentPage = 3
+				trendingTvCurrentPage = 3
+				upcomingMoviesCurrentPage = 3
+				upcomingTvCurrentPage = 3
 				} else if (hasPermissionError) {
 					val errorMessage = "Permission Denied: Your Jellyfin account needs Jellyseerr permissions.\n\n" +
 						"To fix this:\n" +
@@ -416,9 +479,187 @@ class JellyseerrViewModel(
 		Timber.e(error, "Failed to load requests - Exception")
 		_loadingState.emit(JellyseerrLoadingState.Error(error.message ?: "Unknown error"))
 	}
-}	/**
-	 * Create a request for a specific media item
-	 */
+}
+
+	fun loadGenres() {
+		viewModelScope.launch {
+			try {
+				// Fetch movie genres
+				val movieGenresResult = jellyseerrRepository.getGenreSliderMovies()
+				if (movieGenresResult.isSuccess) {
+					val genres = movieGenresResult.getOrNull() ?: emptyList()
+					_movieGenres.emit(genres)
+					Timber.d("JellyseerrViewModel: Loaded ${genres.size} movie genres")
+				}
+
+				// Fetch TV genres
+				val tvGenresResult = jellyseerrRepository.getGenreSliderTv()
+				if (tvGenresResult.isSuccess) {
+					val genres = tvGenresResult.getOrNull() ?: emptyList()
+					_tvGenres.emit(genres)
+					Timber.d("JellyseerrViewModel: Loaded ${genres.size} TV genres")
+				}
+			} catch (error: Exception) {
+				Timber.e(error, "Failed to load genres")
+			}
+		}
+	}
+
+	fun loadNextTrendingPage() {
+		if (isLoadingMoreTrending) return
+		viewModelScope.launch {
+			isLoadingMoreTrending = true
+			try {
+				trendingCurrentPage++
+				val itemsPerPage = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
+				val offset = (trendingCurrentPage - 1) * itemsPerPage
+				val result = jellyseerrRepository.getTrending(limit = itemsPerPage, offset = offset)
+				
+				if (result.isSuccess) {
+					val newItems = result.getOrNull()?.results ?: emptyList()
+					val filtered = newItems
+						.filterNot { it.isAvailable() }
+						.filterNot { it.isBlacklisted() }
+						.filterBlacklist()
+						.filter { (it.mediaType ?: "").lowercase() in listOf("movie", "tv") }
+						.filterNsfw()
+					val currentList = _trending.value.toMutableList()
+					currentList.addAll(filtered)
+					_trending.emit(currentList)
+					Timber.d("JellyseerrViewModel: Loaded page $trendingCurrentPage - added ${filtered.size} trending items, total: ${currentList.size}")
+				}
+			} catch (error: Exception) {
+				Timber.e(error, "Failed to load more trending")
+			} finally {
+				isLoadingMoreTrending = false
+			}
+		}
+	}
+
+	fun loadNextTrendingMoviesPage() {
+		if (isLoadingMoreTrendingMovies) return
+		viewModelScope.launch {
+			isLoadingMoreTrendingMovies = true
+			try {
+				trendingMoviesCurrentPage++
+				val itemsPerPage = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
+				val offset = (trendingMoviesCurrentPage - 1) * itemsPerPage
+				val result = jellyseerrRepository.getTrendingMovies(limit = itemsPerPage, offset = offset)
+				
+				if (result.isSuccess) {
+					val newItems = result.getOrNull()?.results ?: emptyList()
+					val filtered = newItems
+						.filterNot { it.isAvailable() }
+						.filterNot { it.isBlacklisted() }
+						.filterBlacklist()
+						.filter { (it.mediaType ?: "").lowercase() == "movie" }
+						.filterNsfw()
+					val currentList = _trendingMovies.value.toMutableList()
+					currentList.addAll(filtered)
+					_trendingMovies.emit(currentList)
+					Timber.d("JellyseerrViewModel: Loaded page $trendingMoviesCurrentPage - added ${filtered.size} movie items, total: ${currentList.size}")
+				}
+			} catch (error: Exception) {
+				Timber.e(error, "Failed to load more trending movies")
+			} finally {
+				isLoadingMoreTrendingMovies = false
+			}
+		}
+	}
+
+	fun loadNextTrendingTvPage() {
+		if (isLoadingMoreTrendingTv) return
+		viewModelScope.launch {
+			isLoadingMoreTrendingTv = true
+			try {
+				trendingTvCurrentPage++
+				val itemsPerPage = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
+				val offset = (trendingTvCurrentPage - 1) * itemsPerPage
+				val result = jellyseerrRepository.getTrendingTv(limit = itemsPerPage, offset = offset)
+				
+				if (result.isSuccess) {
+					val newItems = result.getOrNull()?.results ?: emptyList()
+					val filtered = newItems
+						.filterNot { it.isAvailable() }
+						.filterNot { it.isBlacklisted() }
+						.filterBlacklist()
+						.filter { (it.mediaType ?: "").lowercase() == "tv" }
+						.filterNsfw()
+					val currentList = _trendingTv.value.toMutableList()
+					currentList.addAll(filtered)
+					_trendingTv.emit(currentList)
+					Timber.d("JellyseerrViewModel: Loaded page $trendingTvCurrentPage - added ${filtered.size} TV items, total: ${currentList.size}")
+				}
+			} catch (error: Exception) {
+				Timber.e(error, "Failed to load more trending TV")
+			} finally {
+				isLoadingMoreTrendingTv = false
+			}
+		}
+	}
+
+	fun loadNextUpcomingMoviesPage() {
+		if (isLoadingMoreUpcomingMovies) return
+		viewModelScope.launch {
+			isLoadingMoreUpcomingMovies = true
+			try {
+				upcomingMoviesCurrentPage++
+				val itemsPerPage = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
+				val offset = (upcomingMoviesCurrentPage - 1) * itemsPerPage
+				val result = jellyseerrRepository.getUpcomingMovies(limit = itemsPerPage, offset = offset)
+				
+				if (result.isSuccess) {
+					val newItems = result.getOrNull()?.results ?: emptyList()
+					val filtered = newItems
+						.filterNot { it.isAvailable() }
+						.filterNot { it.isBlacklisted() }
+						.filterBlacklist()
+						.filter { (it.mediaType ?: "").lowercase() == "movie" }
+						.filterNsfw()
+					val currentList = _upcomingMovies.value.toMutableList()
+					currentList.addAll(filtered)
+					_upcomingMovies.emit(currentList)
+					Timber.d("JellyseerrViewModel: Loaded page $upcomingMoviesCurrentPage - added ${filtered.size} upcoming movie items, total: ${currentList.size}")
+				}
+			} catch (error: Exception) {
+				Timber.e(error, "Failed to load more upcoming movies")
+			} finally {
+				isLoadingMoreUpcomingMovies = false
+			}
+		}
+	}
+
+	fun loadNextUpcomingTvPage() {
+		if (isLoadingMoreUpcomingTv) return
+		viewModelScope.launch {
+			isLoadingMoreUpcomingTv = true
+			try {
+				upcomingTvCurrentPage++
+				val itemsPerPage = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
+				val offset = (upcomingTvCurrentPage - 1) * itemsPerPage
+				val result = jellyseerrRepository.getUpcomingTv(limit = itemsPerPage, offset = offset)
+				
+				if (result.isSuccess) {
+					val newItems = result.getOrNull()?.results ?: emptyList()
+					val filtered = newItems
+						.filterNot { it.isAvailable() }
+						.filterNot { it.isBlacklisted() }
+						.filterBlacklist()
+						.filter { (it.mediaType ?: "").lowercase() == "tv" }
+						.filterNsfw()
+					val currentList = _upcomingTv.value.toMutableList()
+					currentList.addAll(filtered)
+					_upcomingTv.emit(currentList)
+					Timber.d("JellyseerrViewModel: Loaded page $upcomingTvCurrentPage - added ${filtered.size} upcoming TV items, total: ${currentList.size}")
+				}
+			} catch (error: Exception) {
+				Timber.e(error, "Failed to load more upcoming TV")
+			} finally {
+				isLoadingMoreUpcomingTv = false
+			}
+		}
+	}
+
 	fun createRequest(mediaId: Int, mediaType: String, seasons: Seasons? = null) {
 		viewModelScope.launch {
 			_loadingState.emit(JellyseerrLoadingState.Loading)
@@ -447,15 +688,52 @@ class JellyseerrViewModel(
 
 	suspend fun getSimilarTv(tmdbId: Int, page: Int = 1) = jellyseerrRepository.getSimilarTv(tmdbId, page)
 
+	suspend fun getRecommendationsMovies(tmdbId: Int, page: Int = 1) = jellyseerrRepository.getRecommendationsMovies(tmdbId, page)
+
+	suspend fun getRecommendationsTv(tmdbId: Int, page: Int = 1) = jellyseerrRepository.getRecommendationsTv(tmdbId, page)
+
 	suspend fun getPersonDetails(personId: Int) = jellyseerrRepository.getPersonDetails(personId)
 
 	suspend fun getPersonCombinedCredits(personId: Int) = jellyseerrRepository.getPersonCombinedCredits(personId)
+
+	suspend fun discoverMovies(
+		page: Int = 1,
+		sortBy: String = "popularity.desc",
+		genreId: String? = null,
+		studioId: String? = null,
+		keywords: String? = null,
+		language: String = "en"
+	) = jellyseerrRepository.discoverMovies(
+		page = page,
+		sortBy = sortBy,
+		genre = genreId?.toIntOrNull(),
+		studio = studioId?.toIntOrNull(),
+		keywords = keywords?.toIntOrNull(),
+		language = language
+	)
+
+	suspend fun discoverTv(
+		page: Int = 1,
+		sortBy: String = "popularity.desc",
+		genreId: String? = null,
+		networkId: String? = null,
+		keywords: String? = null,
+		language: String = "en"
+	) = jellyseerrRepository.discoverTv(
+		page = page,
+		sortBy = sortBy,
+		genre = genreId?.toIntOrNull(),
+		network = networkId?.toIntOrNull(),
+		keywords = keywords?.toIntOrNull(),
+		language = language
+	)
 
 	private suspend fun requestContent(
 		mediaId: Int,
 		mediaType: String,
 		seasons: List<Int>?,
-		is4k: Boolean = false
+		is4k: Boolean = false,
+		advancedOptions: AdvancedRequestOptions? = null
 	) {
 		Timber.d("JellyseerrViewModel: Requesting media - ID: $mediaId, Type: $mediaType, Seasons: $seasons, 4K: $is4k")
 		
@@ -466,8 +744,8 @@ class JellyseerrViewModel(
 			else -> Seasons.List(seasons)
 		}
 		
-		// Get custom profile settings from preferences
-		val profileId = when {
+		// Use advanced options if provided, otherwise fall back to preferences
+		val profileId = advancedOptions?.profileId ?: when {
 			mediaType == "movie" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKMovieProfileId]?.toIntOrNull()
 			mediaType == "movie" && !is4k -> jellyseerrPreferences[JellyseerrPreferences.hdMovieProfileId]?.toIntOrNull()
 			mediaType == "tv" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKTvProfileId]?.toIntOrNull()
@@ -475,7 +753,7 @@ class JellyseerrViewModel(
 			else -> null
 		}
 		
-		val rootFolderId = when {
+		val rootFolderId = advancedOptions?.rootFolderId ?: when {
 			mediaType == "movie" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKMovieRootFolderId]?.toIntOrNull()
 			mediaType == "movie" && !is4k -> jellyseerrPreferences[JellyseerrPreferences.hdMovieRootFolderId]?.toIntOrNull()
 			mediaType == "tv" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKTvRootFolderId]?.toIntOrNull()
@@ -483,7 +761,7 @@ class JellyseerrViewModel(
 			else -> null
 		}
 		
-		val serverId = when {
+		val serverId = advancedOptions?.serverId ?: when {
 			mediaType == "movie" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKMovieServerId]?.toIntOrNull()
 			mediaType == "movie" && !is4k -> jellyseerrPreferences[JellyseerrPreferences.hdMovieServerId]?.toIntOrNull()
 			mediaType == "tv" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKTvServerId]?.toIntOrNull()
@@ -491,7 +769,7 @@ class JellyseerrViewModel(
 			else -> null
 		}
 		
-		Timber.d("JellyseerrViewModel: Using custom profiles - profileId=$profileId, rootFolderId=$rootFolderId, serverId=$serverId")
+		Timber.d("JellyseerrViewModel: Using profiles - profileId=$profileId, rootFolderId=$rootFolderId, serverId=$serverId (from advancedOptions: ${advancedOptions != null})")
 		
 		val result = jellyseerrRepository.createRequest(mediaId, mediaType, seasonsParam, is4k, profileId, rootFolderId, serverId)
 		if (result.isFailure) {
@@ -505,21 +783,19 @@ class JellyseerrViewModel(
 	suspend fun requestMedia(
 		item: JellyseerrDiscoverItemDto,
 		seasons: List<Int>? = null,
-		is4k: Boolean = false
+		is4k: Boolean = false,
+		advancedOptions: AdvancedRequestOptions? = null
 	): Result<Unit> {
 		return try {
 			val mediaType = item.mediaType ?: return Result.failure(Exception("Unknown media type"))
 			val mediaId = item.id
-			requestContent(mediaId, mediaType, seasons, is4k)
+			requestContent(mediaId, mediaType, seasons, is4k, advancedOptions)
 			Result.success(Unit)
 		} catch (e: Exception) {
 			Result.failure(e)
 		}
 	}
 
-	/**
-	 * Search for media items
-	 */
 	fun search(query: String, mediaType: String? = null) {
 		viewModelScope.launch {
 			if (query.isBlank()) {
@@ -569,9 +845,6 @@ class JellyseerrViewModel(
 		}
 	}
 
-	/**
-	 * Check if a date string is within the specified number of days from now
-	 */
 	private fun isWithinDays(dateString: String?, days: Int): Boolean {
 		if (dateString == null) return false
 		
@@ -589,6 +862,32 @@ class JellyseerrViewModel(
 			Timber.w(e, "Failed to parse date: $dateString")
 			false
 		}
+	}
+
+	suspend fun getCurrentUser() = jellyseerrRepository.getCurrentUser()
+
+	suspend fun getRadarrSettings() = jellyseerrRepository.getRadarrSettings()
+
+	suspend fun getSonarrSettings() = jellyseerrRepository.getSonarrSettings()
+
+	suspend fun getRadarrServers() = jellyseerrRepository.getRadarrServers()
+
+	suspend fun getRadarrServerDetails(serverId: Int) = jellyseerrRepository.getRadarrServerDetails(serverId)
+
+	suspend fun getSonarrServers() = jellyseerrRepository.getSonarrServers()
+
+	suspend fun getSonarrServerDetails(serverId: Int) = jellyseerrRepository.getSonarrServerDetails(serverId)
+
+	suspend fun cancelRequest(requestId: Int): Result<Unit> {
+		Timber.d("JellyseerrViewModel: Cancelling request ID: $requestId")
+		val result = jellyseerrRepository.deleteRequest(requestId)
+		if (result.isSuccess) {
+			Timber.d("JellyseerrViewModel: Request $requestId cancelled successfully")
+			loadRequestsSuspend()
+		} else {
+			Timber.e(result.exceptionOrNull(), "JellyseerrViewModel: Failed to cancel request $requestId")
+		}
+		return result
 	}
 
 	override fun onCleared() {

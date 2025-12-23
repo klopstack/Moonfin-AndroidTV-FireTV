@@ -104,17 +104,7 @@ fun SettingsMainScreen() {
 				},
 				headingContent = { Text(stringResource(R.string.jellyseerr)) },
 				captionContent = { Text("Jellyseerr integration settings") },
-				onClick = {
-					val intent = Intent(context, PreferencesActivity::class.java).apply {
-						putExtras(
-							bundleOf(
-								PreferencesActivity.EXTRA_SCREEN to JellyseerrPreferencesScreen::class.qualifiedName,
-								PreferencesActivity.EXTRA_SCREEN_ARGS to bundleOf(),
-							)
-						)
-					}
-					context.startActivity(intent)
-				}
+				onClick = { router.push(Routes.JELLYSEERR) }
 			)
 		}
 

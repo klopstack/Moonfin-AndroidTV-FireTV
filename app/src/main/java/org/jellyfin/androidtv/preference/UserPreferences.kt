@@ -87,6 +87,17 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		 */
 		var confirmExit = booleanPreference("confirm_exit", true)
 
+		/**
+		 * Seasonal surprise effect selection (none, winter, spring, fall)
+		 */
+		var seasonalSurprise = stringPreference("seasonal_surprise", "none")
+
+		/**
+		 * Enable multi-server library aggregation
+		 * When enabled, shows libraries and content from all logged-in servers
+		 */
+		var enableMultiServerLibraries = booleanPreference("enable_multi_server_libraries", false)
+
 		/* Playback - General*/
 		/**
 		 * Maximum bitrate in megabit for playback.
@@ -231,7 +242,7 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		/**
 		 * Subtitles font size
 		 */
-		var subtitlesTextSize = floatPreference("subtitles_text_size", 1f)
+		var subtitlesTextSize = floatPreference("subtitles_text_size", 24f)
 
 		/**
 		 * Subtitles offset
@@ -239,19 +250,24 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var subtitlesOffsetPosition = floatPreference("subtitles_offset_position", 0.08f)
 
 		/**
-		 * Show screensaver in app
-		 */
-		var screensaverInAppEnabled = booleanPreference("screensaver_inapp_enabled", true)
+	 * Force subtitles to default to None instead of server default
+	 */
+	var subtitlesDefaultToNone = booleanPreference("subtitles_default_to_none", false)
 
-		/**
-		 * Screensaver mode (library or logo)
-		 */
-		var screensaverMode = stringPreference("pref_screensaver_mode", "library")
+	/**
+	 * Show screensaver in app
+	 */
+	var screensaverInAppEnabled = booleanPreference("screensaver_inapp_enabled", true)
 
-		/**
-		 * Screen dimming level for the screensaver (1-100%).
-		 * 0 means no dimming.
-		 */
+	/**
+	 * Screensaver mode (library or logo)
+	 */
+	var screensaverMode = stringPreference("pref_screensaver_mode", "library")
+
+	/**
+	 * Screen dimming level for the screensaver (1-100%).
+	 * 0 means no dimming.
+	 */
 		var screensaverDimmingLevel = intPreference("pref_screensaver_dimming_level", 0)
 
 		/**
@@ -323,8 +339,14 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 				putLong("subtitles_text_stroke_color", if (subtitleStrokeSize > 0) 0XFF000000L else 0X00FFFFFFL)
 			}
 
+// v0.19.0 to v0.20.0
+			migration(toVersion = 9) {
+				// Reset subtitle text size as we changed from fractional sizing to absolute sizing
+				remove("subtitles_text_size")
+			}
+
 			// v1.2.0 to v1.3.0
-			migration(toVersion = 9) { prefs ->
+			migration(toVersion = 10) { prefs ->
 				// Migrate screensaver dimming from boolean to int (0-100)
 				val oldDimmingKey = "pref_screensaver_dimming"
 				val wasEnabled = prefs.getBoolean(oldDimmingKey, false)
@@ -344,7 +366,6 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 						}
 					} catch (e: ClassCastException) {
 						// Already stored as Int, no migration needed
-						// Keep the existing integer value
 					}
 				}
 			}

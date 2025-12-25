@@ -104,17 +104,7 @@ fun SettingsMainScreen() {
 				},
 				headingContent = { Text(stringResource(R.string.jellyseerr)) },
 				captionContent = { Text("Jellyseerr integration settings") },
-				onClick = {
-					val intent = Intent(context, PreferencesActivity::class.java).apply {
-						putExtras(
-							bundleOf(
-								PreferencesActivity.EXTRA_SCREEN to JellyseerrPreferencesScreen::class.qualifiedName,
-								PreferencesActivity.EXTRA_SCREEN_ARGS to bundleOf(),
-							)
-						)
-					}
-					context.startActivity(intent)
-				}
+				onClick = { router.push(Routes.JELLYSEERR) }
 			)
 		}
 
@@ -144,7 +134,7 @@ fun SettingsMainScreen() {
 		}
 
 		item {
-			ListSection(
+ListSection(
 				headingContent = { Text("Support & Updates") },
 			)
 		}
@@ -182,9 +172,13 @@ fun SettingsMainScreen() {
 			)
 		}
 
-		settingsAboutItems(
-			openLicenses = { router.push(Routes.LICENSES) }
-		)
+		item {
+			ListButton(
+				leadingContent = { Icon(painterResource(R.drawable.ic_jellyfin), contentDescription = null) },
+				headingContent = { Text(stringResource(R.string.pref_about_title)) },
+				onClick = { router.push(Routes.ABOUT) }
+			)
+		}
 	}
 }
 

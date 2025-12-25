@@ -506,6 +506,144 @@ class JellyseerrHttpClient(
 		Timber.e(error, "Jellyseerr: Failed to get similar TV shows for TV show $tmdbId")
 	}
 
+	/**
+	 * Get movie recommendations for a given movie ID
+	 */
+	suspend fun getRecommendationsMovies(tmdbId: Int, page: Int = 1): Result<JellyseerrDiscoverPageDto> = runCatching {
+		val url = "$baseUrl/api/v1/movie/$tmdbId/recommendations"
+		val response = httpClient.get(url) {
+			addAuthHeader()
+			url {
+				parameters.append("page", page.toString())
+			}
+		}
+
+		Timber.d("Jellyseerr: Got recommendations for movie $tmdbId - Status: ${response.status}")
+		response.body<JellyseerrDiscoverPageDto>()
+	}.onFailure { error ->
+		Timber.e(error, "Jellyseerr: Failed to get recommendations for movie $tmdbId")
+	}
+
+	/**
+	 * Get TV show recommendations for a given TV show ID
+	 */
+	suspend fun getRecommendationsTv(tmdbId: Int, page: Int = 1): Result<JellyseerrDiscoverPageDto> = runCatching {
+		val url = "$baseUrl/api/v1/tv/$tmdbId/recommendations"
+		val response = httpClient.get(url) {
+			addAuthHeader()
+			url {
+				parameters.append("page", page.toString())
+			}
+		}
+
+		Timber.d("Jellyseerr: Got recommendations for TV show $tmdbId - Status: ${response.status}")
+		response.body<JellyseerrDiscoverPageDto>()
+	}.onFailure { error ->
+		Timber.e(error, "Jellyseerr: Failed to get recommendations for TV show $tmdbId")
+	}
+
+	/**
+	 * Get genre slider for movies with backdrop images
+	 */
+	suspend fun getGenreSliderMovies(): Result<List<JellyseerrGenreDto>> = runCatching {
+		val url = "$baseUrl/api/v1/discover/genreslider/movie"
+		val response = httpClient.get(url) {
+			addAuthHeader()
+		}
+
+		Timber.d("Jellyseerr: Got movie genres - Status: ${response.status}")
+		response.body<List<JellyseerrGenreDto>>()
+	}.onFailure { error ->
+		Timber.e(error, "Jellyseerr: Failed to get movie genres")
+	}
+
+	/**
+	 * Get genre slider for TV shows with backdrop images
+	 */
+	suspend fun getGenreSliderTv(): Result<List<JellyseerrGenreDto>> = runCatching {
+		val url = "$baseUrl/api/v1/discover/genreslider/tv"
+		val response = httpClient.get(url) {
+			addAuthHeader()
+		}
+
+		Timber.d("Jellyseerr: Got TV genres - Status: ${response.status}")
+		response.body<List<JellyseerrGenreDto>>()
+	}.onFailure { error ->
+		Timber.e(error, "Jellyseerr: Failed to get TV genres")
+	}
+
+	/**
+	 * Discover movies with optional filters
+	 * @param page Page number
+	 * @param sortBy Sort method (e.g., "popularity.desc", "vote_average.desc")
+	 * @param genre Genre ID to filter by
+	 * @param studio Studio ID to filter by
+	 * @param keywords Keyword ID to filter by
+	 * @param language Language code (default: "en")
+	 */
+	suspend fun discoverMovies(
+		page: Int = 1,
+		sortBy: String = "popularity.desc",
+		genre: Int? = null,
+		studio: Int? = null,
+		keywords: Int? = null,
+		language: String = "en"
+	): Result<JellyseerrDiscoverPageDto> = runCatching {
+		val url = "$baseUrl/api/v1/discover/movies"
+		val response = httpClient.get(url) {
+			addAuthHeader()
+			url {
+				parameters.append("page", page.toString())
+				parameters.append("sortBy", sortBy)
+				parameters.append("language", language)
+				genre?.let { parameters.append("genre", it.toString()) }
+				studio?.let { parameters.append("studio", it.toString()) }
+				keywords?.let { parameters.append("keywords", it.toString()) }
+			}
+		}
+
+		Timber.d("Jellyseerr: Discovered movies (genre=$genre, studio=$studio, keywords=$keywords) - Status: ${response.status}")
+		response.body<JellyseerrDiscoverPageDto>()
+	}.onFailure { error ->
+		Timber.e(error, "Jellyseerr: Failed to discover movies")
+	}
+
+	/**
+	 * Discover TV shows with optional filters
+	 * @param page Page number
+	 * @param sortBy Sort method (e.g., "popularity.desc", "vote_average.desc")
+	 * @param genre Genre ID to filter by
+	 * @param network Network ID to filter by
+	 * @param keywords Keyword ID to filter by
+	 * @param language Language code (default: "en")
+	 */
+	suspend fun discoverTv(
+		page: Int = 1,
+		sortBy: String = "popularity.desc",
+		genre: Int? = null,
+		network: Int? = null,
+		keywords: Int? = null,
+		language: String = "en"
+	): Result<JellyseerrDiscoverPageDto> = runCatching {
+		val url = "$baseUrl/api/v1/discover/tv"
+		val response = httpClient.get(url) {
+			addAuthHeader()
+			url {
+				parameters.append("page", page.toString())
+				parameters.append("sortBy", sortBy)
+				parameters.append("language", language)
+				genre?.let { parameters.append("genre", it.toString()) }
+				network?.let { parameters.append("network", it.toString()) }
+				keywords?.let { parameters.append("keywords", it.toString()) }
+			}
+		}
+
+		Timber.d("Jellyseerr: Discovered TV shows (genre=$genre, network=$network, keywords=$keywords) - Status: ${response.status}")
+		response.body<JellyseerrDiscoverPageDto>()
+	}.onFailure { error ->
+		Timber.e(error, "Jellyseerr: Failed to discover TV shows")
+	}
+
 	// ==================== Blacklist ====================
 
 	/**
@@ -827,7 +965,99 @@ class JellyseerrHttpClient(
 	// ==================== Service Configuration ====================
 
 	/**
-	 * Get all Radarr server configurations
+	 * Get list of Radarr servers available to the current user
+	 * Uses /api/v1/service/radarr which is available to all authenticated users
+	 */
+	suspend fun getRadarrServers(): Result<List<JellyseerrServiceServerDto>> = runCatching {
+		val url = URLBuilder("$baseUrl/api/v1/service/radarr").build()
+		val response = httpClient.get(url) {
+			addAuthHeader()
+		}
+		
+		Timber.d("Jellyseerr: Got Radarr servers - Status: ${response.status}")
+		
+		if (response.status.value !in 200..299) {
+			val errorBody = response.body<String>()
+			Timber.e("Jellyseerr: getRadarrServers failed with status ${response.status}: $errorBody")
+			throw Exception("Failed to get Radarr servers: ${response.status}")
+		}
+		
+		response.body<List<JellyseerrServiceServerDto>>()
+	}.onFailure { error ->
+		Timber.e(error, "Jellyseerr: Failed to get Radarr servers")
+	}
+
+	/**
+	 * Get detailed info for a specific Radarr server
+	 * Uses /api/v1/service/radarr/:id which is available to all authenticated users
+	 */
+	suspend fun getRadarrServerDetails(serverId: Int): Result<JellyseerrServiceServerDetailsDto> = runCatching {
+		val url = URLBuilder("$baseUrl/api/v1/service/radarr/$serverId").build()
+		val response = httpClient.get(url) {
+			addAuthHeader()
+		}
+		
+		Timber.d("Jellyseerr: Got Radarr server details for $serverId - Status: ${response.status}")
+		
+		if (response.status.value !in 200..299) {
+			val errorBody = response.body<String>()
+			Timber.e("Jellyseerr: getRadarrServerDetails failed with status ${response.status}: $errorBody")
+			throw Exception("Failed to get Radarr server details: ${response.status}")
+		}
+		
+		response.body<JellyseerrServiceServerDetailsDto>()
+	}.onFailure { error ->
+		Timber.e(error, "Jellyseerr: Failed to get Radarr server details")
+	}
+
+	/**
+	 * Get list of Sonarr servers available to the current user
+	 * Uses /api/v1/service/sonarr which is available to all authenticated users
+	 */
+	suspend fun getSonarrServers(): Result<List<JellyseerrServiceServerDto>> = runCatching {
+		val url = URLBuilder("$baseUrl/api/v1/service/sonarr").build()
+		val response = httpClient.get(url) {
+			addAuthHeader()
+		}
+		
+		Timber.d("Jellyseerr: Got Sonarr servers - Status: ${response.status}")
+		
+		if (response.status.value !in 200..299) {
+			val errorBody = response.body<String>()
+			Timber.e("Jellyseerr: getSonarrServers failed with status ${response.status}: $errorBody")
+			throw Exception("Failed to get Sonarr servers: ${response.status}")
+		}
+		
+		response.body<List<JellyseerrServiceServerDto>>()
+	}.onFailure { error ->
+		Timber.e(error, "Jellyseerr: Failed to get Sonarr servers")
+	}
+
+	/**
+	 * Get detailed info for a specific Sonarr server
+	 * Uses /api/v1/service/sonarr/:id which is available to all authenticated users
+	 */
+	suspend fun getSonarrServerDetails(serverId: Int): Result<JellyseerrServiceServerDetailsDto> = runCatching {
+		val url = URLBuilder("$baseUrl/api/v1/service/sonarr/$serverId").build()
+		val response = httpClient.get(url) {
+			addAuthHeader()
+		}
+		
+		Timber.d("Jellyseerr: Got Sonarr server details for $serverId - Status: ${response.status}")
+		
+		if (response.status.value !in 200..299) {
+			val errorBody = response.body<String>()
+			Timber.e("Jellyseerr: getSonarrServerDetails failed with status ${response.status}: $errorBody")
+			throw Exception("Failed to get Sonarr server details: ${response.status}")
+		}
+		
+		response.body<JellyseerrServiceServerDetailsDto>()
+	}.onFailure { error ->
+		Timber.e(error, "Jellyseerr: Failed to get Sonarr server details")
+	}
+
+	/**
+	 * Get all Radarr server configurations (ADMIN ONLY)
 	 * Returns list of Radarr instances with their profiles and root folders
 	 */
 	suspend fun getRadarrSettings(): Result<List<JellyseerrRadarrSettingsDto>> = runCatching {

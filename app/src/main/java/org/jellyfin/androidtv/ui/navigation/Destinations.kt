@@ -17,7 +17,9 @@ import org.jellyfin.androidtv.ui.home.HomeFragment
 import org.jellyfin.androidtv.ui.itemdetail.FullDetailsFragment
 import org.jellyfin.androidtv.ui.itemdetail.ItemListFragment
 import org.jellyfin.androidtv.ui.itemdetail.MusicFavoritesListFragment
+import org.jellyfin.androidtv.ui.jellyseerr.BrowseFilterType
 import org.jellyfin.androidtv.ui.jellyseerr.DiscoverFragment
+import org.jellyfin.androidtv.ui.jellyseerr.JellyseerrBrowseByFragment
 import org.jellyfin.androidtv.ui.jellyseerr.MediaDetailsFragment
 import org.jellyfin.androidtv.ui.jellyseerr.PersonDetailsFragment
 import org.jellyfin.androidtv.ui.jellyseerr.RequestsFragment
@@ -46,11 +48,14 @@ object Destinations {
 
 	// Browsing
 	// TODO only pass item id instead of complete JSON to browsing destinations
-	fun libraryBrowser(item: BaseItemDto) = fragmentDestination<BrowseGridFragment>(
+	@JvmOverloads
+	fun libraryBrowser(item: BaseItemDto, serverId: UUID? = null) = fragmentDestination<BrowseGridFragment>(
 		Extras.Folder to Json.Default.encodeToString(item),
+		"ServerId" to serverId?.toString(),
 	)
 
 	// TODO only pass item id instead of complete JSON to browsing destinations
+	@JvmName("libraryBrowserWithType")
 	fun libraryBrowser(item: BaseItemDto, includeType: String) =
 		fragmentDestination<BrowseGridFragment>(
 			Extras.Folder to Json.Default.encodeToString(item),
@@ -99,8 +104,10 @@ object Destinations {
 		)
 
 	// Item details
-	fun itemDetails(item: UUID) = fragmentDestination<FullDetailsFragment>(
+	@JvmOverloads
+	fun itemDetails(item: UUID, serverId: UUID? = null) = fragmentDestination<FullDetailsFragment>(
 		"ItemId" to item.toString(),
+		"ServerId" to serverId?.toString(),
 	)
 
 	// TODO only pass item id instead of complete JSON to browsing destinations
@@ -167,6 +174,28 @@ object Destinations {
 	val jellyseerrDiscover = fragmentDestination<DiscoverFragment>()
 	val jellyseerrRequests = fragmentDestination<RequestsFragment>()
 	val jellyseerrSettings = fragmentDestination<JellyseerrSettingsFragment>()
+	
+	fun jellyseerrBrowseBy(
+		filterId: Int, 
+		filterName: String, 
+		mediaType: String,
+		filterType: BrowseFilterType = BrowseFilterType.GENRE
+	) = fragmentDestination<JellyseerrBrowseByFragment>(
+		"filter_id" to filterId,
+		"filter_name" to filterName,
+		"media_type" to mediaType,
+		"filter_type" to filterType.name,
+	)
+	
+	// Convenience methods for specific filter types
+	fun jellyseerrBrowseByGenre(genreId: Int, genreName: String, mediaType: String) = 
+		jellyseerrBrowseBy(genreId, genreName, mediaType, BrowseFilterType.GENRE)
+	
+	fun jellyseerrBrowseByNetwork(networkId: Int, networkName: String) = 
+		jellyseerrBrowseBy(networkId, networkName, "tv", BrowseFilterType.NETWORK)
+	
+	fun jellyseerrBrowseByStudio(studioId: Int, studioName: String) = 
+		jellyseerrBrowseBy(studioId, studioName, "movie", BrowseFilterType.STUDIO)
 	
 	fun jellyseerrMediaDetails(itemJson: String) = fragmentDestination<MediaDetailsFragment>(
 		"item" to itemJson

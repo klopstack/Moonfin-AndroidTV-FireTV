@@ -32,6 +32,7 @@ import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.service.BackgroundService
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverItemDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrMovieDetailsDto
+import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrRequestDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrTvDetailsDto
 import org.jellyfin.androidtv.ui.navigation.Destinations
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
@@ -62,11 +63,14 @@ class MediaDetailsFragment : Fragment() {
 	private var movieDetails: JellyseerrMovieDetailsDto? = null
 	private var tvDetails: JellyseerrTvDetailsDto? = null
 	private var requestButton: View? = null
-	private var request4kButton: View? = null
+	private var cancelRequestButton: View? = null
 	private var trailerButton: View? = null
 	private var playInMoonfinButton: View? = null
 	private var castSection: View? = null
 	private var toolbarContainer: View? = null
+
+	// Items per section (cast/recommendations/similar)
+	private val ITEMS_PER_SECTION = 45  // 3 pages * ~15 items per page
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -221,7 +225,9 @@ class MediaDetailsFragment : Fragment() {
 		}
 		contentWrapper.addView(createOverviewSection())
 		contentWrapper.addView(createCastSection())
+		contentWrapper.addView(createRecommendationsSection())
 		contentWrapper.addView(createSimilarSection())
+		contentWrapper.addView(createKeywordsSection())
 		container.addView(contentWrapper)
 		
 		val titleWrapper = FrameLayout(requireContext()).apply {
@@ -309,8 +315,8 @@ class MediaDetailsFragment : Fragment() {
 				view?.let { refreshUI() }
 			} catch (e: Exception) {
 				Timber.e(e, "Failed to load full details")
+				}
 			}
-		}
 	}
 
 	private fun refreshUI() {
@@ -601,40 +607,37 @@ class MediaDetailsFragment : Fragment() {
 		val hdDeclined = requests?.any { !it.is4k && it.status == 3 } == true
 		val fourKDeclined = requests?.any { it.is4k && it.status == 3 } == true
 		
-		// HD Button: Disable if pending (2), processing (3), or fully available (5), or declined
-		// Allow re-request if not requested (null/1), or partially available (4) so users can request missing episodes
-		val isHdActive = (hdStatus != null && hdStatus >= 2 && hdStatus != 4) || hdDeclined
-		val hdLabel = when {
-			hdDeclined -> "HD Declined"
-			hdStatus == 2 -> "HD Pending"
-			hdStatus == 3 -> "HD Processing"
-			hdStatus == 4 -> "Request More (HD)"
-			hdStatus == 5 -> "HD Available"
-			else -> "Request HD"
-		}
+		// Determine if HD/4K are requestable
+		// Blocked if: pending (2), processing (3), available (5), blacklisted (6), or declined
+		// Requestable if: not requested (null/1), or partially available (4)
+		val isHdBlocked = (hdStatus != null && hdStatus >= 2 && hdStatus != 4) || hdDeclined
+		val is4kBlocked = (status4k != null && status4k >= 2 && status4k != 4) || fourKDeclined
 		
-		// 4K Button: Same logic for 4K
-		val is4kActive = (status4k != null && status4k >= 2 && status4k != 4) || fourKDeclined
-		val label4k = when {
-			fourKDeclined -> "4K Declined"
-			status4k == 2 -> "4K Pending"
-			status4k == 3 -> "4K Processing"
-			status4k == 4 -> "Request More (4K)"
-			status4k == 5 -> "4K Available"
-			else -> "Request 4K"
+		// Determine button state and label
+		val canRequestHd = !isHdBlocked
+		val canRequest4k = !is4kBlocked
+		val canRequestAny = canRequestHd || canRequest4k
+		
+		// Determine the button label based on status
+		val requestLabel = when {
+			!canRequestAny -> getStatusLabel(hdStatus, status4k, hdDeclined, fourKDeclined)
+			hdStatus == 4 && status4k == 4 -> "Request More"
+			hdStatus == 4 -> "Request More"
+			status4k == 4 -> "Request More"
+			else -> "Request"
 		}
 
-		// Request button
+		// Single Request button
 		requestButton = TextUnderButton(requireContext()).apply {
-			setLabel(hdLabel)
+			setLabel(requestLabel)
 			setIcon(R.drawable.ic_select_quality)
-			isEnabled = !isHdActive
-			isFocusable = !isHdActive
-			isFocusableInTouchMode = !isHdActive
-			alpha = if (isHdActive) 0.5f else 1.0f
+			isEnabled = canRequestAny
+			isFocusable = canRequestAny
+			isFocusableInTouchMode = canRequestAny
+			alpha = if (canRequestAny) 1.0f else 0.5f
 			setOnClickListener {
-				if (!isHdActive) {
-					requestContent(false)
+				if (canRequestAny) {
+					handleRequestClick(canRequestHd, canRequest4k, hdStatus, status4k)
 				}
 			}
 			id = View.generateViewId()
@@ -649,29 +652,26 @@ class MediaDetailsFragment : Fragment() {
 		}
 		container.addView(requestButton)
 
-		// Request 4K button
-		request4kButton = TextUnderButton(requireContext()).apply {
-			setLabel(label4k)
-			setIcon(R.drawable.ic_4k)
-			isEnabled = !is4kActive
-			isFocusable = !is4kActive
-			isFocusableInTouchMode = !is4kActive
-			alpha = if (is4kActive) 0.5f else 1.0f
-			setOnClickListener {
-				if (!is4kActive) {
-					requestContent(true)
+		// Cancel Request button - show if there are pending (status=1) requests
+		val pendingRequests = requests?.filter { it.status == JellyseerrRequestDto.STATUS_PENDING } ?: emptyList()
+		if (pendingRequests.isNotEmpty()) {
+			cancelRequestButton = TextUnderButton(requireContext()).apply {
+				setLabel("Cancel Request")
+				setIcon(R.drawable.ic_delete)
+				setOnClickListener {
+					showCancelRequestDialog(pendingRequests)
+				}
+				id = View.generateViewId()
+				layoutParams = LinearLayout.LayoutParams(
+					LinearLayout.LayoutParams.WRAP_CONTENT,
+					LinearLayout.LayoutParams.WRAP_CONTENT
+				).apply {
+					marginEnd = 8.dp(context)
+					topMargin = buttonTopMargin
 				}
 			}
-			id = View.generateViewId()
-			layoutParams = LinearLayout.LayoutParams(
-				LinearLayout.LayoutParams.WRAP_CONTENT,
-				LinearLayout.LayoutParams.WRAP_CONTENT
-			).apply {
-				marginEnd = 8.dp(context)
-				topMargin = buttonTopMargin
-			}
+			container.addView(cancelRequestButton)
 		}
-		container.addView(request4kButton)
 
 		// Watch Trailer button
 		trailerButton = TextUnderButton(requireContext()).apply {
@@ -711,6 +711,107 @@ class MediaDetailsFragment : Fragment() {
 		}
 		
 		return container
+	}
+	
+	/**
+	 * Get a combined status label when nothing is requestable
+	 */
+	private fun getStatusLabel(hdStatus: Int?, status4k: Int?, hdDeclined: Boolean, fourKDeclined: Boolean): String {
+		return when {
+			hdDeclined && fourKDeclined -> "Declined"
+			fourKDeclined -> "4K Declined"
+			hdDeclined -> "HD Declined"
+			hdStatus == 5 && status4k == 5 -> "Available"
+			status4k == 5 -> "4K Available"
+			hdStatus == 5 -> "HD Available"
+			hdStatus == 3 && status4k == 3 -> "Processing"
+			status4k == 3 -> "4K Processing"
+			hdStatus == 3 -> "HD Processing"
+			hdStatus == 2 && status4k == 2 -> "Pending"
+			status4k == 2 -> "4K Pending"
+			hdStatus == 2 -> "HD Pending"
+			hdStatus == 6 || status4k == 6 -> "Blacklisted"
+			else -> "Unavailable"
+		}
+	}
+	
+	/**
+	 * Handle request button click - show quality selection if both options available
+	 */
+	private fun handleRequestClick(canRequestHd: Boolean, canRequest4k: Boolean, hdStatus: Int?, status4k: Int?) {
+		val item = selectedItem ?: return
+		val mediaType = item.mediaType ?: return
+		val title = when (mediaType) {
+			"movie" -> movieDetails?.title ?: item.title ?: item.name ?: "Unknown"
+			else -> tvDetails?.name ?: item.name ?: item.title ?: "Unknown"
+		}
+		
+		// Check if we need to show quality selection
+		lifecycleScope.launch {
+			// Get user permissions and server availability
+			val (userCan4k, has4kServer) = check4kAvailability(mediaType)
+			
+			// Final determination of what's available
+			val hdAvailable = canRequestHd
+			val fourKAvailable = canRequest4k && userCan4k && has4kServer
+			
+			if (hdAvailable && fourKAvailable) {
+				// Both available - show quality selection dialog
+				val dialog = QualitySelectionDialog(
+					requireContext(),
+					title = title,
+					canRequestHd = true,
+					canRequest4k = true,
+					hdStatus = hdStatus,
+					status4k = status4k
+				) { is4k ->
+					requestContent(is4k)
+				}
+				dialog.show()
+			} else if (fourKAvailable) {
+				// Only 4K available
+				requestContent(true)
+			} else if (hdAvailable) {
+				// Only HD available
+				requestContent(false)
+			}
+		}
+	}
+	
+	/**
+	 * Check if 4K requests are possible for the given media type
+	 * Returns (userHas4kPermission, server4kAvailable)
+	 */
+	private suspend fun check4kAvailability(mediaType: String): Pair<Boolean, Boolean> {
+		return try {
+			// Check user permissions
+			val userResult = viewModel.getCurrentUser()
+			val user = userResult.getOrNull()
+			val userCan4k = when (mediaType) {
+				"movie" -> user?.canRequest4kMovies() ?: false
+				"tv" -> user?.canRequest4kTv() ?: false
+				else -> user?.canRequest4k() ?: false
+			}
+			
+			// Check if 4K server is configured using service endpoints (available to all users)
+			val has4kServer = when (mediaType) {
+				"movie" -> {
+					val radarrResult = viewModel.getRadarrServers()
+					radarrResult.getOrNull()?.any { it.is4k } ?: false
+				}
+				"tv" -> {
+					val sonarrResult = viewModel.getSonarrServers()
+					sonarrResult.getOrNull()?.any { it.is4k } ?: false
+				}
+				else -> false
+			}
+			
+			Pair(userCan4k, has4kServer)
+		} catch (e: Exception) {
+			Timber.e(e, "Failed to check 4K availability")
+			// Default to allowing 4K if check fails (let server reject if not allowed)
+			Pair(true, true)
+		}
 	}
 
 	private fun createOverviewSection(): View {
@@ -992,8 +1093,8 @@ class MediaDetailsFragment : Fragment() {
 		}
 		container.addView(castHeading)
 
-		val castList = movieDetails?.credits?.cast?.take(20)
-			?: tvDetails?.credits?.cast?.take(20)
+		val castList = movieDetails?.credits?.cast?.take(ITEMS_PER_SECTION)
+			?: tvDetails?.credits?.cast?.take(ITEMS_PER_SECTION)
 		
 		Timber.d("MediaDetailsFragment: Creating cast section - castList size: ${castList?.size}, movieDetails: ${movieDetails != null}, tvDetails: ${tvDetails != null}")
 		
@@ -1130,6 +1231,94 @@ class MediaDetailsFragment : Fragment() {
 		return card
 	}
 
+	private fun createRecommendationsSection(): View {
+		val container = LinearLayout(requireContext()).apply {
+			orientation = LinearLayout.VERTICAL
+			layoutParams = LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT,
+				LinearLayout.LayoutParams.WRAP_CONTENT
+			).apply {
+				topMargin = 32.dp(context)
+			}
+		}
+
+		val recommendationsHeading = TextView(requireContext()).apply {
+			text = "Recommendations"
+			textSize = 22f
+			setTextColor(Color.WHITE)
+			setTypeface(typeface, android.graphics.Typeface.BOLD)
+			layoutParams = LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT,
+				LinearLayout.LayoutParams.WRAP_CONTENT
+			).apply {
+				bottomMargin = 16.dp(context)
+			}
+		}
+		container.addView(recommendationsHeading)
+
+		// Load recommendations content
+		lifecycleScope.launch {
+			try {
+				// Load first 3 pages to get ~60 items (after filtering)
+				val allRecommendations = mutableListOf<JellyseerrDiscoverItemDto>()
+				for (page in 1..3) {
+					val recommendationsResult = when {
+						movieDetails != null -> viewModel.getRecommendationsMovies(selectedItem!!.id, page)
+						tvDetails != null -> viewModel.getRecommendationsTv(selectedItem!!.id, page)
+						else -> null
+					}
+					recommendationsResult?.getOrNull()?.let { pageResult ->
+						allRecommendations.addAll(pageResult.results ?: emptyList())
+					}
+				}
+
+				val recommendationsList = allRecommendations.take(ITEMS_PER_SECTION)
+
+				if (recommendationsList.isNotEmpty()) {
+					val scrollView = android.widget.HorizontalScrollView(requireContext()).apply {
+						layoutParams = LinearLayout.LayoutParams(
+							LinearLayout.LayoutParams.MATCH_PARENT,
+							LinearLayout.LayoutParams.WRAP_CONTENT
+						)
+						isHorizontalScrollBarEnabled = false
+						setPadding(12.dp(context), 0, 0, 0)
+					}
+
+					val recommendationsRow = LinearLayout(requireContext()).apply {
+						orientation = LinearLayout.HORIZONTAL
+						layoutParams = LinearLayout.LayoutParams(
+							LinearLayout.LayoutParams.WRAP_CONTENT,
+							LinearLayout.LayoutParams.WRAP_CONTENT
+						)
+					}
+
+					recommendationsList.forEach { item ->
+						val posterCard = createPosterCard(item)
+						recommendationsRow.addView(posterCard)
+					}
+
+					scrollView.addView(recommendationsRow)
+					container.addView(scrollView)
+				} else {
+					val noRecommendations = TextView(requireContext()).apply {
+						text = "No recommendations found"
+						textSize = 14f
+						setTextColor(Color.parseColor("#9CA3AF"))
+						layoutParams = LinearLayout.LayoutParams(
+							LinearLayout.LayoutParams.MATCH_PARENT,
+							LinearLayout.LayoutParams.WRAP_CONTENT
+						)
+					}
+					container.addView(noRecommendations)
+				}
+			} catch (e: Exception) {
+				Timber.e(e, "Failed to load recommendations")
+			}
+		}
+
+		return container
+	}
+
 	private fun createSimilarSection(): View {
 		val container = LinearLayout(requireContext()).apply {
 			orientation = LinearLayout.VERTICAL
@@ -1141,8 +1330,14 @@ class MediaDetailsFragment : Fragment() {
 			}
 		}
 
+		// Dynamic title based on media type
+		val similarTitle = when {
+			tvDetails != null -> "Similar Series"
+			else -> "Similar Titles"
+		}
+
 		val similarHeading = TextView(requireContext()).apply {
-			text = "Similar"
+			text = similarTitle
 			textSize = 22f
 			setTextColor(Color.WHITE)
 			setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -1158,14 +1353,20 @@ class MediaDetailsFragment : Fragment() {
 		// Load similar content
 		lifecycleScope.launch {
 			try {
-				val similarResult = when {
-					movieDetails != null -> viewModel.getSimilarMovies(selectedItem!!.id)
-					tvDetails != null -> viewModel.getSimilarTv(selectedItem!!.id)
-					else -> null
+				// Load first 3 pages to get ~60 items (after filtering)
+				val allSimilar = mutableListOf<JellyseerrDiscoverItemDto>()
+				for (page in 1..3) {
+					val similarResult = when {
+						movieDetails != null -> viewModel.getSimilarMovies(selectedItem!!.id, page)
+						tvDetails != null -> viewModel.getSimilarTv(selectedItem!!.id, page)
+						else -> null
+					}
+					similarResult?.getOrNull()?.let { pageResult ->
+						allSimilar.addAll(pageResult.results ?: emptyList())
+					}
 				}
 
-				similarResult?.getOrNull()?.let { similarPage ->
-					val similarList = similarPage.results?.take(20) ?: emptyList()
+				val similarList = allSimilar.take(ITEMS_PER_SECTION)
 
 				if (similarList.isNotEmpty()) {
 					val scrollView = android.widget.HorizontalScrollView(requireContext()).apply {
@@ -1193,23 +1394,156 @@ class MediaDetailsFragment : Fragment() {
 					scrollView.addView(similarRow)
 					container.addView(scrollView)
 				} else {
-						val noSimilar = TextView(requireContext()).apply {
-							text = "No similar titles found"
-							textSize = 14f
-							setTextColor(Color.parseColor("#9CA3AF"))
-							layoutParams = LinearLayout.LayoutParams(
-								LinearLayout.LayoutParams.MATCH_PARENT,
-								LinearLayout.LayoutParams.WRAP_CONTENT
-							)
-						}
-						container.addView(noSimilar)
+					val noSimilar = TextView(requireContext()).apply {
+						text = "No similar titles found"
+						textSize = 14f
+						setTextColor(Color.parseColor("#9CA3AF"))
+						layoutParams = LinearLayout.LayoutParams(
+							LinearLayout.LayoutParams.MATCH_PARENT,
+							LinearLayout.LayoutParams.WRAP_CONTENT
+						)
 					}
+					container.addView(noSimilar)
 				}
 			} catch (e: Exception) {
 				Timber.e(e, "Failed to load similar content")
 			}
 		}
 
+		return container
+	}
+
+	private fun createKeywordsSection(): View {
+		val container = LinearLayout(requireContext()).apply {
+			orientation = LinearLayout.VERTICAL
+			layoutParams = LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT,
+				LinearLayout.LayoutParams.WRAP_CONTENT
+			).apply {
+				topMargin = 32.dp(context)
+			}
+		}
+
+		// Get keywords from movie or TV details
+		val keywords = when {
+			movieDetails != null -> movieDetails?.keywords ?: emptyList()
+			tvDetails != null -> tvDetails?.keywords ?: emptyList()
+			else -> emptyList()
+		}
+
+		// Only show section if there are keywords
+		if (keywords.isEmpty()) {
+			return container
+		}
+
+		val keywordsHeading = TextView(requireContext()).apply {
+			text = "Keywords"
+			textSize = 22f
+			setTextColor(Color.WHITE)
+			setTypeface(typeface, android.graphics.Typeface.BOLD)
+			layoutParams = LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT,
+				LinearLayout.LayoutParams.WRAP_CONTENT
+			).apply {
+				bottomMargin = 16.dp(context)
+			}
+		}
+		container.addView(keywordsHeading)
+
+		// Create grid layout for keywords (FlexboxLayout alternative using LinearLayouts)
+		val keywordsContainer = LinearLayout(requireContext()).apply {
+			orientation = LinearLayout.VERTICAL
+			layoutParams = LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT,
+				LinearLayout.LayoutParams.WRAP_CONTENT
+			)
+			setPadding(0, 0, 0, 0)
+		}
+
+		// Group keywords into rows - dynamic width wrapping
+		var currentRow: LinearLayout? = null
+		var itemsInRow = 0
+
+		keywords.forEach { keyword ->
+			if (currentRow == null) {
+				currentRow = LinearLayout(requireContext()).apply {
+					orientation = LinearLayout.HORIZONTAL
+					layoutParams = LinearLayout.LayoutParams(
+						LinearLayout.LayoutParams.MATCH_PARENT,
+						LinearLayout.LayoutParams.WRAP_CONTENT
+					).apply {
+						bottomMargin = 12.dp(context)
+					}
+				}
+				keywordsContainer.addView(currentRow)
+				itemsInRow = 0
+			}
+
+			// Create pill-shaped background drawable
+			val pillBackground = android.graphics.drawable.GradientDrawable().apply {
+				shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+				cornerRadius = 100.dp(requireContext()).toFloat()
+				setColor(Color.parseColor("#374151"))
+			}
+
+			val pillBackgroundFocused = android.graphics.drawable.GradientDrawable().apply {
+				shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+				cornerRadius = 100.dp(requireContext()).toFloat()
+				setColor(Color.parseColor("#4B5563"))
+			}
+
+			val keywordTag = TextView(requireContext()).apply {
+				text = keyword.name
+				textSize = 16f
+				setTextColor(Color.WHITE)
+				background = pillBackground
+				setPadding(24.dp(context), 12.dp(context), 24.dp(context), 12.dp(context))
+				layoutParams = LinearLayout.LayoutParams(
+					LinearLayout.LayoutParams.WRAP_CONTENT,
+					LinearLayout.LayoutParams.WRAP_CONTENT
+				).apply {
+					marginEnd = 12.dp(context)
+				}
+				isFocusable = true
+				isFocusableInTouchMode = true
+
+				setOnClickListener {
+					// Navigate to browse-by with keyword filter
+					val mediaType = if (movieDetails != null) "movie" else "tv"
+					navigationRepository.navigate(
+						Destinations.jellyseerrBrowseBy(
+							filterId = keyword.id,
+							filterName = keyword.name,
+							mediaType = mediaType,
+							filterType = BrowseFilterType.KEYWORD
+						)
+					)
+				}
+
+				setOnFocusChangeListener { view, hasFocus ->
+					if (hasFocus) {
+						background = pillBackgroundFocused
+						view.scaleX = 1.05f
+						view.scaleY = 1.05f
+					} else {
+						background = pillBackground
+						view.scaleX = 1.0f
+						view.scaleY = 1.0f
+					}
+				}
+			}
+
+			currentRow?.addView(keywordTag)
+			itemsInRow++
+			
+			// Start new row if we've filled the width (this will wrap naturally with horizontal scroll if needed)
+			// For now, we'll use a simple max items per row approach
+			if (itemsInRow >= 5) {
+				currentRow = null
+			}
+		}
+
+		container.addView(keywordsContainer)
 		return container
 	}
 
@@ -1295,35 +1629,167 @@ class MediaDetailsFragment : Fragment() {
 	private fun requestContent(is4k: Boolean = false) {
 		val item = selectedItem ?: return
 
+		// Check if user has advanced permission and should show options dialog
+		lifecycleScope.launch {
+			val userResult = viewModel.getCurrentUser()
+			val user = userResult.getOrNull()
+			val hasAdvanced = user?.hasAdvancedRequestPermission() ?: false
+			
+			if (hasAdvanced) {
+				// Show advanced options dialog before proceeding
+				showAdvancedOptionsDialog(item, is4k)
+			} else {
+				// No advanced permission, proceed directly
+				proceedWithRequest(item, is4k, null)
+			}
+		}
+	}
+	
+	/**
+	 * Show advanced request options dialog for users with REQUEST_ADVANCED permission
+	 */
+	private fun showAdvancedOptionsDialog(item: JellyseerrDiscoverItemDto, is4k: Boolean) {
+		val isMovie = item.mediaType == "movie"
+		val title = when {
+			isMovie -> movieDetails?.title ?: item.title ?: item.name ?: "Unknown"
+			else -> tvDetails?.name ?: item.name ?: item.title ?: "Unknown"
+		}
+		
+		val dialog = AdvancedRequestOptionsDialog(
+			context = requireContext(),
+			title = title,
+			is4k = is4k,
+			isMovie = isMovie,
+			coroutineScope = lifecycleScope,
+			onLoadData = {
+				loadServerDetailsForAdvancedOptions(isMovie, is4k)
+			},
+			onConfirm = { options ->
+				proceedWithRequest(item, is4k, options)
+			},
+			onCancel = {
+				// User cancelled, do nothing
+			}
+		)
+		dialog.show()
+	}
+	
+	/**
+	 * Load server details for the advanced options dialog
+	 */
+	private suspend fun loadServerDetailsForAdvancedOptions(
+		isMovie: Boolean,
+		is4k: Boolean
+	): AdvancedRequestOptionsDialog.ServerDetailsData? {
+		return try {
+			if (isMovie) {
+				// Get Radarr servers
+				val serversResult = viewModel.getRadarrServers()
+				val servers = serversResult.getOrNull() ?: return null
+				// Find server matching 4K preference
+				val server = servers.find { it.is4k == is4k } ?: servers.firstOrNull() ?: return null
+				// Get detailed info
+				val detailsResult = viewModel.getRadarrServerDetails(server.id)
+				val details = detailsResult.getOrNull() ?: return null
+				
+				AdvancedRequestOptionsDialog.ServerDetailsData(
+					serverId = server.id,
+					profiles = details.profiles,
+					rootFolders = details.rootFolders,
+					defaultProfileId = server.activeProfileId,
+					defaultRootFolder = server.activeDirectory
+				)
+			} else {
+				// Get Sonarr servers
+				val serversResult = viewModel.getSonarrServers()
+				val servers = serversResult.getOrNull() ?: return null
+				// Find server matching 4K preference
+				val server = servers.find { it.is4k == is4k } ?: servers.firstOrNull() ?: return null
+				// Get detailed info
+				val detailsResult = viewModel.getSonarrServerDetails(server.id)
+				val details = detailsResult.getOrNull() ?: return null
+				
+				AdvancedRequestOptionsDialog.ServerDetailsData(
+					serverId = server.id,
+					profiles = details.profiles,
+					rootFolders = details.rootFolders,
+					defaultProfileId = server.activeProfileId,
+					defaultRootFolder = server.activeDirectory
+				)
+			}
+		} catch (e: Exception) {
+			Timber.e(e, "Failed to load server details for advanced options")
+			null
+		}
+	}
+	
+	/**
+	 * Proceed with the request after any dialogs
+	 */
+	private fun proceedWithRequest(
+		item: JellyseerrDiscoverItemDto, 
+		is4k: Boolean, 
+		advancedOptions: AdvancedRequestOptions?
+	) {
 		// If it's a TV show, show season selection dialog
 		if (item.mediaType == "tv") {
 			val numberOfSeasons = tvDetails?.numberOfSeasons ?: 1
 			val showName = tvDetails?.name ?: item.name ?: item.title ?: "Unknown Show"
 			
+			// Gather unavailable seasons (already requested or available for this quality)
+			val unavailableSeasons = getUnavailableSeasons(is4k)
+			
 			val dialog = SeasonSelectionDialog(
 				requireContext(),
 				showName,
 				numberOfSeasons,
-				is4k
+				is4k,
+				unavailableSeasons
 			) { selectedSeasons ->
 				// Submit request with selected seasons
-				submitRequest(item, selectedSeasons, is4k)
+				submitRequest(item, selectedSeasons, is4k, advancedOptions)
 			}
 			dialog.show()
 		} else {
 			// For movies, request directly
-			submitRequest(item, null, is4k)
+			submitRequest(item, null, is4k, advancedOptions)
 		}
+	}
+	
+	/**
+	 * Get set of season numbers that are already requested or available
+	 * for the specified quality (HD or 4K)
+	 */
+	private fun getUnavailableSeasons(is4k: Boolean): Set<Int> {
+		val unavailableSeasons = mutableSetOf<Int>()
+		val mediaInfo = tvDetails?.mediaInfo ?: return unavailableSeasons
+		
+		// Check existing requests for this quality
+		mediaInfo.requests?.forEach { request ->
+			// Only consider requests matching the quality (HD or 4K)
+			if (request.is4k == is4k) {
+				// Only consider non-declined requests
+				if (request.status != JellyseerrRequestDto.STATUS_DECLINED) {
+					// Add all seasons from this request
+					request.seasons?.forEach { seasonRequest ->
+						unavailableSeasons.add(seasonRequest.seasonNumber)
+					}
+				}
+			}
+		}
+		
+		return unavailableSeasons
 	}
 	
 	private fun submitRequest(
 		item: JellyseerrDiscoverItemDto,
 		seasons: List<Int>?,
-		is4k: Boolean
+		is4k: Boolean,
+		advancedOptions: AdvancedRequestOptions? = null
 	) {
 		lifecycleScope.launch {
 			try {
-				val result = viewModel.requestMedia(item, seasons, is4k)
+				val result = viewModel.requestMedia(item, seasons, is4k, advancedOptions)
 				
 				// Check if fragment is still attached before accessing context
 				if (!isAdded) return@launch
@@ -1345,22 +1811,91 @@ class MediaDetailsFragment : Fragment() {
 					Toast.makeText(
 						requireContext(),
 						"Failed to request: ${error.message}",
-						Toast.LENGTH_LONG
-					).show()
-				}
-			} catch (e: Exception) {
-				Timber.e(e, "Request failed")
-				// Check if fragment is still attached before showing toast
-				if (isAdded) {
-					Toast.makeText(
-						requireContext(),
-						"Request failed: ${e.message}",
-						Toast.LENGTH_LONG
-					).show()
+						}
+					}
 				}
 			}
-		}
-	}
+
+			/**
+			 * Show confirmation dialog to cancel pending request(s)
+			 */
+			private fun showCancelRequestDialog(pendingRequests: List<JellyseerrRequestDto>) {
+				if (pendingRequests.isEmpty()) return
+		
+				val item = selectedItem ?: return
+				val title = when (item.mediaType) {
+					"movie" -> movieDetails?.title ?: item.title ?: item.name ?: "Unknown"
+					else -> tvDetails?.name ?: item.name ?: item.title ?: "Unknown"
+				}
+		
+				// Build description of what will be cancelled
+				val description = if (pendingRequests.size == 1) {
+					val req = pendingRequests.first()
+					val quality = if (req.is4k) "4K" else "HD"
+					"Cancel $quality request for \"$title\"?"
+				} else {
+					val hdCount = pendingRequests.count { !it.is4k }
+					val fourKCount = pendingRequests.count { it.is4k }
+					val parts = mutableListOf<String>()
+					if (hdCount > 0) parts.add("$hdCount HD")
+					if (fourKCount > 0) parts.add("$fourKCount 4K")
+					"Cancel ${parts.joinToString(" and ")} request${if (pendingRequests.size > 1) "s" else ""} for \"$title\"?"
+				}
+		
+				android.app.AlertDialog.Builder(requireContext())
+					.setTitle("Cancel Request")
+					.setMessage(description)
+					.setPositiveButton("Cancel Request") { _, _ ->
+						cancelPendingRequests(pendingRequests)
+					}
+					.setNegativeButton("Keep Request", null)
+					.show()
+			}
+	
+			/**
+			 * Cancel the given pending requests
+			 */
+			private fun cancelPendingRequests(requests: List<JellyseerrRequestDto>) {
+				lifecycleScope.launch {
+					try {
+						var successCount = 0
+						var failCount = 0
+				
+						for (request in requests) {
+							val result = viewModel.cancelRequest(request.id)
+							if (result.isSuccess) {
+								successCount++
+							} else {
+								failCount++
+								Timber.e(result.exceptionOrNull(), "Failed to cancel request ${request.id}")
+							}
+						}
+				
+						// Check if fragment is still attached
+						if (!isAdded) return@launch
+				
+						val message = when {
+							failCount == 0 && successCount == 1 -> "Request cancelled"
+							failCount == 0 -> "$successCount requests cancelled"
+							successCount == 0 -> "Failed to cancel request${if (failCount > 1) "s" else ""}"
+							else -> "$successCount cancelled, $failCount failed"
+						}
+				
+						Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+				
+						// Refresh details to update status
+						loadFullDetails()
+					} catch (e: Exception) {
+						Timber.e(e, "Error cancelling requests")
+						if (isAdded) {
+							Toast.makeText(
+								requireContext(),
+								"Error: ${e.message}",
+								Toast.LENGTH_LONG
+							).show()
+						}
+				}
+			}
 
 	private fun playTrailer() {
 		val item = selectedItem ?: return

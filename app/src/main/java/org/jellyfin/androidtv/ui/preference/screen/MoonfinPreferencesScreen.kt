@@ -74,9 +74,41 @@ class MoonfinPreferencesScreen : OptionsFragment() {
 			}
 
 			checkbox {
+				setTitle(R.string.pref_multi_server_libraries)
+				setContent(R.string.pref_multi_server_libraries_description)
+				bind(userPreferences, UserPreferences.enableMultiServerLibraries)
+			}
+
+			checkbox {
 				setTitle(R.string.pref_confirm_exit)
 				setContent(R.string.pref_confirm_exit_description)
 				bind(userPreferences, UserPreferences.confirmExit)
+			}
+			
+			link {
+				setTitle(R.string.pref_parental_controls)
+				setContent(R.string.pref_parental_controls_description)
+				icon = R.drawable.ic_lock
+				withFragment<ParentalControlsPreferencesScreen>()
+			}
+
+			list {
+				setTitle(R.string.pref_seasonal_surprise)
+				entries = mapOf(
+					"none" to getString(R.string.pref_seasonal_none),
+					"winter" to getString(R.string.pref_seasonal_winter),
+					"spring" to getString(R.string.pref_seasonal_spring),
+					"summer" to getString(R.string.pref_seasonal_summer),
+					"halloween" to getString(R.string.pref_seasonal_halloween),
+					"fall" to getString(R.string.pref_seasonal_fall)
+				)
+				bind(userPreferences, UserPreferences.seasonalSurprise)
+			}
+
+			checkbox {
+				setTitle(R.string.pref_subtitles_default_to_none)
+				setContent(R.string.pref_subtitles_default_to_none_description)
+				bind(userPreferences, UserPreferences.subtitlesDefaultToNone)
 			}
 		}
 
@@ -158,6 +190,14 @@ class MoonfinPreferencesScreen : OptionsFragment() {
 				setTitle(R.string.pref_theme_music_enable)
 				setContent(R.string.pref_theme_music_enable_summary)
 				bind(userSettingPreferences, UserSettingPreferences.themeMusicEnabled)
+			}
+
+			checkbox {
+				setTitle(R.string.pref_theme_music_on_home_rows)
+				setContent(R.string.pref_theme_music_on_home_rows_summary)
+				bind(userSettingPreferences, UserSettingPreferences.themeMusicOnHomeRows)
+				
+				depends { userSettingPreferences[UserSettingPreferences.themeMusicEnabled] }
 			}
 
 			seekbar {

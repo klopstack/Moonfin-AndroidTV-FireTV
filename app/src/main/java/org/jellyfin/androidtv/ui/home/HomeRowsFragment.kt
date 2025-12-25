@@ -41,6 +41,7 @@ import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.ui.browsing.CompositeClickedListener
 import org.jellyfin.androidtv.ui.browsing.CompositeSelectedListener
+import org.jellyfin.androidtv.ui.itemhandling.AggregatedItemRowAdapter
 import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher
 import org.jellyfin.androidtv.ui.itemhandling.ItemRowAdapter
@@ -49,6 +50,7 @@ import org.jellyfin.androidtv.ui.home.mediabar.MediaBarSlideshowViewModel
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.androidtv.ui.playback.AudioEventListener
 import org.jellyfin.androidtv.ui.playback.MediaManager
+import org.jellyfin.androidtv.ui.playback.ThemeMusicPlayer
 import org.jellyfin.androidtv.ui.presentation.CardPresenter
 import org.jellyfin.androidtv.ui.presentation.MutableObjectAdapter
 import org.jellyfin.androidtv.ui.presentation.PositionableListRowPresenter
@@ -83,6 +85,7 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 	private val itemLauncher by inject<ItemLauncher>()
 	private val keyProcessor by inject<KeyProcessor>()
 	private val mediaBarViewModel by inject<MediaBarSlideshowViewModel>()
+	private val themeMusicPlayer by inject<ThemeMusicPlayer>()
 
 	private val helper by lazy { HomeFragmentHelper(requireContext(), userRepository) }
 
@@ -107,7 +110,7 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 
 	// Store rows for refreshing
 	private var currentRows = mutableListOf<HomeFragmentRow>()
-	private var playlistRow: HomeFragmentMoonfinPlaylistRow? = null
+	private var watchlistRow: HomeFragmentWatchlistRow? = null
 
 	// Debouncer for selection updates - only update UI after user stops navigating
 	private val selectionDebouncer by lazy { Debouncer(150.milliseconds, lifecycleScope) }
@@ -155,6 +158,7 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 			for (section in homesections) when (section) {
 				HomeSectionType.MEDIA_BAR -> { /* Now handled by separate toggle above */ }
 				HomeSectionType.LATEST_MEDIA -> rows.add(helper.loadRecentlyAdded(userViewsRepository.views.first()))
+				HomeSectionType.RECENTLY_RELEASED -> rows.add(helper.loadRecentlyReleased())
 				HomeSectionType.LIBRARY_TILES_SMALL -> rows.add(HomeFragmentViewsRow(small = false))
 				HomeSectionType.LIBRARY_BUTTONS -> rows.add(HomeFragmentViewsRow(small = true))
 				HomeSectionType.RESUME -> {
@@ -178,12 +182,12 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 						mergedRowAdded = true
 					}
 				}
-				HomeSectionType.PLAYLIST -> {
-					val playlistRow = helper.loadPlaylists()
-					if (playlistRow is HomeFragmentMoonfinPlaylistRow) {
-						this@HomeRowsFragment.playlistRow = playlistRow
+				HomeSectionType.WATCHLIST -> {
+					val row = helper.loadWatchlist()
+					if (row is HomeFragmentWatchlistRow) {
+						this@HomeRowsFragment.watchlistRow = row
+						rows.add(row)
 					}
-					rows.add(playlistRow)
 				}
 				HomeSectionType.LIVE_TV -> Unit // Live TV has its own dedicated page, no rows on home screen
 
@@ -358,8 +362,8 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 				else rowAdapter?.ReRetrieveIfNeeded()
 			}
 
-			// Refresh playlist row
-			playlistRow?.refresh()
+			// Refresh watchlist row
+			watchlistRow?.refresh()
 		}
 	}
 
@@ -375,6 +379,9 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 		super.onDestroy()
 
 		mediaManager.removeAudioEventListener(this)
+		
+		// Stop any playing theme music
+		themeMusicPlayer.stop()
 	}
 
 	private inner class ItemViewClickedListener : OnItemViewClickedListener {
@@ -406,7 +413,8 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 				// Clear selected item state immediately
 				selectionDebouncer.cancel()
 				_selectedItemStateFlow.value = SelectedItemState.EMPTY
-
+				// Cancel any pending theme music playback
+				themeMusicPlayer.cancelDelayedPlay()
 				// Don't clear background if we're on the media bar row - it has its own backdrop
 				if (row !is MediaBarRow) {
 					backgroundService.clearBackgrounds()
@@ -415,8 +423,15 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 				currentItem = item
 				currentRow = row as ListRow
 
-				val itemRowAdapter = row.adapter as? ItemRowAdapter
-				itemRowAdapter?.loadMoreItemsIfNeeded(itemRowAdapter.indexOf(item))
+				// Handle pagination for both ItemRowAdapter and AggregatedItemRowAdapter
+				when (val adapter = row.adapter) {
+					is ItemRowAdapter -> adapter.loadMoreItemsIfNeeded(adapter.indexOf(item))
+					is AggregatedItemRowAdapter -> {
+						val pos = adapter.indexOf(item)
+						Timber.d("HomeRowsFragment: AggregatedItemRowAdapter selected item at pos=$pos, adapter.size=${adapter.size()}")
+						adapter.loadMoreItemsIfNeeded(pos)
+					}
+				}
 
 				// Debounce UI updates - only update after user stops navigating for 150ms
 				selectionDebouncer.debounce {
@@ -469,6 +484,11 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 				// Debounce background loading - only load after user stops navigating for 200ms
 				backgroundDebouncer.debounce {
 					backgroundService.setBackground(item.baseItem, BlurContext.BROWSING)
+				}
+				
+				// Play theme music on focus if enabled (with delay)
+				item.baseItem?.let { baseItem ->
+					themeMusicPlayer.playThemeMusicOnFocusDelayed(baseItem)
 				}
 			}
 		}

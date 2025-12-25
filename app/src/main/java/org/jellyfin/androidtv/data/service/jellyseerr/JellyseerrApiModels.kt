@@ -30,6 +30,27 @@ data class JellyseerrRequestDto(
 	val seasonCount: Int? = null,
 	val externalId: String? = null,
 	val is4k: Boolean = false,
+	val seasons: List<JellyseerrSeasonRequestDto>? = null, // Per-season request info for TV shows
+) {
+	companion object {
+		// Request status constants
+		const val STATUS_PENDING = 1
+		const val STATUS_APPROVED = 2
+		const val STATUS_DECLINED = 3
+		const val STATUS_AVAILABLE = 4
+	}
+}
+
+/**
+ * Season-level request information
+ */
+@Serializable
+data class JellyseerrSeasonRequestDto(
+	val id: Int,
+	val seasonNumber: Int,
+	val status: Int, // 1 = pending, 2 = approved, 3 = declined, 4 = available
+	val createdAt: String? = null,
+	val updatedAt: String? = null,
 )
 
 @Serializable
@@ -82,26 +103,68 @@ data class JellyseerrUserDto(
 	val apiKey: String? = null,
 	val permissions: Int? = null, // Permission bitfield
 ) {
-	// Jellyseerr permission constants (bitfield)
+	// Jellyseerr permission constants (bitfield) - from server/lib/permissions.ts
 	companion object {
-		const val PERMISSION_ADMIN = 1
-		const val PERMISSION_MANAGE_SETTINGS = 2
-		const val PERMISSION_MANAGE_USERS = 4
-		const val PERMISSION_MANAGE_REQUESTS = 8
+		const val PERMISSION_NONE = 0
+		const val PERMISSION_ADMIN = 2
+		const val PERMISSION_MANAGE_SETTINGS = 4
+		const val PERMISSION_MANAGE_USERS = 8
+		const val PERMISSION_MANAGE_REQUESTS = 16
+		const val PERMISSION_REQUEST = 32
+		const val PERMISSION_AUTO_APPROVE = 128
+		const val PERMISSION_REQUEST_4K = 1024
+		const val PERMISSION_REQUEST_4K_MOVIE = 2048
+		const val PERMISSION_REQUEST_4K_TV = 4096
+		const val PERMISSION_REQUEST_ADVANCED = 8192
+		const val PERMISSION_REQUEST_MOVIE = 262144
+		const val PERMISSION_REQUEST_TV = 524288
 	}
 	
 	/**
 	 * Check if user has specific permission(s)
 	 */
 	fun hasPermission(permission: Int): Boolean {
-		return (permissions ?: 0) and permission != 0
+		val perms = permissions ?: 0
+		// Admin permission bypasses all other permissions
+		if (perms and PERMISSION_ADMIN != 0) return true
+		return perms and permission != 0
 	}
 	
 	/**
-	 * Check if user is admin (has ADMIN or MANAGE_SETTINGS permission)
+	 * Check if user can request 4K content (movies or TV)
+	 */
+	fun canRequest4k(): Boolean {
+		return hasPermission(PERMISSION_REQUEST_4K) || 
+			hasPermission(PERMISSION_REQUEST_4K_MOVIE) || 
+			hasPermission(PERMISSION_REQUEST_4K_TV)
+	}
+	
+	/**
+	 * Check if user can request 4K movies specifically
+	 */
+	fun canRequest4kMovies(): Boolean {
+		return hasPermission(PERMISSION_REQUEST_4K) || hasPermission(PERMISSION_REQUEST_4K_MOVIE)
+	}
+	
+	/**
+	 * Check if user can request 4K TV specifically
+	 */
+	fun canRequest4kTv(): Boolean {
+		return hasPermission(PERMISSION_REQUEST_4K) || hasPermission(PERMISSION_REQUEST_4K_TV)
+	}
+	
+	/**
+	 * Check if user has advanced request permission (can modify server/profile/folder)
+	 */
+	fun hasAdvancedRequestPermission(): Boolean {
+		return hasPermission(PERMISSION_REQUEST_ADVANCED) || hasPermission(PERMISSION_MANAGE_REQUESTS)
+	}
+	
+	/**
+	 * Check if user is admin (has ADMIN permission)
 	 */
 	fun isAdmin(): Boolean {
-		return hasPermission(PERMISSION_ADMIN) || hasPermission(PERMISSION_MANAGE_SETTINGS)
+		return hasPermission(PERMISSION_ADMIN)
 	}
 }
 
@@ -243,6 +306,7 @@ data class JellyseerrMovieDetailsDto(
 	val credits: JellyseerrCreditsDto? = null,
 	val externalIds: JellyseerrExternalIds? = null,
 	val mediaInfo: JellyseerrMediaInfoDto? = null,
+	val keywords: List<JellyseerrKeywordDto> = emptyList(),
 )
 
 @Serializable
@@ -267,12 +331,14 @@ data class JellyseerrTvDetailsDto(
 	val networks: List<JellyseerrNetworkDto> = emptyList(),
 	val externalIds: JellyseerrExternalIds? = null,
 	val mediaInfo: JellyseerrMediaInfoDto? = null,
+	val keywords: List<JellyseerrKeywordDto> = emptyList(),
 )
 
 @Serializable
 data class JellyseerrGenreDto(
 	val id: Int,
 	val name: String,
+	val backdrops: List<String> = emptyList(),
 )
 
 @Serializable
@@ -281,6 +347,19 @@ data class JellyseerrNetworkDto(
 	val name: String,
 	val logoPath: String? = null,
 	val originCountry: String? = null,
+)
+
+@Serializable
+data class JellyseerrStudioDto(
+	val id: Int,
+	val name: String,
+	val logoPath: String? = null,
+)
+
+@Serializable
+data class JellyseerrKeywordDto(
+	val id: Int,
+	val name: String,
 )
 
 @Serializable
@@ -497,4 +576,52 @@ data class JellyseerrRootFolderDto(
 	val path: String,
 	val freeSpace: Long? = null,
 	val totalSpace: Long? = null,
+)
+
+@Serializable
+data class JellyseerrTagDto(
+	val id: Int,
+	val label: String,
+)
+
+// ==================== Service API Models (for non-admin users) ====================
+
+/**
+ * Basic server info from /api/v1/service/radarr or /api/v1/service/sonarr
+ * Available to all authenticated users (not just admins)
+ */
+@Serializable
+data class JellyseerrServiceServerDto(
+	val id: Int,
+	val name: String,
+	val is4k: Boolean = false,
+	val isDefault: Boolean = false,
+	val activeProfileId: Int,
+	val activeDirectory: String,
+	val activeAnimeProfileId: Int? = null,
+	val activeAnimeDirectory: String? = null,
+	val activeLanguageProfileId: Int? = null,
+	val activeAnimeLanguageProfileId: Int? = null,
+	val activeTags: List<Int> = emptyList(),
+	val activeAnimeTags: List<Int>? = null,
+)
+
+/**
+ * Detailed server info from /api/v1/service/radarr/:id or /api/v1/service/sonarr/:id
+ * Available to all authenticated users (not just admins)
+ * Contains profiles, root folders, language profiles, and tags
+ */
+@Serializable
+data class JellyseerrServiceServerDetailsDto(
+	val server: JellyseerrServiceServerDto,
+	val profiles: List<JellyseerrQualityProfileDto> = emptyList(),
+	val rootFolders: List<JellyseerrRootFolderDto> = emptyList(),
+	val languageProfiles: List<JellyseerrLanguageProfileDto>? = null,
+	val tags: List<JellyseerrTagDto> = emptyList(),
+)
+
+@Serializable
+data class JellyseerrLanguageProfileDto(
+	val id: Int,
+	val name: String,
 )

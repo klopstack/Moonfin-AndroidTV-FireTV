@@ -1,7 +1,10 @@
 package org.jellyfin.androidtv.preference
 
 import android.content.Context
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.jellyfin.androidtv.constant.JellyseerrFetchLimit
+import org.jellyfin.androidtv.constant.JellyseerrRowType
 import org.jellyfin.preference.booleanPreference
 import org.jellyfin.preference.enumPreference
 import org.jellyfin.preference.store.SharedPreferenceStore
@@ -165,5 +168,43 @@ class JellyseerrPreferences(context: Context, userId: String? = null) : SharedPr
 		 * Default server ID for 4K TV requests (uses server default if empty/null)
 		 */
 		val fourKTvServerId = stringPreference("jellyseerr_4k_tv_server_id", "")
+
+		/**
+		 * Jellyseerr discover rows configuration (JSON storage)
+		 */
+		val rowsConfigJson = stringPreference("jellyseerr_rows_config", "")
 	}
+
+	private val json = Json { 
+		ignoreUnknownKeys = true 
+		encodeDefaults = true
+	}
+
+	/**
+	 * Get or set the Jellyseerr rows configuration.
+	 */
+	var rowsConfig: List<JellyseerrRowConfig>
+		get() {
+			val jsonString = get(rowsConfigJson)
+			if (jsonString.isBlank()) return JellyseerrRowConfig.defaults()
+			
+			return try {
+				json.decodeFromString(jsonString)
+			} catch (e: Exception) {
+				JellyseerrRowConfig.defaults()
+			}
+		}
+		set(value) {
+			val jsonString = json.encodeToString(value)
+			set(rowsConfigJson, jsonString)
+		}
+
+	/**
+	 * Get the active Jellyseerr rows (enabled rows sorted by order).
+	 */
+	val activeRows: List<JellyseerrRowType>
+		get() = rowsConfig
+			.filter { it.enabled }
+			.sortedBy { it.order }
+			.map { it.type }
 }

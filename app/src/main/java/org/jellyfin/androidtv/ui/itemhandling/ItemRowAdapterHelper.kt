@@ -13,9 +13,11 @@ import org.jellyfin.androidtv.constant.LiveTvOption
 import org.jellyfin.androidtv.data.querying.GetAdditionalPartsRequest
 import org.jellyfin.androidtv.data.querying.GetSpecialsRequest
 import org.jellyfin.androidtv.data.querying.GetTrailersRequest
+import org.jellyfin.androidtv.data.repository.ParentalControlsRepository
 import org.jellyfin.androidtv.data.repository.UserViewsRepository
 import org.jellyfin.androidtv.ui.GridButton
 import org.jellyfin.androidtv.ui.browsing.BrowseGridFragment.SortOption
+import org.jellyfin.androidtv.util.sdk.compat.copyWithServerId
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.extensions.artistsApi
@@ -26,6 +28,7 @@ import org.jellyfin.sdk.api.client.extensions.tvShowsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.api.client.extensions.userViewsApi
 import org.jellyfin.sdk.api.client.extensions.videosApi
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SeriesTimerInfoDto
@@ -41,14 +44,38 @@ import org.jellyfin.sdk.model.api.request.GetResumeItemsRequest
 import org.jellyfin.sdk.model.api.request.GetSeasonsRequest
 import org.jellyfin.sdk.model.api.request.GetSimilarItemsRequest
 import org.jellyfin.sdk.model.api.request.GetUpcomingEpisodesRequest
+import org.koin.java.KoinJavaComponent.inject
 import timber.log.Timber
 import kotlin.math.min
+
+private val parentalControlsRepositoryLazy: Lazy<ParentalControlsRepository> = inject(ParentalControlsRepository::class.java)
 
 fun <T : Any> ItemRowAdapter.setItems(
 	items: Collection<T>,
 	transform: (T, Int) -> BaseRowItem?,
 ) {
+	val parentalControlsRepository = parentalControlsRepositoryLazy.value
 	Timber.i("Creating items from $itemsLoaded existing and ${items.size} new, adapter size is ${size()}")
+
+	// Apply parental controls filtering for BaseItemDto items
+	val filteredItems = if (parentalControlsRepository.isEnabled()) {
+		val before = items.size
+		val baseItemCount = items.count { it is BaseItemDto }
+		val result = items.filter { item ->
+			if (item is BaseItemDto) {
+				!parentalControlsRepository.shouldFilterItem(item)
+			} else {
+				true
+			}
+		}
+		val filtered = before - result.size
+		if (filtered > 0 || baseItemCount > 0) {
+			Timber.d("Parental controls: filtered $before -> ${result.size} items ($baseItemCount BaseItemDto, $filtered blocked)")
+		}
+		result
+	} else {
+		items.toList()
+	}
 
 	val allItems = buildList {
 		// Add current items before loaded items
@@ -56,9 +83,16 @@ fun <T : Any> ItemRowAdapter.setItems(
 			add(this@setItems.get(it))
 		}
 
-		// Add loaded items
-		val mappedItems = items.mapIndexedNotNull { index, item ->
-			transform(item, itemsLoaded + index)
+		// Add loaded items (using filtered items for parental controls)
+		val mappedItems = filteredItems.mapIndexedNotNull { index, item ->
+			// Annotate BaseItemDto objects with serverId if set on adapter
+			val annotatedItem = if (item is BaseItemDto && this@setItems.serverId != null && item.serverId == null) {
+				item.copyWithServerId(this@setItems.serverId)
+			} else {
+				item
+			}
+			@Suppress("UNCHECKED_CAST")
+			transform(annotatedItem as T, itemsLoaded + index)
 		}
 		mappedItems.forEach { add(it) }
 
@@ -331,7 +365,13 @@ fun ItemRowAdapter.retrieveUpcomingEpisodes(api: ApiClient, query: GetUpcomingEp
 
 			setItems(
 				items = response.items,
-				transform = { item, _ -> BaseItemDtoBaseRowItem(item) }
+				transform = { item, _ ->
+					BaseItemDtoBaseRowItem(
+						item = item,
+						preferParentThumb = preferParentThumb,
+						staticHeight = false
+					)
+				}
 			)
 
 			if (response.items.isEmpty()) removeRow()

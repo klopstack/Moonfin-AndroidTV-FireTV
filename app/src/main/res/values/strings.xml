@@ -165,6 +165,7 @@
     <string name="lbl_enable_cinema_mode">Cinema mode</string>
     <string name="sum_enable_cinema_mode">Play available intros and previews before starting a movie</string>
     <string name="lbl_playlists">Playlists</string>
+    <string name="lbl_watch_list">Watch List</string>
     <string name="msg_items_added">" items added"</string>
     <string name="lbl_add_to_queue">Add to queue</string>
     <string name="lbl_add_to_watch_list">Add to Watch List</string>
@@ -199,6 +200,7 @@
     <string name="lbl_quality_profile">Quality profile</string>
     <string name="lbl_subtitle_track">Select subtitle track</string>
     <string name="lbl_subtitle_delay">Subtitle delay</string>
+    <string name="lbl_audio_delay">Audio delay</string>
     <string name="btn_got_it">Got it</string>
     <string name="lbl_clear_queue">Clear queue</string>
     <string name="lbl_play_next_up">Play next up</string>
@@ -233,9 +235,9 @@
     <string name="lbl_guide_option_played">Last played</string>
     <string name="lbl_guide_option_number">Channel number</string>
     <string name="lbl_resume_preroll">Resume pre-roll</string>
-    <string name="lbl_subtitle_text_color">Subtitle text color</string>
-    <string name="lbl_subtitle_background_color">Subtitle background color</string>
-    <string name="lbl_subtitle_text_stroke_color">Subtitle stroke color</string>
+    <string name="lbl_subtitle_text_color">Text color</string>
+    <string name="lbl_subtitle_background_color">Background color</string>
+    <string name="lbl_subtitle_text_stroke_color">Edge color</string>
     <string name="lbl_resume_from">Resume from %1$s</string>
     <string name="lbl_from_beginning">Play from beginning</string>
     <string name="lbl_more_like_this">More like this</string>
@@ -343,6 +345,8 @@
     <string name="pref_developer_link">Developer options</string>
     <string name="pref_developer_link_description">Advanced and experimental features</string>
     <string name="lbl_hidden">Hidden</string>
+    <string name="lbl_visible">Visible</string>
+    <string name="lbl_library_visibility_description">Show this library in the home screen and toolbar</string>
     <string name="discovered_servers_title">Discovered servers</string>
     <string name="discovered_servers_empty">No servers found on local network.</string>
     <string name="connect_manually_by_address">Enter server address</string>
@@ -439,13 +443,14 @@
     <string name="home_sections_reset">Reset to defaults</string>
     <string name="home_section_media_bar">Featured media</string>
     <string name="home_section_latest_media">Recently added media</string>
+    <string name="home_section_recently_released">Recently released</string>
     <string name="home_section_library">My media</string>
     <string name="home_section_library_small">My media (small)</string>
     <string name="home_section_resume">Continue watching</string>
     <string name="home_section_resume_audio">Continue listening</string>
     <string name="home_section_active_recordings">Active recordings</string>
     <string name="home_section_next_up">Next up</string>
-    <string name="home_section_playlist">Playlists</string>
+    <string name="home_section_watchlist">Watch List</string>
     <string name="home_section_livetv">Live TV</string>
     <string name="home_section_resume_book">Continue reading</string>
     <string name="home_section_none">None</string>
@@ -510,6 +515,8 @@
     <string name="pref_playback_description">Video, subtitles, live tv, next up</string>
     <string name="pref_video">Video</string>
     <string name="pref_subtitles">Subtitles</string>
+    <string name="pref_subtitles_default_to_none">Default subtitles to None</string>
+    <string name="pref_subtitles_default_to_none_description">Always start playback with subtitles off, ignoring server default</string>
     <string name="pref_audio">Audio</string>
     <string name="pref_direct_stream_live_off">Transcoding is used when necessary</string>
     <string name="pref_direct_stream_live_on">Transcoding is disabled</string>
@@ -641,6 +648,20 @@
     <string name="pref_prerolls_enabled_description">Play custom intros before movies</string>
     <string name="pref_media_queueing">Queue all episodes</string>
     <string name="pref_media_queueing_description">Add subsequent episodes to the queue when playing TV series</string>
+    <string name="pref_subtitles_weight">Text weight</string>
+    <string name="font_weight_100">Thin</string>
+    <string name="font_weight_200">Extra light</string>
+    <string name="font_weight_300">Light</string>
+    <string name="font_weight_400">Normal</string>
+    <string name="font_weight_500">Medium</string>
+    <string name="font_weight_600">Semi bold</string>
+    <string name="font_weight_700">Bold</string>
+    <string name="font_weight_800">Extra bold</string>
+    <string name="font_weight_900">Black</string>
+    <string name="subtitle_preview_text">Subtitles will look like this</string>
+    <string name="color_presets">Presets</string>
+    <string name="color_custom">Customize color</string>
+    <string name="color_alpha">Transparency</string>
     <plurals name="seconds">
         <item quantity="one">%1$s second</item>
         <item quantity="other">%1$s seconds</item>
@@ -726,6 +747,8 @@
     <string name="pref_theme_music_enable_summary">Play background theme music when viewing media details</string>
     <string name="pref_theme_music_volume">Theme music volume</string>
     <string name="pref_theme_music_volume_summary">Adjust the volume level for background theme music (default: 30%)</string>
+    <string name="pref_theme_music_on_home_rows">Play on home rows</string>
+    <string name="pref_theme_music_on_home_rows_summary">Play theme music when focusing on items in home rows</string>
     
     <!-- Jellyseerr Settings -->
     <string name="jellyseerr">Jellyseerr</string>
@@ -801,6 +824,21 @@
     <string name="jellyseerr_profile_error">Unable to load profiles. Check connection.</string>
     <string name="jellyseerr_profile_admin_required">Admin permissions required to configure quality profiles</string>
     
+    <!-- Jellyseerr Row Configuration -->
+    <string name="jellyseerr_rows_title">Discover Rows</string>
+    <string name="jellyseerr_rows_description">Enable, disable, and reorder rows on the Jellyseerr discover screen</string>
+    <string name="jellyseerr_rows_reset">Reset to Defaults</string>
+    <string name="jellyseerr_row_recent_requests">Recent Requests</string>
+    <string name="jellyseerr_row_trending">Trending</string>
+    <string name="jellyseerr_row_popular_movies">Popular Movies</string>
+    <string name="jellyseerr_row_movie_genres">Movie Genres</string>
+    <string name="jellyseerr_row_upcoming_movies">Upcoming Movies</string>
+    <string name="jellyseerr_row_studios">Studios</string>
+    <string name="jellyseerr_row_popular_series">Popular Series</string>
+    <string name="jellyseerr_row_series_genres">Series Genres</string>
+    <string name="jellyseerr_row_upcoming_series">Upcoming Series</string>
+    <string name="jellyseerr_row_networks">Networks</string>
+    
     <string name="enabled">Enabled</string>
     <string name="disabled">Disabled</string>
     
@@ -823,6 +861,8 @@
     <string name="home_section_settings">Home Screen</string>
     <string name="pref_confirm_exit">Confirm Exit</string>
     <string name="pref_confirm_exit_description">Show confirmation dialog when exiting the app</string>
+    <string name="pref_multi_server_libraries">Show All Server Libraries</string>
+    <string name="pref_multi_server_libraries_description">Display libraries and content from all logged-in servers in the home screen and toolbar</string>
     <string name="pref_show_shuffle_button">Show Shuffle Button</string>
     <string name="pref_show_shuffle_button_description">Display shuffle button in main toolbar</string>
     <string name="pref_show_genres_button">Show Genres Button</string>
@@ -866,4 +906,25 @@
     <string name="notification_channel_updates_description">Notifications about app updates</string>
     <string name="notification_update_available_title">Update Available</string>
     <string name="notification_update_available_text">Version %s is available. Tap to update.</string>
+    
+    <!-- Parental Controls -->
+    <string name="pref_parental_controls">Parental Controls</string>
+    <string name="pref_parental_controls_description">Hide content based on rating</string>
+    <string name="pref_parental_controls_category_ratings">Content Ratings</string>
+    <string name="pref_parental_controls_loading">Loading ratings…</string>
+    <string name="pref_parental_controls_no_ratings">No ratings found in your libraries</string>
+    <string name="pref_parental_controls_rating_blocked">Blocked</string>
+    <string name="pref_parental_controls_rating_allowed">Allowed</string>
+    <string name="pref_parental_controls_category_info">Information</string>
+    <string name="pref_parental_controls_info_description">Selected ratings will be hidden from home rows, libraries, search, and media bar across all servers</string>
+    
+    <!-- Seasonal Surprise -->
+    <string name="pref_seasonal_surprise">Seasonal Surprise</string>
+    <string name="pref_seasonal_surprise_description">Decorative seasonal animations on home screen. Disable if experiencing lag.</string>
+    <string name="pref_seasonal_none">None</string>
+    <string name="pref_seasonal_winter">Winter ❄️</string>
+    <string name="pref_seasonal_spring">Spring 🌸</string>
+    <string name="pref_seasonal_summer">Summer ☀️</string>
+    <string name="pref_seasonal_halloween">Halloween 🎃</string>
+    <string name="pref_seasonal_fall">Fall 🍁</string>
 </resources>

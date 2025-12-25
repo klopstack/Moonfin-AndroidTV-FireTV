@@ -169,11 +169,39 @@ class BrowseRowDef {
 
 	constructor(
 		header: String?,
+		query: GetNextUpRequest,
+		chunkSize: Int,
+		changeTriggers: Array<ChangeTriggerType>
+	) {
+		this.headerText = header ?: ""
+		this.nextUpQuery = query
+		this.chunkSize = chunkSize
+		this.queryType = QueryType.NextUp
+		this.isStaticHeight = true
+		this.changeTriggers = changeTriggers
+	}
+
+	constructor(
+		header: String?,
 		query: GetLatestMediaRequest,
 		changeTriggers: Array<ChangeTriggerType>
 	) {
 		this.headerText = header ?: ""
 		this.latestItemsQuery = query
+		this.queryType = QueryType.LatestItems
+		this.isStaticHeight = true
+		this.changeTriggers = changeTriggers
+	}
+
+	constructor(
+		header: String?,
+		query: GetLatestMediaRequest,
+		chunkSize: Int,
+		changeTriggers: Array<ChangeTriggerType>
+	) {
+		this.headerText = header ?: ""
+		this.latestItemsQuery = query
+		this.chunkSize = chunkSize
 		this.queryType = QueryType.LatestItems
 		this.isStaticHeight = true
 		this.changeTriggers = changeTriggers
@@ -188,6 +216,13 @@ class BrowseRowDef {
 	constructor(header: String?, query: GetRecommendedProgramsRequest) {
 		this.headerText = header ?: ""
 		this.programQuery = query
+		this.queryType = QueryType.LiveTvProgram
+	}
+
+	constructor(header: String?, query: GetRecommendedProgramsRequest, chunkSize: Int) {
+		this.headerText = header ?: ""
+		this.programQuery = query
+		this.chunkSize = chunkSize
 		this.queryType = QueryType.LiveTvProgram
 	}
 
@@ -242,6 +277,26 @@ class BrowseRowDef {
 		this.headerText = header ?: ""
 		this.resumeQuery = resumeQuery
 		this.mergedNextUpQuery = nextUpQuery
+		this.queryType = QueryType.MergedContinueWatching
+		this.isStaticHeight = staticHeight
+		this.preferParentThumb = preferParentThumb
+		this.changeTriggers = changeTriggers
+	}
+
+	// Constructor for merged Continue Watching + Next Up with chunk size for pagination
+	constructor(
+		header: String?,
+		resumeQuery: GetResumeItemsRequest,
+		nextUpQuery: GetNextUpRequest,
+		chunkSize: Int,
+		preferParentThumb: Boolean,
+		staticHeight: Boolean,
+		changeTriggers: Array<ChangeTriggerType>
+	) {
+		this.headerText = header ?: ""
+		this.resumeQuery = resumeQuery
+		this.mergedNextUpQuery = nextUpQuery
+		this.chunkSize = chunkSize
 		this.queryType = QueryType.MergedContinueWatching
 		this.isStaticHeight = staticHeight
 		this.preferParentThumb = preferParentThumb

@@ -14,6 +14,7 @@ enum class HomeSectionType(
 ) : PreferenceEnum {
 	MEDIA_BAR("mediabar", R.string.home_section_media_bar),
 	LATEST_MEDIA("latestmedia", R.string.home_section_latest_media),
+	RECENTLY_RELEASED("recentlyreleased", R.string.home_section_recently_released),
 	LIBRARY_TILES_SMALL("smalllibrarytiles", R.string.home_section_library),
 	LIBRARY_BUTTONS("librarybuttons", R.string.home_section_library_small),
 	RESUME("resume", R.string.home_section_resume),
@@ -21,7 +22,7 @@ enum class HomeSectionType(
 	RESUME_BOOK("resumebook", R.string.home_section_resume_book),
 	ACTIVE_RECORDINGS("activerecordings", R.string.home_section_active_recordings),
 	NEXT_UP("nextup", R.string.home_section_next_up),
-	PLAYLIST("playlist", R.string.home_section_playlist),
+	WATCHLIST("watchlist", R.string.home_section_watchlist),
 	LIVE_TV("livetv", R.string.home_section_livetv),
 	NONE("none", R.string.home_section_none),
 }

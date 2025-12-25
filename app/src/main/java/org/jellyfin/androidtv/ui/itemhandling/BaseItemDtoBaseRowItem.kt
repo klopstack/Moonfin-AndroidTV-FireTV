@@ -10,6 +10,7 @@ import org.jellyfin.androidtv.util.sdk.getFullName
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.extensions.ticks
+import timber.log.Timber
 
 open class BaseItemDtoBaseRowItem @JvmOverloads constructor(
 	item: BaseItemDto,
@@ -78,6 +79,7 @@ open class BaseItemDtoBaseRowItem @JvmOverloads constructor(
 		baseItem?.type == BaseItemKind.AUDIO && baseItem.albumArtists != null -> baseItem.albumArtists?.joinToString(", ")
 		baseItem?.type == BaseItemKind.AUDIO && baseItem.albumArtist != null -> baseItem.albumArtist
 		baseItem?.type == BaseItemKind.AUDIO && baseItem.album != null -> baseItem.album
+		baseItem?.type == BaseItemKind.EPISODE -> baseItem.name
 		else -> baseItem?.getFullName(context)
 	}
 
@@ -98,6 +100,7 @@ open class BaseItemDtoBaseRowItem @JvmOverloads constructor(
 		fillWidth: Int,
 		fillHeight: Int
 	): String? {
+		Timber.d("BaseItemDtoBaseRowItem.getImageUrl called for item ${baseItem?.id} type=$imageType")
 		return when {
 			imageType == ImageType.BANNER -> imageHelper.getBannerImageUrl(
 				requireNotNull(baseItem), fillWidth, fillHeight
@@ -110,7 +113,7 @@ open class BaseItemDtoBaseRowItem @JvmOverloads constructor(
 			imageType == ImageType.POSTER && baseItem?.type == BaseItemKind.EPISODE -> {
 				val seriesPoster = baseItem?.seriesPrimaryImage
 				if (seriesPoster != null) {
-					imageHelper.getImageUrl(seriesPoster, fillWidth, fillHeight)
+					imageHelper.getImageUrl(seriesPoster, baseItem!!, fillWidth, fillHeight)
 				} else {
 					imageHelper.getPrimaryImageUrl(
 						baseItem!!,

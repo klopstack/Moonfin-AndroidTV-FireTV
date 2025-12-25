@@ -1,20 +1,23 @@
 package org.jellyfin.androidtv.ui.home
 
 import android.content.Context
-import kotlinx.coroutines.runBlocking
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.auth.repository.UserRepository
 import org.jellyfin.androidtv.constant.ChangeTriggerType
 import org.jellyfin.androidtv.constant.HomeSectionType
 import org.jellyfin.androidtv.constant.QueryType
 import org.jellyfin.androidtv.data.repository.ItemRepository
+import org.jellyfin.androidtv.data.repository.LocalWatchlistRepository
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.ui.browsing.BrowseRowDef
-import org.jellyfin.androidtv.ui.playback.MoonfinPlaylistManager
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.MediaType
+import org.jellyfin.sdk.model.api.SortOrder
+import org.jellyfin.sdk.model.api.request.GetItemsRequest
 import org.jellyfin.sdk.model.api.request.GetNextUpRequest
 import org.jellyfin.sdk.model.api.request.GetRecommendedProgramsRequest
 import org.jellyfin.sdk.model.api.request.GetRecordingsRequest
@@ -28,14 +31,49 @@ class HomeFragmentHelper(
 ) : KoinComponent {
 	private val userPreferences by inject<UserPreferences>()
 	private val api by inject<ApiClient>()
+	private val serverRepository by inject<ServerRepository>()
+	private val watchlistRepository by inject<LocalWatchlistRepository>()
 
 	fun loadRecentlyAdded(userViews: Collection<BaseItemDto>): HomeFragmentRow {
-		return HomeFragmentLatestRow(userRepository, userViews)
+		// Check if multi-server is enabled
+		val enableMultiServer = userPreferences[UserPreferences.enableMultiServerLibraries]
+		
+		return if (enableMultiServer) {
+			// Use aggregated row that shows items from all servers
+			HomeFragmentAggregatedLatestRow()
+		} else {
+			// Use normal row for current server only
+			HomeFragmentLatestRow(userRepository, userViews)
+		}
+	}
+
+	fun loadRecentlyReleased(): HomeFragmentRow {
+		// Query items sorted by premiere/release date (most recent first)
+		val query = GetItemsRequest(
+			fields = ItemRepository.itemFields,
+			includeItemTypes = setOf(BaseItemKind.MOVIE, BaseItemKind.SERIES),
+			sortBy = setOf(ItemSortBy.PREMIERE_DATE),
+			sortOrder = setOf(SortOrder.DESCENDING),
+			recursive = true,
+			imageTypeLimit = 1,
+			enableTotalRecordCount = true,
+		)
+
+		val browseRowDef = BrowseRowDef(
+			context.getString(R.string.home_section_recently_released),
+			query,
+			HOME_ROW_CHUNK_SIZE,
+			false,
+			true,
+			arrayOf(ChangeTriggerType.LibraryUpdated)
+		)
+		browseRowDef.setSectionType(HomeSectionType.RECENTLY_RELEASED)
+		return HomeFragmentBrowseRowDefRow(browseRowDef)
 	}
 
 	fun loadResume(title: String, includeMediaTypes: Collection<MediaType>): HomeFragmentRow {
 		val query = GetResumeItemsRequest(
-			limit = ITEM_LIMIT_RESUME,
+			limit = HOME_ROW_MAX_ITEMS,
 			fields = ItemRepository.itemFields,
 			imageTypeLimit = 1,
 			enableTotalRecordCount = false,
@@ -43,16 +81,37 @@ class HomeFragmentHelper(
 			excludeItemTypes = setOf(BaseItemKind.AUDIO_BOOK),
 		)
 
-		return HomeFragmentBrowseRowDefRow(BrowseRowDef(title, query, 0, userPreferences[UserPreferences.seriesThumbnailsEnabled], true, arrayOf(ChangeTriggerType.TvPlayback, ChangeTriggerType.MoviePlayback)))
+		val browseRowDef = BrowseRowDef(title, query, HOME_ROW_CHUNK_SIZE, userPreferences[UserPreferences.seriesThumbnailsEnabled], true, arrayOf(ChangeTriggerType.TvPlayback, ChangeTriggerType.MoviePlayback))
+		browseRowDef.setSectionType(HomeSectionType.RESUME)
+		return HomeFragmentBrowseRowDefRow(browseRowDef)
 	}
 
 	fun loadResumeVideo(): HomeFragmentRow {
-		return loadResume(context.getString(R.string.lbl_continue_watching), listOf(MediaType.VIDEO))
+		// Check if multi-server is enabled
+		val enableMultiServer = userPreferences[UserPreferences.enableMultiServerLibraries]
+		
+		return if (enableMultiServer) {
+			// Use aggregated row that shows items from all servers
+			HomeFragmentAggregatedResumeRow(HOME_ROW_MAX_ITEMS)
+		} else {
+			// Use normal row for current server only
+			loadResume(context.getString(R.string.lbl_continue_watching), listOf(MediaType.VIDEO))
+		}
 	}
 
 	fun loadMergedContinueWatching(): HomeFragmentRow {
+		// Check if multi-server is enabled
+		val enableMultiServer = userPreferences[UserPreferences.enableMultiServerLibraries]
+		
+		if (enableMultiServer) {
+			// Use aggregated row that shows items from all servers
+			// Note: This combines both resume and next up automatically
+			return HomeFragmentAggregatedResumeRow(HOME_ROW_MAX_ITEMS)
+		}
+		
+		// Use normal merged row for current server only
 		val resumeQuery = GetResumeItemsRequest(
-			limit = ITEM_LIMIT_RESUME,
+			limit = HOME_ROW_MAX_ITEMS,
 			fields = ItemRepository.itemFields,
 			imageTypeLimit = 1,
 			enableTotalRecordCount = false,
@@ -62,7 +121,7 @@ class HomeFragmentHelper(
 
 		val nextUpQuery = GetNextUpRequest(
 			imageTypeLimit = 1,
-			limit = ITEM_LIMIT_NEXT_UP,
+			limit = HOME_ROW_MAX_ITEMS,
 			enableResumable = false,
 			fields = ItemRepository.itemFields
 		)
@@ -71,6 +130,7 @@ class HomeFragmentHelper(
 			context.getString(R.string.lbl_continue_watching),
 			resumeQuery,
 			nextUpQuery,
+			HOME_ROW_CHUNK_SIZE,
 			userPreferences[UserPreferences.seriesThumbnailsEnabled],
 			true,
 			arrayOf(ChangeTriggerType.TvPlayback, ChangeTriggerType.MoviePlayback)
@@ -87,21 +147,32 @@ class HomeFragmentHelper(
 		val query = GetRecordingsRequest(
 			fields = ItemRepository.itemFields,
 			enableImages = true,
-			limit = ITEM_LIMIT_RECORDINGS
+			limit = HOME_ROW_MAX_ITEMS
 		)
 
-		return HomeFragmentBrowseRowDefRow(BrowseRowDef(context.getString(R.string.lbl_recordings), query))
+		val row = BrowseRowDef(context.getString(R.string.lbl_recordings), query, HOME_ROW_CHUNK_SIZE)
+		row.setSectionType(HomeSectionType.ACTIVE_RECORDINGS)
+		return HomeFragmentBrowseRowDefRow(row)
 	}
 
 	fun loadNextUp(): HomeFragmentRow {
+		// Check if multi-server is enabled
+		val enableMultiServer = userPreferences[UserPreferences.enableMultiServerLibraries]
+		
+		if (enableMultiServer) {
+			// Use aggregated row that shows items from all servers
+			return HomeFragmentAggregatedNextUpRow(HOME_ROW_MAX_ITEMS)
+		}
+		
+		// Use normal row for current server only
 		val query = GetNextUpRequest(
 			imageTypeLimit = 1,
-			limit = ITEM_LIMIT_NEXT_UP,
+			limit = HOME_ROW_MAX_ITEMS,
 			enableResumable = false,
 			fields = ItemRepository.itemFields
 		)
 
-		val browseRowDef = BrowseRowDef(context.getString(R.string.lbl_next_up), query, arrayOf(ChangeTriggerType.TvPlayback))
+		val browseRowDef = BrowseRowDef(context.getString(R.string.lbl_next_up), query, HOME_ROW_CHUNK_SIZE, arrayOf(ChangeTriggerType.TvPlayback))
 		browseRowDef.setSectionType(HomeSectionType.NEXT_UP)
 		return HomeFragmentBrowseRowDefRow(browseRowDef)
 	}
@@ -112,44 +183,21 @@ class HomeFragmentHelper(
 			fields = ItemRepository.itemFields,
 			imageTypeLimit = 1,
 			enableTotalRecordCount = false,
-			limit = ITEM_LIMIT_ON_NOW
+			limit = HOME_ROW_MAX_ITEMS
 		)
 
-		return HomeFragmentBrowseRowDefRow(BrowseRowDef(context.getString(R.string.lbl_on_now), query))
-	}
+		return HomeFragmentBrowseRowDefRow(BrowseRowDef(context.getString(R.string.lbl_on_now), query, HOME_ROW_CHUNK_SIZE))
+		val browseRowDef = BrowseRowDef(context.getString(R.string.lbl_next_up), query, HOME_ROW_CHUNK_SIZE, arrayOf(ChangeTriggerType.TvPlayback))
 
-	fun loadPlaylists(): HomeFragmentRow {
-		// Get or create Moonfin playlist and return its items
-		val playlistManager = MoonfinPlaylistManager(api)
-		
-		// Try to get the playlist ID synchronously (this will create it if needed)
-		val playlistId = runBlocking {
-			playlistManager.getOrCreateMoonfinPlaylist()
-		}
-
-		return if (playlistId != null) {
-			HomeFragmentMoonfinPlaylistRow(context, playlistId, api)
-		} else {
-			// Fallback to empty row if playlist creation fails
-			HomeFragmentBrowseRowDefRow(
-				BrowseRowDef(
-					context.getString(R.string.lbl_playlists),
-					org.jellyfin.androidtv.ui.browsing.BrowsingUtils.createPlaylistsRequest(),
-					60,
-					false,
-					true,
-					arrayOf(ChangeTriggerType.LibraryUpdated),
-					QueryType.AudioPlaylists
-				)
-			)
-		}
+	fun loadWatchlist(): HomeFragmentRow? {
+		val serverId = serverRepository.currentServer.value?.id ?: return null
+		return HomeFragmentWatchlistRow(context, api, serverId, watchlistRepository)
 	}
 
 	companion object {
-		// Maximum amount of items loaded for a row
-		private const val ITEM_LIMIT_RESUME = 50
-		private const val ITEM_LIMIT_RECORDINGS = 40
-		private const val ITEM_LIMIT_NEXT_UP = 50
-		private const val ITEM_LIMIT_ON_NOW = 20
+		// Initial items to load for a row (pagination chunk size)
+		private const val HOME_ROW_CHUNK_SIZE = 15
+		// Maximum total items that can be loaded for a row
+		private const val HOME_ROW_MAX_ITEMS = 100
 	}
 }

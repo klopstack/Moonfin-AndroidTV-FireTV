@@ -169,6 +169,26 @@ fun CustomizationPreferencesScreen() {
 		}
 
 		item {
+			var screensaverTimeout by rememberPreference(userPreferences, UserPreferences.screensaverInAppTimeout)
+			val timeoutMinutes = screensaverTimeout / 60000L
+			val timeoutDisplay = when (timeoutMinutes) {
+				0L -> "30 seconds"
+				1L -> "1 minute"
+				3L -> "2.5 minutes"
+				5L -> "5 minutes"
+				10L -> "10 minutes"
+				15L -> "15 minutes"
+				30L -> "30 minutes"
+				else -> "$timeoutMinutes min"
+			}
+			ListButton(
+				headingContent = { Text(stringResource(R.string.pref_screensaver_inapp_timeout)) },
+				captionContent = { Text(timeoutDisplay) },
+				onClick = { /* Open timeout selector */ }
+			)
+		}
+
+		item {
 			var screensaverAgeRatingRequired by rememberPreference(userPreferences, UserPreferences.screensaverAgeRatingRequired)
 			ListButton(
 				headingContent = { Text(stringResource(R.string.pref_screensaver_ageratingrequired_title)) },
@@ -180,6 +200,20 @@ fun CustomizationPreferencesScreen() {
 				},
 				trailingContent = { Checkbox(checked = screensaverAgeRatingRequired) },
 				onClick = { screensaverAgeRatingRequired = !screensaverAgeRatingRequired }
+			)
+		}
+
+		item {
+			var screensaverAgeRatingMax by rememberPreference(userPreferences, UserPreferences.screensaverAgeRatingMax)
+			val ageDisplay = when (screensaverAgeRatingMax) {
+				0 -> stringResource(R.string.pref_screensaver_ageratingmax_zero)
+				-1 -> stringResource(R.string.pref_screensaver_ageratingmax_unlimited)
+				else -> stringResource(R.string.pref_screensaver_ageratingmax_entry, screensaverAgeRatingMax)
+			}
+			ListButton(
+				headingContent = { Text(stringResource(R.string.pref_screensaver_ageratingmax)) },
+				captionContent = { Text(ageDisplay) },
+				onClick = { /* Open age rating max selector */ }
 			)
 		}
 

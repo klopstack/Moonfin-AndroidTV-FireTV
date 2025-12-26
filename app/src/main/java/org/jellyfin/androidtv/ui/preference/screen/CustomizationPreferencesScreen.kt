@@ -47,7 +47,7 @@ fun CustomizationPreferencesScreen() {
 			ListButton(
 				headingContent = { Text(stringResource(R.string.pref_app_theme)) },
 				captionContent = { Text(stringResource(appTheme.nameRes)) },
-				onClick = { /* Open theme selector */ }
+				onClick = { router.push(Routes.CUSTOMIZATION_APP_THEME) }
 			)
 		}
 
@@ -56,7 +56,7 @@ fun CustomizationPreferencesScreen() {
 			ListButton(
 				headingContent = { Text(stringResource(R.string.pref_clock_display)) },
 				captionContent = { Text(stringResource(clockBehavior.nameRes)) },
-				onClick = { /* Open clock behavior selector */ }
+				onClick = { router.push(Routes.CUSTOMIZATION_CLOCK_BEHAVIOR) }
 			)
 		}
 
@@ -65,7 +65,7 @@ fun CustomizationPreferencesScreen() {
 			ListButton(
 				headingContent = { Text(stringResource(R.string.pref_watched_indicator)) },
 				captionContent = { Text(stringResource(watchedIndicatorBehavior.nameRes)) },
-				onClick = { /* Open watched indicator selector */ }
+				onClick = { router.push(Routes.CUSTOMIZATION_WATCHED_INDICATOR_BEHAVIOR) }
 			)
 		}
 
@@ -94,7 +94,7 @@ fun CustomizationPreferencesScreen() {
 			ListButton(
 				headingContent = { Text(stringResource(R.string.pref_default_rating)) },
 				captionContent = { Text(stringResource(defaultRatingType.nameRes)) },
-				onClick = { /* Open rating type selector */ }
+				onClick = { router.push(Routes.CUSTOMIZATION_RATING_TYPE) }
 			)
 		}
 
@@ -184,7 +184,7 @@ fun CustomizationPreferencesScreen() {
 			ListButton(
 				headingContent = { Text(stringResource(R.string.pref_screensaver_inapp_timeout)) },
 				captionContent = { Text(timeoutDisplay) },
-				onClick = { /* Open timeout selector */ }
+				onClick = { router.push(Routes.CUSTOMIZATION_SCREENSAVER_TIMEOUT) }
 			)
 		}
 
@@ -213,7 +213,7 @@ fun CustomizationPreferencesScreen() {
 			ListButton(
 				headingContent = { Text(stringResource(R.string.pref_screensaver_ageratingmax)) },
 				captionContent = { Text(ageDisplay) },
-				onClick = { /* Open age rating max selector */ }
+				onClick = { router.push(Routes.CUSTOMIZATION_SCREENSAVER_AGE_RATING_MAX) }
 			)
 		}
 
@@ -225,22 +225,10 @@ fun CustomizationPreferencesScreen() {
 			)
 		}
 
-		item {
-			var shortcutAudioTrack by rememberPreference(userPreferences, UserPreferences.shortcutAudioTrack)
-			ListButton(
-				headingContent = { Text(stringResource(R.string.pref_audio_track_button)) },
-				captionContent = { Text(stringResource(R.string.pref_audio_track_button)) },
-				onClick = { /* Open audio track shortcut selector */ }
-			)
-		}
-
-		item {
-			var shortcutSubtitleTrack by rememberPreference(userPreferences, UserPreferences.shortcutSubtitleTrack)
-			ListButton(
-				headingContent = { Text(stringResource(R.string.pref_subtitle_track_button)) },
-				captionContent = { Text(stringResource(R.string.pref_subtitle_track_button)) },
-				onClick = { /* Open subtitle track shortcut selector */ }
-			)
-		}
+		// Note: Audio and subtitle track button shortcuts are not included here
+		// as they require special key capture dialogs that are implemented
+		// in the old preference system (ButtonRemapPreference).
+		// Users can access these settings through the MoonfinPreferencesScreen
+		// (Settings > Moonfin Settings) which uses the fragment-based system.
 	}
 }

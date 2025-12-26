@@ -14,6 +14,12 @@ import org.jellyfin.androidtv.ui.settings.screen.authentication.SettingsAuthenti
 import org.jellyfin.androidtv.ui.settings.screen.authentication.SettingsAuthenticationServerScreen
 import org.jellyfin.androidtv.ui.settings.screen.authentication.SettingsAuthenticationServerUserScreen
 import org.jellyfin.androidtv.ui.settings.screen.authentication.SettingsAuthenticationSortByScreen
+import org.jellyfin.androidtv.ui.settings.screen.customization.SettingsAppThemeScreen
+import org.jellyfin.androidtv.ui.settings.screen.customization.SettingsClockBehaviorScreen
+import org.jellyfin.androidtv.ui.settings.screen.customization.SettingsRatingTypeScreen
+import org.jellyfin.androidtv.ui.settings.screen.customization.SettingsScreensaverAgeRatingMaxScreen
+import org.jellyfin.androidtv.ui.settings.screen.customization.SettingsScreensaverTimeoutScreen
+import org.jellyfin.androidtv.ui.settings.screen.customization.SettingsWatchedIndicatorBehaviorScreen
 import org.jellyfin.androidtv.ui.settings.screen.customization.subtitle.SettingsSubtitleTextStrokeColorScreen
 import org.jellyfin.androidtv.ui.settings.screen.customization.subtitle.SettingsSubtitlesBackgroundColorScreen
 import org.jellyfin.androidtv.ui.settings.screen.customization.subtitle.SettingsSubtitlesScreen
@@ -39,6 +45,12 @@ object Routes {
 	const val AUTHENTICATION_SORT_BY = "/authentication/sort-by"
 	const val AUTHENTICATION_AUTO_SIGN_IN = "/authentication/auto-sign-in"
 const val CUSTOMIZATION = "/customization"
+	const val CUSTOMIZATION_APP_THEME = "/customization/app-theme"
+	const val CUSTOMIZATION_CLOCK_BEHAVIOR = "/customization/clock-behavior"
+	const val CUSTOMIZATION_WATCHED_INDICATOR_BEHAVIOR = "/customization/watched-indicator-behavior"
+	const val CUSTOMIZATION_RATING_TYPE = "/customization/rating-type"
+	const val CUSTOMIZATION_SCREENSAVER_TIMEOUT = "/customization/screensaver-timeout"
+	const val CUSTOMIZATION_SCREENSAVER_AGE_RATING_MAX = "/customization/screensaver-age-rating-max"
 	const val CUSTOMIZATION_SUBTITLES = "/customization/subtitles"
 	const val CUSTOMIZATION_SUBTITLES_TEXT_COLOR = "/customization/subtitles/text-color"
 	const val CUSTOMIZATION_SUBTITLES_BACKGROUND_COLOR = "/customization/subtitles/background-color"
@@ -89,6 +101,24 @@ val routes = mapOf<String, RouteComposable>(
 	},
 Routes.CUSTOMIZATION to {
 		CustomizationPreferencesScreen()
+	},
+	Routes.CUSTOMIZATION_APP_THEME to {
+		SettingsAppThemeScreen()
+	},
+	Routes.CUSTOMIZATION_CLOCK_BEHAVIOR to {
+		SettingsClockBehaviorScreen()
+	},
+	Routes.CUSTOMIZATION_WATCHED_INDICATOR_BEHAVIOR to {
+		SettingsWatchedIndicatorBehaviorScreen()
+	},
+	Routes.CUSTOMIZATION_RATING_TYPE to {
+		SettingsRatingTypeScreen()
+	},
+	Routes.CUSTOMIZATION_SCREENSAVER_TIMEOUT to {
+		SettingsScreensaverTimeoutScreen()
+	},
+	Routes.CUSTOMIZATION_SCREENSAVER_AGE_RATING_MAX to {
+		SettingsScreensaverAgeRatingMaxScreen()
 	},
 	Routes.CUSTOMIZATION_SUBTITLES to {
 		SettingsSubtitlesScreen()

@@ -88,6 +88,11 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var confirmExit = booleanPreference("confirm_exit", true)
 
 		/**
+		 * Enable automatic update notifications on app launch
+		 */
+		var updateNotificationsEnabled = booleanPreference("update_notifications_enabled", true)
+
+		/**
 		 * Seasonal surprise effect selection (none, winter, spring, fall)
 		 */
 		var seasonalSurprise = stringPreference("seasonal_surprise", "none")

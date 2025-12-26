@@ -138,6 +138,12 @@ class MainActivity : FragmentActivity() {
 	}
 
 	private fun checkForUpdatesOnLaunch() {
+		// Check if update notifications are enabled
+		if (!userPreferences[UserPreferences.updateNotificationsEnabled]) {
+			Timber.d("Update notifications are disabled")
+			return
+		}
+
 		lifecycleScope.launch(Dispatchers.IO) {
 			try {
 				val result = updateCheckerService.checkForUpdate()

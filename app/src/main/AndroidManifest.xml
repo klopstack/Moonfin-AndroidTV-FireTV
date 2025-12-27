@@ -45,7 +45,7 @@
         android:name=".JellyfinApplication"
         android:allowBackup="true"
         android:appCategory="video"
-        android:banner="@mipmap/app_banner"
+        android:banner="@mipmap/moonfin_ic_banner"
         android:dataExtractionRules="@xml/backup_rules"
         android:fullBackupContent="@xml/backup_content"
         android:icon="@mipmap/moonfin_launcher"

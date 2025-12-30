@@ -33,6 +33,8 @@ import org.jellyfin.androidtv.ui.settings.screen.playback.mediasegment.SettingsP
 import org.jellyfin.androidtv.ui.settings.screen.playback.nextup.SettingsPlaybackNextUpBehaviorScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.nextup.SettingsPlaybackNextUpScreen
 import org.jellyfin.androidtv.ui.settings.screen.screensaver.SettingsScreensaverAgeRatingScreen
+import org.jellyfin.androidtv.ui.settings.screen.screensaver.SettingsScreensaverDimmingScreen
+import org.jellyfin.androidtv.ui.settings.screen.screensaver.SettingsScreensaverModeScreen
 import org.jellyfin.androidtv.ui.settings.screen.screensaver.SettingsScreensaverScreen
 import org.jellyfin.androidtv.ui.settings.screen.screensaver.SettingsScreensaverTimeoutScreen
 import org.jellyfin.sdk.model.api.MediaSegmentType
@@ -54,6 +56,8 @@ object Routes {
 	const val CUSTOMIZATION_SCREENSAVER = "/customization/screensaver"
 	const val CUSTOMIZATION_SCREENSAVER_TIMEOUT = "/customization/screensaver/timeout"
 	const val CUSTOMIZATION_SCREENSAVER_AGE_RATING = "/customization/screensaver/age-rating"
+	const val CUSTOMIZATION_SCREENSAVER_MODE = "/customization/screensaver/mode"
+	const val CUSTOMIZATION_SCREENSAVER_DIMMING = "/customization/screensaver/dimming"
 	const val CUSTOMIZATION_SUBTITLES = "/customization/subtitles"
 	const val CUSTOMIZATION_SUBTITLES_TEXT_COLOR = "/customization/subtitles/text-color"
 	const val CUSTOMIZATION_SUBTITLES_BACKGROUND_COLOR = "/customization/subtitles/background-color"
@@ -126,6 +130,12 @@ val routes = mapOf<String, RouteComposable>(
 	},
 	Routes.CUSTOMIZATION_SCREENSAVER_AGE_RATING to {
 		SettingsScreensaverAgeRatingScreen()
+	},
+	Routes.CUSTOMIZATION_SCREENSAVER_MODE to {
+		SettingsScreensaverModeScreen()
+	},
+	Routes.CUSTOMIZATION_SCREENSAVER_DIMMING to {
+		SettingsScreensaverDimmingScreen()
 	},
 	Routes.CUSTOMIZATION_SUBTITLES to {
 		SettingsSubtitlesScreen()

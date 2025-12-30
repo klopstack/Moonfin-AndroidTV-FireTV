@@ -594,6 +594,8 @@
     <string name="pref_screensaver_dimming">Screen dimming level</string>
     <string name="pref_screensaver_dimming_level_description">Adjust how much to darken the screensaver display. Logo and clock move every 60 seconds to prevent burn-in.</string>
     <string name="pref_screensaver_dimming_description">Darken the screensaver display</string>
+    <string name="pref_screensaver_show_clock">Show clock in screensaver</string>
+    <string name="pref_screensaver_show_clock_description">Display a bouncing clock in the screensaver. Clock brightness will match screen dimming level when enabled.</string>
     <string name="all_channels">All channels</string>
     <string name="app_notification_update_soon">Update your server from %1$s to at least %2$s to continue using the app after the next update.</string>
     <string name="current_queue">Current queue</string>

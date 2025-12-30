@@ -275,6 +275,11 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var screensaverAgeRatingRequired = booleanPreference("screensaver_agerating_required", true)
 
 		/**
+		 * Show clock in screensaver when enabled
+		 */
+		var screensaverShowClock = booleanPreference("screensaver_show_clock", true)
+
+		/**
 		 * Delay when starting video playback after loading the video player.
 		 */
 		var videoStartDelay = longPreference("video_start_delay", 0)

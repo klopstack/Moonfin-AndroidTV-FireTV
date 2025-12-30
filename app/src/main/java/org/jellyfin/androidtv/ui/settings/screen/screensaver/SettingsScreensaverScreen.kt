@@ -54,6 +54,32 @@ fun SettingsScreensaverScreen() {
 		}
 
 		item {
+			var screensaverMode by rememberPreference(userPreferences, UserPreferences.screensaverMode)
+			val caption = when (screensaverMode) {
+				"library" -> stringResource(R.string.pref_screensaver_mode_library)
+				"logo" -> stringResource(R.string.pref_screensaver_mode_logo)
+				else -> screensaverMode
+			}
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.pref_screensaver_mode)) },
+				captionContent = { Text(caption) },
+				onClick = { router.push(Routes.CUSTOMIZATION_SCREENSAVER_MODE) }
+			)
+		}
+
+		item {
+			var screensaverDimmingLevel by rememberPreference(userPreferences, UserPreferences.screensaverDimmingLevel)
+			val caption = if (screensaverDimmingLevel == 0) "Off" else "$screensaverDimmingLevel%"
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.pref_screensaver_dimming)) },
+				captionContent = { Text(caption) },
+				onClick = { router.push(Routes.CUSTOMIZATION_SCREENSAVER_DIMMING) }
+			)
+		}
+
+		item {
 			var screensaverAgeRatingRequired by rememberPreference(userPreferences, UserPreferences.screensaverAgeRatingRequired)
 
 			ListButton(
@@ -74,6 +100,17 @@ fun SettingsScreensaverScreen() {
 				headingContent = { Text(stringResource(R.string.pref_screensaver_ageratingmax)) },
 				captionContent = { Text(caption) },
 				onClick = { router.push(Routes.CUSTOMIZATION_SCREENSAVER_AGE_RATING) }
+			)
+		}
+
+		item {
+			var screensaverShowClock by rememberPreference(userPreferences, UserPreferences.screensaverShowClock)
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.pref_screensaver_show_clock)) },
+				trailingContent = { Checkbox(checked = screensaverShowClock) },
+				captionContent = { Text(stringResource(R.string.pref_screensaver_show_clock_description)) },
+				onClick = { screensaverShowClock = !screensaverShowClock }
 			)
 		}
 	}

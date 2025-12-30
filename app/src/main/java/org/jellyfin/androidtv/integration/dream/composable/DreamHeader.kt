@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -25,10 +26,13 @@ import kotlin.random.Random
 @Composable
 fun DreamHeader(
 	showClock: Boolean,
+	dimmingLevel: Int,
 ) {
 	val density = LocalDensity.current
 	val clockWidthDp = 150.dp
 	val clockHeightDp = 50.dp
+	
+	val clockAlpha = 1f - (dimmingLevel / 100f * 0.7f)
 	
 	BoxWithConstraints(
 		modifier = Modifier
@@ -91,7 +95,8 @@ fun DreamHeader(
 			enter = fadeIn(),
 			exit = fadeOut(),
 			modifier = Modifier
-				.offset { IntOffset(offsetX.value.toInt(), offsetY.value.toInt()) },
+				.offset { IntOffset(offsetX.value.toInt(), offsetY.value.toInt()) }
+				.alpha(clockAlpha),
 		) {
 			ToolbarClock()
 		}

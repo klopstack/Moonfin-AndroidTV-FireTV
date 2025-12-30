@@ -42,7 +42,6 @@ fun DreamView(
 			}
 		}
 
-		// Dimming overlay
 		if (dimmingLevel > 0) {
 			Box(
 				modifier = Modifier
@@ -51,9 +50,9 @@ fun DreamView(
 			)
 		}
 
-		// Header overlay
 		DreamHeader(
 			showClock = showClock,
+			dimmingLevel = dimmingLevel,
 		)
 	}
 }

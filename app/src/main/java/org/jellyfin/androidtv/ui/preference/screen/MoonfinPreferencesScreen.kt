@@ -242,46 +242,23 @@ class MoonfinPreferencesScreen : OptionsFragment() {
 				}
 				bind(userSettingPreferences, UserSettingPreferences.browsingBackgroundBlurAmount)
 			}
+	}
 
-			list {
-				setTitle(R.string.pref_screensaver_mode)
-				entries = mapOf(
-					"library" to getString(R.string.pref_screensaver_mode_library),
-					"logo" to getString(R.string.pref_screensaver_mode_logo)
-				)
-				bind(userPreferences, UserPreferences.screensaverMode)
-			}
+category {
+	setTitle(R.string.pref_playback)
 
-			seekbar {
-				setTitle(R.string.pref_screensaver_dimming)
-				setContent(R.string.pref_screensaver_dimming_level_description)
-				min = 0
-				max = 100
-				increment = 5
-				valueFormatter = object : DurationSeekBarPreference.ValueFormatter() {
-					override fun display(value: Int) = if (value == 0) "Off" else "$value%"
-				}
-				bind(userPreferences, UserPreferences.screensaverDimmingLevel)
-				depends { userPreferences[UserPreferences.screensaverInAppEnabled] }
-			}
+		checkbox {
+			setTitle(R.string.pref_subtitles_default_to_none)
+			setContent(R.string.pref_subtitles_default_to_none_description)
+			bind(userPreferences, UserPreferences.subtitlesDefaultToNone)
 		}
 
-		// Playback
-		category {
-			setTitle(R.string.pref_playback)
-
-			checkbox {
-				setTitle(R.string.pref_subtitles_default_to_none)
-				setContent(R.string.pref_subtitles_default_to_none_description)
-				bind(userPreferences, UserPreferences.subtitlesDefaultToNone)
-			}
-
-			link {
-				setTitle(R.string.pref_parental_controls)
-				setContent(R.string.pref_parental_controls_description)
-				icon = R.drawable.ic_lock
-				withFragment<ParentalControlsPreferencesScreen>()
-			}
+		link {
+			setTitle(R.string.pref_parental_controls)
+			setContent(R.string.pref_parental_controls_description)
+			icon = R.drawable.ic_lock
+			withFragment<ParentalControlsPreferencesScreen>()
 		}
 	}
+}
 }

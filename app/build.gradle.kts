@@ -115,6 +115,7 @@ tasks.register("versionTxt") {
 
 dependencies {
 	// Jellyfin
+	implementation(projects.design)
 	implementation(projects.playback.core)
 	implementation(projects.playback.jellyfin)
 	implementation(projects.playback.media3.exoplayer)

@@ -1,266 +1,353 @@
 package org.jellyfin.androidtv.ui.home.mediabar
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.jellyfin.androidtv.auth.repository.UserRepository
+import org.jellyfin.androidtv.data.repository.ItemMutationRepository
+import org.jellyfin.androidtv.data.repository.MultiServerRepository
+import org.jellyfin.androidtv.data.repository.ParentalControlsRepository
+import org.jellyfin.androidtv.preference.UserSettingPreferences
+import org.jellyfin.sdk.api.client.ApiClient
 import android.content.Context
 import coil3.ImageLoader
 import coil3.request.ImageRequest
-import kotlinx.coroutines.*
-private data class ItemWithApiClient(
-    val item: BaseItemDto,
-    val apiClient: ApiClient,
-    val serverId: UUID? = null,
-)
-						ItemFields.OFFICIAL_RATING,
-						ItemFields.CRITIC_RATING,
-						ItemFields.COMMUNITY_RATING,
-						ItemFields.OVERVIEW,
-					)
-				)
-			).content
-		} catch (e: Exception) {
-			Timber.e(e, "MediaBar: Failed to fetch latest media")
-			emptyList()
-		}
+import org.jellyfin.sdk.api.client.extensions.imageApi
+import org.jellyfin.sdk.api.client.extensions.itemsApi
+import org.jellyfin.sdk.model.api.BaseItemDto
+import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.ImageType
+import org.jellyfin.sdk.model.api.ItemFields
+import org.jellyfin.sdk.model.api.ItemFilter
+import timber.log.Timber
+import java.util.Locale
+import java.util.UUID
+
+class MediaBarSlideshowViewModel(
+	private val api: ApiClient,
+	private val userSettingPreferences: UserSettingPreferences,
+	private val itemMutationRepository: ItemMutationRepository,
+	private val userRepository: UserRepository,
+	private val context: Context,
+	private val imageLoader: ImageLoader,
+	private val multiServerRepository: MultiServerRepository,
+	private val parentalControlsRepository: ParentalControlsRepository,
+) : ViewModel() {
+	private fun getConfig() = MediaBarConfig(
+		maxItems = userSettingPreferences[UserSettingPreferences.mediaBarItemCount].toIntOrNull() ?: 10
+	)
+
+	private val _state = MutableStateFlow<MediaBarState>(MediaBarState.Loading)
+	val state: StateFlow<MediaBarState> = _state.asStateFlow()
+
+	private val _playbackState = MutableStateFlow(SlideshowPlaybackState())
+	val playbackState: StateFlow<SlideshowPlaybackState> = _playbackState.asStateFlow()
+
+	private val _isFocused = MutableStateFlow(false)
+	val isFocused: StateFlow<Boolean> = _isFocused.asStateFlow()
+
+	private var items: List<MediaBarSlideItem> = emptyList()
+	private var autoAdvanceJob: Job? = null
+	private var currentUserId: UUID? = null
+
+	init {
+		// Observe user changes and reload content when user switches
+		userRepository.currentUser
+			.filterNotNull()
+			.onEach { user ->
+				// Check if user has actually changed (not just initial load)
+				if (currentUserId != null && currentUserId != user.id) {
+					reloadContent()
+				}
+				currentUserId = user.id
+			}
+			.launchIn(viewModelScope)
 	}
 
-	fun loadSlideshowItems() {
-		_state.value = MediaBarState.Loading
-		viewModelScope.launch(Dispatchers.IO) {
-			try {
-				val config = getConfig()
-				val contentType = userSettingPreferences[UserSettingPreferences.mediaBarContentType]
-				val loggedInServers = multiServerRepository.getLoggedInServers()
-				val useMulti = loggedInServers.size > 1
+	fun setFocused(focused: Boolean) {
+		_isFocused.value = focused
 
-				val rawItems: List<Triple<BaseItemDto, ApiClient, UUID?>> = if (useMulti) {
-					val perServer = (config.maxItems / loggedInServers.size).coerceAtLeast(2)
-					loggedInServers.map { session ->
-						async {
-							val list = when (contentType) {
-								"movies" -> fetchItemsFromServer(session.apiClient, BaseItemKind.MOVIE, perServer)
-								"tv" -> fetchItemsFromServer(session.apiClient, BaseItemKind.SERIES, perServer)
-								else -> {
-									val movies = async { fetchItemsFromServer(session.apiClient, BaseItemKind.MOVIE, perServer / 2 + 1) }
-									val shows = async { fetchItemsFromServer(session.apiClient, BaseItemKind.SERIES, perServer / 2 + 1) }
-									movies.await() + shows.await()
-								}
-							}
-							list.map { Triple(it, session.apiClient, session.server.id) }
-						}
-					}.awaitAll().flatten()
-				} else {
-					val list = when (contentType) {
-						"movies" -> fetchItemsFromServer(api, BaseItemKind.MOVIE, config.maxItems)
-						"tv" -> fetchItemsFromServer(api, BaseItemKind.SERIES, config.maxItems)
-						else -> {
-							val movies = async { fetchItemsFromServer(api, BaseItemKind.MOVIE, config.maxItems / 2 + 1) }
-							val shows = async { fetchItemsFromServer(api, BaseItemKind.SERIES, config.maxItems / 2 + 1) }
-							movies.await() + shows.await()
-						}
-					}
-					list.map { Triple(it, api, null) }
-				}
-
-				val filtered = parentalControlsRepository.filterItems(rawItems) { (item, _, _) -> item.officialRating }
-					.filter { (item, _, _) -> item.backdropImageTags?.isNotEmpty() == true }
-					.shuffled()
-					.take(config.maxItems)
-
-				items = filtered.map { (item, apiClient, serverId) ->
-					MediaBarSlideItem(
-						itemId = item.id,
-						serverId = serverId,
-						title = item.name.orEmpty(),
-						overview = item.overview,
-						backdropUrl = item.backdropImageTags?.firstOrNull()?.let { tag ->
-							apiClient.imageApi.getItemImageUrl(
-								itemId = item.id,
-								imageType = ImageType.BACKDROP,
-								tag = tag,
-								maxWidth = 1920,
-								quality = 90
-							)
-						},
-						logoUrl = item.imageTags?.get(ImageType.LOGO)?.let { tag ->
-							apiClient.imageApi.getItemImageUrl(
-								itemId = item.id,
-								imageType = ImageType.LOGO,
-								tag = tag,
-								maxWidth = 800,
-							)
-						},
-						rating = item.officialRating,
-						year = item.productionYear,
-						genres = item.genres.orEmpty().take(3),
-						runtime = item.runTimeTicks?.let { ticks -> (ticks / 10000) },
-						criticRating = item.criticRating?.toInt(),
-						communityRating = item.communityRating,
-					)
-				}
-
-				withContext(Dispatchers.Main) {
-					_state.value = if (items.isNotEmpty()) MediaBarState.Ready(items) else MediaBarState.Error("No items found")
-					_playbackState.value = SlideshowPlaybackState(currentIndex = 0, isPaused = false, isTransitioning = false)
-					resetAutoAdvanceTimer()
-				}
-			} catch (e: Exception) {
-				Timber.e(e, "MediaBar: Failed to load slideshow items")
-				withContext(Dispatchers.Main) {
-					_state.value = MediaBarState.Error("Failed to load content")
-				}
+		// When losing focus, stop auto-advance
+		if (!focused) {
+			autoAdvanceJob?.cancel()
+		} else {
+			// When gaining focus, refresh non-visible items for variety
+			// but keep the current and adjacent items to prevent flickering
+			if (items.isNotEmpty()) {
+				refreshBackgroundItems()
+			}
+			
+			// Restart auto-advance if not paused
+			if (!_playbackState.value.isPaused) {
+				resetAutoAdvanceTimer()
 			}
 		}
 	}
 
-	private fun refreshBackgroundItems() {
-		if (items.isEmpty()) return
-
-		viewModelScope.launch(Dispatchers.IO) {
-			try {
-				val currentIndex = _playbackState.value.currentIndex
-				val contentType = userSettingPreferences[UserSettingPreferences.mediaBarContentType]
-
-				val indicesToKeep = mutableSetOf<Int>().apply {
-					add(currentIndex)
-					add((currentIndex + 1) % items.size)
-					add(if (currentIndex == 0) items.size - 1 else currentIndex - 1)
+	/**
+	 * Fetch items of a specific type from a server.
+	 * Helper function to avoid code duplication.
+	 * 
+	 * Note: TV series are folders (they contain episodes), so we exclude the
+	 * IS_NOT_FOLDER filter for SERIES to properly fetch shows.
+	 * 
+	 * @param apiClient The API client to use for this request (supports multi-server)
+	 * @param itemType The type of item to fetch (MOVIE or SERIES)
+	 * @param maxItems Maximum number of items to fetch
+	 */
+	private suspend fun fetchItemsFromServer(
+		apiClient: ApiClient,
+		itemType: BaseItemKind,
+		maxItems: Int
+	): List<BaseItemDto> {
+		// Only apply IS_NOT_FOLDER filter for movies since Series are folders
+		val filters = if (itemType == BaseItemKind.SERIES) {
+			emptySet()
+		} else {
+			setOf(ItemFilter.IS_NOT_FOLDER)
+		}
+		
+		// Get parent library IDs that match the requested item type
+		// This prevents scanning through unrelated libraries (e.g., music, recordings, live TV)
+		val matchingLibraries = try {
+			val viewsResponse by apiClient.itemsApi.getItems(
+				includeItemTypes = setOf(org.jellyfin.sdk.model.api.BaseItemKind.COLLECTION_FOLDER),
+				userId = userRepository.currentUser.value?.id,
+			)
+			viewsResponse.items.orEmpty()
+				.filter { view ->
+					// ONLY include movie or TV show libraries based on what we're fetching
+					// Excludes: music, recordings, live TV, photos, books, etc.
+					val collectionType = view.collectionType?.toString()?.lowercase(Locale.ROOT)
+					when (itemType) {
+						BaseItemKind.MOVIE -> collectionType == "movies"
+						BaseItemKind.SERIES -> collectionType == "tvshows"
+						else -> false
+					}
 				}
+		} catch (e: Exception) {
+			Timber.w(e, "Failed to get library views")
+			emptyList()
+		}
+		
+		// If no matching libraries found, return empty list immediately
+		// This prevents slow recursive searches through all libraries
+		if (matchingLibraries.isEmpty()) {
+			Timber.d("MediaBar: No ${itemType.name} libraries found, skipping fetch")
+			return emptyList()
+		}
+		
+		// Fetch from ALL matching libraries and combine results
+		// Distribute the item count across libraries for better variety
+		val itemsPerLibrary = (maxItems * 1.5 / matchingLibraries.size).toInt().coerceAtLeast(5)
+		
+		return matchingLibraries.mapNotNull { library ->
+			try {
+				val response by apiClient.itemsApi.getItems(
+					includeItemTypes = setOf(itemType),
+					parentId = library.id,
+					recursive = true,
+					sortBy = setOf(org.jellyfin.sdk.model.api.ItemSortBy.RANDOM),
+					limit = itemsPerLibrary,
+					filters = filters,
+					fields = setOf(ItemFields.OVERVIEW, ItemFields.GENRES),
+					imageTypeLimit = 1,
+					enableImageTypes = setOf(ImageType.BACKDROP, ImageType.LOGO),
+				)
+				response.items.orEmpty()
+			} catch (e: Exception) {
+				Timber.w(e, "Failed to fetch from library ${library.name}")
+				null
+			}
+		}.flatten()
+	}
 
-				if (items.size <= 3) return@launch
+	/**
+	 * Data class to hold item with its associated API client for URL generation.
+	 */
+	private data class ItemWithApiClient(
+		val item: BaseItemDto,
+		val apiClient: ApiClient,
+		val serverId: UUID? = null
+	)
 
-				val itemsToReplace = items.size - indicesToKeep.size
+	/**
+	 * Load featured media items for the slideshow.
+	 * Uses double-randomization strategy:
+	 * 1. Server-side: sortBy RANDOM returns random set from server
+	 * 2. Client-side: shuffle() randomizes the combined results again
+	 *
+	 * Optimized to fetch movies and shows in parallel for faster loading.
+	 * Respects user's content type preference (movies/tv/both).
+	 * 
+	 * Multi-server support:
+	 * - If more than one server is logged in, fetches from all servers
+	 * - If only one server, uses current behavior (default API client)
+	 */
+	private fun loadSlideshowItems() {
+		viewModelScope.launch {
+		try {
+			_state.value = MediaBarState.Loading
+			val config = getConfig()
+			val contentType = userSettingPreferences[UserSettingPreferences.mediaBarContentType]
 
-				val newItemsWithApiClients: List<ItemWithApiClient> = run {
-					val loggedInServers = multiServerRepository.getLoggedInServers()
-					val useMultiServer = loggedInServers.size > 1
-					if (useMultiServer) {
-						val itemsPerServer = (itemsToReplace / loggedInServers.size).coerceAtLeast(2)
-						loggedInServers.map { session ->
-							async {
+			// Get logged in servers
+			val loggedInServers = withContext(Dispatchers.IO) {
+				multiServerRepository.getLoggedInServers()
+			}
+			
+			val useMultiServer = loggedInServers.size > 1
+			Timber.d("MediaBar: Loading items from ${loggedInServers.size} server(s), multi-server mode: $useMultiServer")
+
+			// Fetch items based on user preference
+			val allItemsWithApiClients: List<ItemWithApiClient> = withContext(Dispatchers.IO) {
+				if (useMultiServer) {
+					// Multi-server: fetch from all servers in parallel
+					val itemsPerServer = (config.maxItems / loggedInServers.size).coerceAtLeast(3)
+					
+					loggedInServers.map { session ->
+						async {
+							// Add 10 second timeout per server to prevent slow servers from blocking
+							withTimeoutOrNull(10_000L) {
 								try {
 									val serverItems = when (contentType) {
 										"movies" -> fetchItemsFromServer(session.apiClient, BaseItemKind.MOVIE, itemsPerServer)
 										"tv" -> fetchItemsFromServer(session.apiClient, BaseItemKind.SERIES, itemsPerServer)
-										else -> {
+										else -> { // "both"
 											val movies = async { fetchItemsFromServer(session.apiClient, BaseItemKind.MOVIE, itemsPerServer / 2 + 1) }
 											val shows = async { fetchItemsFromServer(session.apiClient, BaseItemKind.SERIES, itemsPerServer / 2 + 1) }
 											movies.await() + shows.await()
 										}
 									}
+									Timber.d("MediaBar: Got ${serverItems.size} items from server ${session.server.name}")
 									serverItems.map { ItemWithApiClient(it, session.apiClient, session.server.id) }
 								} catch (e: Exception) {
-									Timber.e(e, "MediaBar refresh: Failed to fetch from server ${session.server.name}")
+									Timber.e(e, "MediaBar: Failed to fetch from server ${session.server.name}")
 									emptyList()
 								}
-							}
-						}.awaitAll().flatten()
-					} else {
-						val serverItems = when (contentType) {
-							"movies" -> fetchItemsFromServer(api, BaseItemKind.MOVIE, itemsToReplace)
-							"tv" -> fetchItemsFromServer(api, BaseItemKind.SERIES, itemsToReplace)
-							else -> {
-								val movies = async { fetchItemsFromServer(api, BaseItemKind.MOVIE, itemsToReplace / 2 + 1) }
-								val shows = async { fetchItemsFromServer(api, BaseItemKind.SERIES, itemsToReplace / 2 + 1) }
-								movies.await() + shows.await()
+							} ?: run {
+								Timber.w("MediaBar: Timeout fetching from server ${session.server.name}")
+								emptyList()
 							}
 						}
-						serverItems.map { ItemWithApiClient(it, api) }
-					}
-				}.filter { it.item.backdropImageTags?.isNotEmpty() == true }
-					.shuffled()
-					.take(itemsToReplace)
-
-				val newSlideItems = newItemsWithApiClients.map { (item, itemApiClient, serverId) ->
-					MediaBarSlideItem(
-						itemId = item.id,
-						serverId = serverId,
-						title = item.name.orEmpty(),
-						overview = item.overview,
-						backdropUrl = item.backdropImageTags?.firstOrNull()?.let { tag ->
-							itemApiClient.imageApi.getItemImageUrl(
-								itemId = item.id,
-								imageType = ImageType.BACKDROP,
-								tag = tag,
-								maxWidth = 1920,
-								quality = 90
-							)
-						},
-						logoUrl = item.imageTags?.get(ImageType.LOGO)?.let { tag ->
-							itemApiClient.imageApi.getItemImageUrl(
-								itemId = item.id,
-								imageType = ImageType.LOGO,
-								tag = tag,
-								maxWidth = 800,
-							)
-						},
-						rating = item.officialRating,
-						year = item.productionYear,
-						genres = item.genres.orEmpty().take(3),
-						runtime = item.runTimeTicks?.let { ticks -> (ticks / 10000) },
-						criticRating = item.criticRating?.toInt(),
-						communityRating = item.communityRating,
-					)
-				}
-
-				val updatedItems = items.toMutableList()
-				var newItemIndex = 0
-				for (i in items.indices) {
-					if (!indicesToKeep.contains(i) && newItemIndex < newSlideItems.size) {
-						updatedItems[i] = newSlideItems[newItemIndex]
-						newItemIndex++
-					}
-				}
-
-				items = updatedItems
-				_state.value = MediaBarState.Ready(items)
-
-				withContext(Dispatchers.IO) {
-					updatedItems.forEachIndexed { index, item ->
-						if (!indicesToKeep.contains(index)) {
-							item.backdropUrl?.let { url ->
-								runCatching {
-									val request = ImageRequest.Builder(context).data(url).build()
-									imageLoader.enqueue(request)
-								}
-							}
-							item.logoUrl?.let { url ->
-								runCatching {
-									val request = ImageRequest.Builder(context).data(url).build()
-									imageLoader.enqueue(request)
-								}
-							}
+					}.awaitAll().flatten()
+				} else {
+					// Single server: use default API client
+					val serverItems = when (contentType) {
+						"movies" -> fetchItemsFromServer(api, BaseItemKind.MOVIE, config.maxItems)
+						"tv" -> fetchItemsFromServer(api, BaseItemKind.SERIES, config.maxItems)
+						else -> { // "both"
+							val movies = async { fetchItemsFromServer(api, BaseItemKind.MOVIE, config.maxItems) }
+							val shows = async { fetchItemsFromServer(api, BaseItemKind.SERIES, config.maxItems) }
+							movies.await() + shows.await()
 						}
 					}
+					serverItems.map { ItemWithApiClient(it, api) }
+				}
+			}
+				.filter { it.item.backdropImageTags?.isNotEmpty() == true }
+				// Apply parental controls filtering
+				.also { beforeFilter ->
+					val blockedCount = beforeFilter.count { parentalControlsRepository.shouldFilterItem(it.item) }
+					Timber.d("MediaBar: Before filter: ${beforeFilter.size} items, $blockedCount would be blocked")
+				}
+				.filter { !parentalControlsRepository.shouldFilterItem(it.item) }
+				.also { afterFilter ->
+					Timber.d("MediaBar: After filter: ${afterFilter.size} items")
+				}
+				.shuffled()
+				.take(config.maxItems)
+
+			items = allItemsWithApiClients.map { (item, itemApiClient, serverId) ->
+				MediaBarSlideItem(
+					itemId = item.id,
+					serverId = serverId,
+					title = item.name.orEmpty(),
+					overview = item.overview,
+					backdropUrl = item.backdropImageTags?.firstOrNull()?.let { tag ->
+						itemApiClient.imageApi.getItemImageUrl(
+							itemId = item.id,
+							imageType = ImageType.BACKDROP,
+							tag = tag,
+							maxWidth = 1920,
+							quality = 90
+						)
+					},
+					logoUrl = item.imageTags?.get(ImageType.LOGO)?.let { tag ->
+						itemApiClient.imageApi.getItemImageUrl(
+							itemId = item.id,
+							imageType = ImageType.LOGO,
+							tag = tag,
+							maxWidth = 800,
+						)
+					},
+					rating = item.officialRating,
+					year = item.productionYear,
+					genres = item.genres.orEmpty().take(3),
+					runtime = item.runTimeTicks?.let { ticks -> (ticks / 10000) },
+					criticRating = item.criticRating?.toInt(),
+					communityRating = item.communityRating,
+				)
+			}
+
+			if (items.isNotEmpty()) {
+					_state.value = MediaBarState.Ready(items)
+					// Preload images for initial slide and adjacent ones
+					preloadAdjacentImages(0)
+					startAutoPlay()
+				} else {
+					_state.value = MediaBarState.Error("No items found")
 				}
 			} catch (e: Exception) {
-				Timber.e(e, "MediaBar: Failed to refresh background items")
+				Timber.e(e, "Failed to load slideshow items: ${e::class.simpleName} - ${e.message}")
+				_state.value = MediaBarState.Error("Failed to load items: ${e::class.simpleName ?: "Unknown error"}")
 			}
 		}
 	}
-}
 
-private data class ItemWithApiClient(
-    val item: BaseItemDto,
-    val apiClient: ApiClient,
-    val serverId: UUID? = null,
-)
-											item.logoUrl?.let { url ->
-												try {
-													val request = ImageRequest.Builder(context)
-														.data(url)
-														.build()
-													imageLoader.enqueue(request)
-												} catch (e: Exception) {
-													Timber.d("Failed to preload logo for refreshed item ${item.title}: ${e.message}")
-												}
-											}
-										}
-									}
-								}
-							} catch (e: Exception) {
-								Timber.e(e, "MediaBar: Failed to refresh background items")
-							}
-						}
-					}
+	/**
+	 * Start automatic slideshow playback
+	 */
+	private fun startAutoPlay() {
+		autoAdvanceJob?.cancel()
+
+		// Only start auto-play if the media bar is focused
+		if (!_isFocused.value) return
+
+		val config = getConfig()
+		autoAdvanceJob = viewModelScope.launch {
+			delay(config.shuffleIntervalMs)
+			if (!_playbackState.value.isPaused && !_playbackState.value.isTransitioning && _isFocused.value) {
+				nextSlide()
+			}
+		}
+	}
+
+	/**
+	 * Reset the auto-advance timer
+	 */
+	private fun resetAutoAdvanceTimer() {
+		startAutoPlay()
+	}
+
+	/**
+	 * Reload slideshow content with fresh random items.
+	 * Called when:
+	 * - User switches profiles
+	 * - Media bar gains focus/visibility
 	 * - Manual refresh requested
 	 */
 	fun reloadContent() {
@@ -417,14 +504,17 @@ private data class ItemWithApiClient(
 				// Calculate how many new items we need to fetch
 				val itemsToReplace = items.size - indicesToKeep.size
 				
-				// Fetch new random items (multi-server aware)
-				val newItemsWithApiClients: List<ItemWithApiClient> = run {
-					val loggedInServers = multiServerRepository.getLoggedInServers()
-					val useMultiServer = loggedInServers.size > 1
-					if (useMultiServer) {
-						val itemsPerServer = (itemsToReplace / loggedInServers.size).coerceAtLeast(2)
-						loggedInServers.map { session ->
-							async {
+				// Get logged in servers
+				val loggedInServers = multiServerRepository.getLoggedInServers()
+				val useMultiServer = loggedInServers.size > 1
+				
+				// Fetch new random items (with multi-server support)
+				val newItemsWithApiClients: List<ItemWithApiClient> = if (useMultiServer) {
+					val itemsPerServer = (itemsToReplace / loggedInServers.size).coerceAtLeast(2)
+					loggedInServers.map { session ->
+						async {
+							// Add 10 second timeout per server to prevent slow servers from blocking
+							withTimeoutOrNull(10_000L) {
 								try {
 									val serverItems = when (contentType) {
 										"movies" -> fetchItemsFromServer(session.apiClient, BaseItemKind.MOVIE, itemsPerServer)
@@ -440,57 +530,13 @@ private data class ItemWithApiClient(
 									Timber.e(e, "MediaBar refresh: Failed to fetch from server ${session.server.name}")
 									emptyList()
 								}
-							}
-						}.awaitAll().flatten()
-					} else {
-						val serverItems = when (contentType) {
-							"movies" -> fetchItemsFromServer(api, BaseItemKind.MOVIE, itemsToReplace)
-							"tv" -> fetchItemsFromServer(api, BaseItemKind.SERIES, itemsToReplace)
-							else -> {
-								val movies = async { fetchItemsFromServer(api, BaseItemKind.MOVIE, itemsToReplace / 2 + 1) }
-								val shows = async { fetchItemsFromServer(api, BaseItemKind.SERIES, itemsToReplace / 2 + 1) }
-								movies.await() + shows.await()
+							} ?: run {
+								Timber.w("MediaBar refresh: Timeout fetching from server ${session.server.name}")
+								emptyList()
 							}
 						}
-						serverItems.map { ItemWithApiClient(it, api) }
-					}
-				}.filter { it.item.backdropImageTags?.isNotEmpty() == true }
-					.shuffled()
-					.take(itemsToReplace)
-						val movies = async { fetchItems(BaseItemKind.MOVIE, itemsToReplace / 2 + 1) }
-						val shows = async { fetchItems(BaseItemKind.SERIES, itemsToReplace / 2 + 1) }
-						(movies.await().items.orEmpty() + shows.await().items.orEmpty())
-					}
-				}
-					.filter { it.backdropImageTags?.isNotEmpty() == true }
-
-				// Get logged in servers
-				val loggedInServers = multiServerRepository.getLoggedInServers()
-				val useMultiServer = loggedInServers.size > 1
-				
-				// Fetch new random items (with multi-server support)
-				val newItemsWithApiClients: List<ItemWithApiClient> = if (useMultiServer) {
-					val itemsPerServer = (itemsToReplace / loggedInServers.size).coerceAtLeast(2)
-					loggedInServers.map { session ->
-						async {
-							try {
-								val serverItems = when (contentType) {
-									"movies" -> fetchItemsFromServer(session.apiClient, BaseItemKind.MOVIE, itemsPerServer)
-									"tv" -> fetchItemsFromServer(session.apiClient, BaseItemKind.SERIES, itemsPerServer)
-									}
-										.filter { it.item.backdropImageTags?.isNotEmpty() == true }
-										movies.await() + shows.await()
-									}
-								}
-								serverItems.map { ItemWithApiClient(it, session.apiClient, session.server.id) }
-									val newSlideItems = newItemsWithApiClients.map { (item, itemApiClient, serverId) ->
-										MediaBarSlideItem(
-											itemId = item.id,
-											serverId = serverId,
-											title = item.name.orEmpty(),
-											overview = item.overview,
-											backdropUrl = item.backdropImageTags?.firstOrNull()?.let { tag ->
-												itemApiClient.imageApi.getItemImageUrl(
+					}.awaitAll().flatten()
+				} else {
 					val serverItems = when (contentType) {
 						"movies" -> fetchItemsFromServer(api, BaseItemKind.MOVIE, itemsToReplace)
 						"tv" -> fetchItemsFromServer(api, BaseItemKind.SERIES, itemsToReplace)
@@ -499,24 +545,14 @@ private data class ItemWithApiClient(
 							val shows = async { fetchItemsFromServer(api, BaseItemKind.SERIES, itemsToReplace / 2 + 1) }
 							movies.await() + shows.await()
 						}
-												itemApiClient.imageApi.getItemImageUrl(
+					}
 					serverItems.map { ItemWithApiClient(it, api) }
 				}
 					.filter { it.item.backdropImageTags?.isNotEmpty() == true }
- 
 					.shuffled()
 					.take(itemsToReplace)
 				
 				// Convert to MediaBarSlideItem
- 
-				val newSlideItems = newItems.map { item ->
-					MediaBarSlideItem(
-						itemId = item.id,
-						title = item.name.orEmpty(),
-						overview = item.overview,
-						backdropUrl = item.backdropImageTags?.firstOrNull()?.let { tag ->
-							api.imageApi.getItemImageUrl(
- 
 				val newSlideItems = newItemsWithApiClients.map { (item, itemApiClient, serverId) ->
 					MediaBarSlideItem(
 						itemId = item.id,
@@ -525,7 +561,6 @@ private data class ItemWithApiClient(
 						overview = item.overview,
 						backdropUrl = item.backdropImageTags?.firstOrNull()?.let { tag ->
 							itemApiClient.imageApi.getItemImageUrl(
- 
 								itemId = item.id,
 								imageType = ImageType.BACKDROP,
 								tag = tag,

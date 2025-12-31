@@ -47,7 +47,7 @@ fun CustomizationPreferencesScreen() {
 			ListButton(
 				headingContent = { Text(stringResource(R.string.pref_app_theme)) },
 				captionContent = { Text(stringResource(appTheme.nameRes)) },
-				onClick = { /* Open theme selector */ }
+				onClick = { router.push(Routes.CUSTOMIZATION_APP_THEME) }
 			)
 		}
 
@@ -56,7 +56,7 @@ fun CustomizationPreferencesScreen() {
 			ListButton(
 				headingContent = { Text(stringResource(R.string.pref_clock_display)) },
 				captionContent = { Text(stringResource(clockBehavior.nameRes)) },
-				onClick = { /* Open clock behavior selector */ }
+				onClick = { router.push(Routes.CUSTOMIZATION_CLOCK_BEHAVIOR) }
 			)
 		}
 
@@ -65,7 +65,7 @@ fun CustomizationPreferencesScreen() {
 			ListButton(
 				headingContent = { Text(stringResource(R.string.pref_watched_indicator)) },
 				captionContent = { Text(stringResource(watchedIndicatorBehavior.nameRes)) },
-				onClick = { /* Open watched indicator selector */ }
+				onClick = { router.push(Routes.CUSTOMIZATION_WATCHED_INDICATOR_BEHAVIOR) }
 			)
 		}
 
@@ -94,27 +94,7 @@ fun CustomizationPreferencesScreen() {
 			ListButton(
 				headingContent = { Text(stringResource(R.string.pref_default_rating)) },
 				captionContent = { Text(stringResource(defaultRatingType.nameRes)) },
-				onClick = { /* Open rating type selector */ }
-			)
-		}
-
-		item {
-			var premieresEnabled by rememberPreference(userPreferences, UserPreferences.premieresEnabled)
-			ListButton(
-				headingContent = { Text(stringResource(R.string.lbl_show_premieres)) },
-				captionContent = { Text(stringResource(R.string.desc_premieres)) },
-				trailingContent = { Checkbox(checked = premieresEnabled) },
-				onClick = { premieresEnabled = !premieresEnabled }
-			)
-		}
-
-		item {
-			var mediaManagementEnabled by rememberPreference(userPreferences, UserPreferences.mediaManagementEnabled)
-			ListButton(
-				headingContent = { Text(stringResource(R.string.pref_enable_media_management)) },
-				captionContent = { Text(stringResource(R.string.pref_enable_media_management_description)) },
-				trailingContent = { Checkbox(checked = mediaManagementEnabled) },
-				onClick = { mediaManagementEnabled = !mediaManagementEnabled }
+				onClick = { router.push(Routes.CUSTOMIZATION_RATING_TYPE) }
 			)
 		}
 
@@ -150,73 +130,6 @@ fun CustomizationPreferencesScreen() {
 			)
 		}
 
-		// Screensaver section
-		item {
-			ListSection(
-				headingContent = { Text(stringResource(R.string.pref_screensaver)) },
-				overlineContent = { Text(stringResource(R.string.app_name).uppercase()) },
-			)
-		}
-
-		item {
-			var screensaverInAppEnabled by rememberPreference(userPreferences, UserPreferences.screensaverInAppEnabled)
-			ListButton(
-				headingContent = { Text(stringResource(R.string.pref_screensaver_inapp_enabled)) },
-				captionContent = { Text(stringResource(R.string.pref_screensaver_inapp_enabled_description)) },
-				trailingContent = { Checkbox(checked = screensaverInAppEnabled) },
-				onClick = { screensaverInAppEnabled = !screensaverInAppEnabled }
-			)
-		}
-
-		item {
-			var screensaverTimeout by rememberPreference(userPreferences, UserPreferences.screensaverInAppTimeout)
-			val timeoutMinutes = screensaverTimeout / 60000L
-			val timeoutDisplay = when (timeoutMinutes) {
-				0L -> "30 seconds"
-				1L -> "1 minute"
-				3L -> "2.5 minutes"
-				5L -> "5 minutes"
-				10L -> "10 minutes"
-				15L -> "15 minutes"
-				30L -> "30 minutes"
-				else -> "$timeoutMinutes min"
-			}
-			ListButton(
-				headingContent = { Text(stringResource(R.string.pref_screensaver_inapp_timeout)) },
-				captionContent = { Text(timeoutDisplay) },
-				onClick = { /* Open timeout selector */ }
-			)
-		}
-
-		item {
-			var screensaverAgeRatingRequired by rememberPreference(userPreferences, UserPreferences.screensaverAgeRatingRequired)
-			ListButton(
-				headingContent = { Text(stringResource(R.string.pref_screensaver_ageratingrequired_title)) },
-				captionContent = { 
-					Text(stringResource(
-						if (screensaverAgeRatingRequired) R.string.pref_screensaver_ageratingrequired_enabled 
-						else R.string.pref_screensaver_ageratingrequired_disabled
-					))
-				},
-				trailingContent = { Checkbox(checked = screensaverAgeRatingRequired) },
-				onClick = { screensaverAgeRatingRequired = !screensaverAgeRatingRequired }
-			)
-		}
-
-		item {
-			var screensaverAgeRatingMax by rememberPreference(userPreferences, UserPreferences.screensaverAgeRatingMax)
-			val ageDisplay = when (screensaverAgeRatingMax) {
-				0 -> stringResource(R.string.pref_screensaver_ageratingmax_zero)
-				-1 -> stringResource(R.string.pref_screensaver_ageratingmax_unlimited)
-				else -> stringResource(R.string.pref_screensaver_ageratingmax_entry, screensaverAgeRatingMax)
-			}
-			ListButton(
-				headingContent = { Text(stringResource(R.string.pref_screensaver_ageratingmax)) },
-				captionContent = { Text(ageDisplay) },
-				onClick = { /* Open age rating max selector */ }
-			)
-		}
-
 		// Behavior section
 		item {
 			ListSection(
@@ -225,22 +138,10 @@ fun CustomizationPreferencesScreen() {
 			)
 		}
 
-		item {
-			var shortcutAudioTrack by rememberPreference(userPreferences, UserPreferences.shortcutAudioTrack)
-			ListButton(
-				headingContent = { Text(stringResource(R.string.pref_audio_track_button)) },
-				captionContent = { Text(stringResource(R.string.pref_audio_track_button)) },
-				onClick = { /* Open audio track shortcut selector */ }
-			)
-		}
-
-		item {
-			var shortcutSubtitleTrack by rememberPreference(userPreferences, UserPreferences.shortcutSubtitleTrack)
-			ListButton(
-				headingContent = { Text(stringResource(R.string.pref_subtitle_track_button)) },
-				captionContent = { Text(stringResource(R.string.pref_subtitle_track_button)) },
-				onClick = { /* Open subtitle track shortcut selector */ }
-			)
-		}
+		// Note: Audio and subtitle track button shortcuts are not included here
+		// as they require special key capture dialogs that are implemented
+		// in the old preference system (ButtonRemapPreference).
+		// Users can access these settings through the MoonfinPreferencesScreen
+		// (Settings > Moonfin Settings) which uses the fragment-based system.
 	}
 }

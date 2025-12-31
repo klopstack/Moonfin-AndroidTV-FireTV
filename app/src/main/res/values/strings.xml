@@ -594,6 +594,8 @@
     <string name="pref_screensaver_dimming">Screen dimming level</string>
     <string name="pref_screensaver_dimming_level_description">Adjust how much to darken the screensaver display. Logo and clock move every 60 seconds to prevent burn-in.</string>
     <string name="pref_screensaver_dimming_description">Darken the screensaver display</string>
+    <string name="pref_screensaver_show_clock">Show clock in screensaver</string>
+    <string name="pref_screensaver_show_clock_description">Display a bouncing clock in the screensaver. Clock brightness will match screen dimming level when enabled.</string>
     <string name="all_channels">All channels</string>
     <string name="app_notification_update_soon">Update your server from %1$s to at least %2$s to continue using the app after the next update.</string>
     <string name="current_queue">Current queue</string>
@@ -662,6 +664,10 @@
     <string name="color_presets">Presets</string>
     <string name="color_custom">Customize color</string>
     <string name="color_alpha">Transparency</string>
+    <string name="playback_video_player">Video player</string>
+    <string name="video_player_internal">Built-in video player</string>
+    <string name="video_player_external">External app</string>
+    <string name="playback_video_player_external_empty">You don\'t have any video player apps installed on your device that can open Jellyfin videos.</string>
     <plurals name="seconds">
         <item quantity="one">%1$s second</item>
         <item quantity="other">%1$s seconds</item>
@@ -842,7 +848,8 @@
     <string name="enabled">Enabled</string>
     <string name="disabled">Disabled</string>
     
-    <!-- Visual Settings -->
+    <!-- Appearance Settings -->
+    <string name="pref_appearance">Appearance</string>
     <string name="pref_visual_settings">Visual Settings</string>
     <string name="pref_background_blur_amount">Background Blur Amount</string>
     <string name="pref_background_blur_amount_description">Control blur intensity for all background images across the app</string>

@@ -383,6 +383,12 @@ public class CardPresenter extends Presenter {
                 image = JellyfinImageKt.getItemImages(rowItem.getBaseItem()).get(org.jellyfin.sdk.model.api.ImageType.BANNER);
             } else if (mImageType.equals(ImageType.POSTER) && rowItem.getBaseItem().getType() == BaseItemKind.EPISODE) {
                 image = JellyfinImageKt.getSeriesPrimaryImage(rowItem.getBaseItem());
+            } else if (mImageType.equals(ImageType.POSTER) && rowItem.getBaseItem().getType() == BaseItemKind.SEASON) {
+                // For seasons: try to get the season's own primary image first, then fall back to series image
+                image = JellyfinImageKt.getItemImages(rowItem.getBaseItem()).get(org.jellyfin.sdk.model.api.ImageType.PRIMARY);
+                if (image == null) {
+                    image = JellyfinImageKt.getSeriesPrimaryImage(rowItem.getBaseItem());
+                }
             } else if (aspect == ImageHelper.ASPECT_RATIO_16_9 && !isUserView && (rowItem.getBaseItem().getType() != BaseItemKind.EPISODE || !rowItem.getBaseItem().getImageTags().containsKey(org.jellyfin.sdk.model.api.ImageType.PRIMARY) || (rowItem.getPreferParentThumb() && rowItem.getBaseItem().getParentThumbImageTag() != null))) {
                 if (rowItem.getPreferParentThumb() || !rowItem.getBaseItem().getImageTags().containsKey(org.jellyfin.sdk.model.api.ImageType.PRIMARY)) {
                     image = JellyfinImageKt.getParentImages(rowItem.getBaseItem()).get(org.jellyfin.sdk.model.api.ImageType.THUMB);

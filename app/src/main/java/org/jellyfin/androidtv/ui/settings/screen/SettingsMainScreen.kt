@@ -11,6 +11,8 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -23,8 +25,10 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.service.UpdateCheckerService
+import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.ui.base.Icon
 import org.jellyfin.androidtv.ui.base.Text
+import org.jellyfin.androidtv.ui.base.form.Checkbox
 import org.jellyfin.androidtv.ui.base.list.ListButton
 import org.jellyfin.androidtv.ui.base.list.ListSection
 import org.jellyfin.androidtv.ui.navigation.ActivityDestinations
@@ -34,7 +38,9 @@ import org.jellyfin.androidtv.ui.preference.category.showDonateDialog
 import org.jellyfin.androidtv.ui.preference.screen.JellyseerrPreferencesScreen
 import org.jellyfin.androidtv.ui.preference.screen.MoonfinPreferencesScreen
 import org.jellyfin.androidtv.ui.settings.Routes
+import org.jellyfin.androidtv.ui.settings.compat.rememberPreference
 import org.jellyfin.androidtv.ui.settings.composable.SettingsColumn
+import org.koin.compose.koinInject
 import org.koin.java.KoinJavaComponent.inject
 import timber.log.Timber
 
@@ -43,6 +49,7 @@ fun SettingsMainScreen() {
 	val context = LocalContext.current
 	val router = LocalRouter.current
 	val updateChecker by inject<UpdateCheckerService>(UpdateCheckerService::class.java)
+	val userPreferences = koinInject<UserPreferences>()
 
 	SettingsColumn {
 		item {
@@ -108,6 +115,15 @@ fun SettingsMainScreen() {
 			)
 		}
 
+		// TODO: Temporarily added to root - should be accessed via customization screen instead
+		item {
+			ListButton(
+				leadingContent = { Icon(painterResource(R.drawable.ic_photos), contentDescription = null) },
+				headingContent = { Text(stringResource(R.string.pref_screensaver)) },
+				onClick = { router.push(Routes.CUSTOMIZATION_SCREENSAVER) }
+			)
+		}
+
 		item {
 			ListButton(
 				leadingContent = { Icon(painterResource(R.drawable.ic_next), contentDescription = null) },
@@ -152,6 +168,16 @@ ListSection(
 				onClick = {
 					checkForUpdates(context, updateChecker)
 				}
+			)
+		}
+
+		item {
+			var updateNotificationsEnabled by rememberPreference(userPreferences, UserPreferences.updateNotificationsEnabled)
+			ListButton(
+				headingContent = { Text("Update Notifications") },
+				captionContent = { Text("Show notification on app launch when updates are available") },
+				trailingContent = { Checkbox(checked = updateNotificationsEnabled) },
+				onClick = { updateNotificationsEnabled = !updateNotificationsEnabled }
 			)
 		}
 

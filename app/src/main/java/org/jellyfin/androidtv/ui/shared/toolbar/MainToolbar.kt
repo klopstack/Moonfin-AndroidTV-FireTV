@@ -91,11 +91,12 @@ enum class MainToolbarActiveButton {
 
 	None,
 }
-										}
-									}
-								},
-							)
-						}
+
+
+@Composable
+fun MainToolbar(
+	activeButton: MainToolbarActiveButton = MainToolbarActiveButton.None,
+	activeLibraryId: UUID? = null,
 ) {
 	val context = LocalContext.current
 	val userRepository = koinInject<UserRepository>()
@@ -276,26 +277,19 @@ private fun MainToolbar(
 				val isFocused by interactionSource.collectIsFocusedAsState()
 				val scale by animateFloatAsState(if (isFocused) 1.1f else 1f, label = "UserAvatarFocusScale")
 
-				val interactionSource = remember { MutableInteractionSource() }
-				val isFocused by interactionSource.collectIsFocusedAsState()
-				val scale by animateFloatAsState(if (isFocused) 1.1f else 1f, label = "UserAvatarFocusScale")
+				IconButton(
+					onClick = {
+						if (activeButton != MainToolbarActiveButton.User) {
+							mediaManager.clearAudioQueue()
+							sessionRepository.destroyCurrentSession()
 
-						Button(
-							onClick = {
-								if (!isActiveLibrary) {
-									val destination = itemLauncher.getUserViewDestination(library)
-									navigationRepository.navigate(destination)
-								}
-							},
-							colors = if (isActiveLibrary) activeButtonColors else toolbarButtonColors,
-							content = { Text(library.name.orEmpty()) }
-						)
-						)
-				}
-			}
-		}
-		},
-		},
+							// Open login activity
+							activity?.startActivity(ActivityDestinations.startup(activity))
+							activity?.finishAfterTransition()
+						}
+					},
+					colors = if (userImageVisible) {
+						ButtonDefaults.colors(
 							containerColor = Color.Transparent,
 							contentColor = JellyfinTheme.colorScheme.onButton,
 							focusedContainerColor = JellyfinTheme.colorScheme.buttonFocused,
@@ -517,7 +511,10 @@ private fun MainToolbar(
 										val destination = itemLauncher.getUserViewDestination(library)
 										navigationRepository.navigate(destination)
 									}
-								}
+								},
+								colors = if (isActiveLibrary) activeButtonColors else toolbarButtonColors,
+								content = { Text(library.name ?: "") }
+							)
 						}
 					}
 				}

@@ -6,7 +6,6 @@ import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.auth.repository.UserRepository
 import org.jellyfin.androidtv.constant.ChangeTriggerType
 import org.jellyfin.androidtv.constant.HomeSectionType
-import org.jellyfin.androidtv.constant.QueryType
 import org.jellyfin.androidtv.data.repository.ItemRepository
 import org.jellyfin.androidtv.data.repository.LocalWatchlistRepository
 import org.jellyfin.androidtv.preference.UserPreferences
@@ -187,7 +186,7 @@ class HomeFragmentHelper(
 		)
 
 		return HomeFragmentBrowseRowDefRow(BrowseRowDef(context.getString(R.string.lbl_on_now), query, HOME_ROW_CHUNK_SIZE))
-		val browseRowDef = BrowseRowDef(context.getString(R.string.lbl_next_up), query, HOME_ROW_CHUNK_SIZE, arrayOf(ChangeTriggerType.TvPlayback))
+	}
 
 	fun loadWatchlist(): HomeFragmentRow? {
 		val serverId = serverRepository.currentServer.value?.id ?: return null

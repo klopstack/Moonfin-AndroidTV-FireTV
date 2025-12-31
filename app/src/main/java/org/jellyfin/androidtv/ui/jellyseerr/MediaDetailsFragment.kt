@@ -315,8 +315,8 @@ class MediaDetailsFragment : Fragment() {
 				view?.let { refreshUI() }
 			} catch (e: Exception) {
 				Timber.e(e, "Failed to load full details")
-				}
 			}
+		}
 	}
 
 	private fun refreshUI() {
@@ -1811,91 +1811,104 @@ class MediaDetailsFragment : Fragment() {
 					Toast.makeText(
 						requireContext(),
 						"Failed to request: ${error.message}",
-						}
-					}
+						Toast.LENGTH_LONG
+					).show()
+				}
+			} catch (e: Exception) {
+				Timber.e(e, "Request failed")
+				// Check if fragment is still attached before showing toast
+				if (isAdded) {
+					Toast.makeText(
+						requireContext(),
+						"Request failed: ${e.message}",
+						Toast.LENGTH_LONG
+					).show()
 				}
 			}
+		}
+	}
 
-			/**
-			 * Show confirmation dialog to cancel pending request(s)
-			 */
-			private fun showCancelRequestDialog(pendingRequests: List<JellyseerrRequestDto>) {
-				if (pendingRequests.isEmpty()) return
+	/**
+	 * Show confirmation dialog to cancel pending request(s)
+	 */
+	private fun showCancelRequestDialog(pendingRequests: List<JellyseerrRequestDto>) {
+		if (pendingRequests.isEmpty()) return
 		
-				val item = selectedItem ?: return
-				val title = when (item.mediaType) {
-					"movie" -> movieDetails?.title ?: item.title ?: item.name ?: "Unknown"
-					else -> tvDetails?.name ?: item.name ?: item.title ?: "Unknown"
-				}
+		val item = selectedItem ?: return
+		val title = when (item.mediaType) {
+			"movie" -> movieDetails?.title ?: item.title ?: item.name ?: "Unknown"
+			else -> tvDetails?.name ?: item.name ?: item.title ?: "Unknown"
+		}
 		
-				// Build description of what will be cancelled
-				val description = if (pendingRequests.size == 1) {
-					val req = pendingRequests.first()
-					val quality = if (req.is4k) "4K" else "HD"
-					"Cancel $quality request for \"$title\"?"
-				} else {
-					val hdCount = pendingRequests.count { !it.is4k }
-					val fourKCount = pendingRequests.count { it.is4k }
-					val parts = mutableListOf<String>()
-					if (hdCount > 0) parts.add("$hdCount HD")
-					if (fourKCount > 0) parts.add("$fourKCount 4K")
-					"Cancel ${parts.joinToString(" and ")} request${if (pendingRequests.size > 1) "s" else ""} for \"$title\"?"
-				}
+		// Build description of what will be cancelled
+		val description = if (pendingRequests.size == 1) {
+			val req = pendingRequests.first()
+			val quality = if (req.is4k) "4K" else "HD"
+			"Cancel $quality request for \"$title\"?"
+		} else {
+			val hdCount = pendingRequests.count { !it.is4k }
+			val fourKCount = pendingRequests.count { it.is4k }
+			val parts = mutableListOf<String>()
+			if (hdCount > 0) parts.add("$hdCount HD")
+			if (fourKCount > 0) parts.add("$fourKCount 4K")
+			"Cancel ${parts.joinToString(" and ")} request${if (pendingRequests.size > 1) "s" else ""} for \"$title\"?"
+		}
 		
-				android.app.AlertDialog.Builder(requireContext())
-					.setTitle("Cancel Request")
-					.setMessage(description)
-					.setPositiveButton("Cancel Request") { _, _ ->
-						cancelPendingRequests(pendingRequests)
-					}
-					.setNegativeButton("Keep Request", null)
-					.show()
+		android.app.AlertDialog.Builder(requireContext())
+			.setTitle("Cancel Request")
+			.setMessage(description)
+			.setPositiveButton("Cancel Request") { _, _ ->
+				cancelPendingRequests(pendingRequests)
 			}
+			.setNegativeButton("Keep Request", null)
+			.show()
+	}
 	
-			/**
-			 * Cancel the given pending requests
-			 */
-			private fun cancelPendingRequests(requests: List<JellyseerrRequestDto>) {
-				lifecycleScope.launch {
-					try {
-						var successCount = 0
-						var failCount = 0
+	/**
+	 * Cancel the given pending requests
+	 */
+	private fun cancelPendingRequests(requests: List<JellyseerrRequestDto>) {
+		lifecycleScope.launch {
+			try {
+				var successCount = 0
+				var failCount = 0
 				
-						for (request in requests) {
-							val result = viewModel.cancelRequest(request.id)
-							if (result.isSuccess) {
-								successCount++
-							} else {
-								failCount++
-								Timber.e(result.exceptionOrNull(), "Failed to cancel request ${request.id}")
-							}
-						}
+				for (request in requests) {
+					val result = viewModel.cancelRequest(request.id)
+					if (result.isSuccess) {
+						successCount++
+					} else {
+						failCount++
+						Timber.e(result.exceptionOrNull(), "Failed to cancel request ${request.id}")
+					}
+				}
 				
-						// Check if fragment is still attached
-						if (!isAdded) return@launch
+				// Check if fragment is still attached
+				if (!isAdded) return@launch
 				
-						val message = when {
-							failCount == 0 && successCount == 1 -> "Request cancelled"
-							failCount == 0 -> "$successCount requests cancelled"
-							successCount == 0 -> "Failed to cancel request${if (failCount > 1) "s" else ""}"
-							else -> "$successCount cancelled, $failCount failed"
-						}
+				val message = when {
+					failCount == 0 && successCount == 1 -> "Request cancelled"
+					failCount == 0 -> "$successCount requests cancelled"
+					successCount == 0 -> "Failed to cancel request${if (failCount > 1) "s" else ""}"
+					else -> "$successCount cancelled, $failCount failed"
+				}
 				
-						Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+				Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
 				
-						// Refresh details to update status
-						loadFullDetails()
-					} catch (e: Exception) {
-						Timber.e(e, "Error cancelling requests")
-						if (isAdded) {
-							Toast.makeText(
-								requireContext(),
-								"Error: ${e.message}",
-								Toast.LENGTH_LONG
-							).show()
-						}
+				// Refresh details to update status
+				loadFullDetails()
+			} catch (e: Exception) {
+				Timber.e(e, "Error cancelling requests")
+				if (isAdded) {
+					Toast.makeText(
+						requireContext(),
+						"Error: ${e.message}",
+						Toast.LENGTH_LONG
+					).show()
 				}
 			}
+		}
+	}
 
 	private fun playTrailer() {
 		val item = selectedItem ?: return

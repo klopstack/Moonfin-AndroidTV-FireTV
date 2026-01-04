@@ -40,12 +40,10 @@ fun SettingsLibrariesScreen() {
 	
 	var libraries by remember { mutableStateOf<List<LibraryDisplayItem>>(emptyList()) }
 	
-	// Load libraries based on server count (supports multi-server)
 	LaunchedEffect(Unit) {
 		val loggedInServers = multiServerRepository.getLoggedInServers()
 		
 		if (loggedInServers.size > 1) {
-			// Multi-server: use aggregated libraries with server names
 			val aggregatedLibraries = multiServerRepository.getAggregatedLibraries(includeHidden = true)
 			libraries = aggregatedLibraries.map { aggregated ->
 				LibraryDisplayItem(
@@ -55,8 +53,7 @@ fun SettingsLibrariesScreen() {
 				)
 			}
 		} else {
-			// Single server: use existing behavior
-			userViewsRepository.views.collect { views ->
+			userViewsRepository.allViews.collect { views ->
 				libraries = views.map { library ->
 					LibraryDisplayItem(
 						library = library,

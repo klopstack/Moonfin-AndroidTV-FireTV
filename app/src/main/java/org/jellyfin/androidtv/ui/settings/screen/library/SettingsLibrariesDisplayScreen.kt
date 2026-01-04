@@ -93,5 +93,16 @@ fun SettingsLibrariesDisplayScreen(itemId: UUID, displayPreferencesId: String) {
 				onClick = { enableSmartScreen = !enableSmartScreen }
 			)
 		}
+
+		item {
+			var hidden by rememberPreference(libraryPreferences, LibraryPreferences.hidden)
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.lbl_hide_from_navbar)) },
+				trailingContent = { Checkbox(checked = hidden) },
+				captionContent = { Text(stringResource(R.string.lbl_hide_from_navbar_description)) },
+				onClick = { hidden = !hidden }
+			)
+		}
 	}
 }

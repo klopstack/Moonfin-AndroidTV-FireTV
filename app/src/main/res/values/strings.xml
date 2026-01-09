@@ -795,6 +795,7 @@
     <string name="moonfin_settings">Moonfin Settings</string>
     <string name="moonfin_settings_description">Customize Moonfin-specific features</string>
     <string name="moonfin_general_settings">General</string>
+    <string name="settings_available_after_login">Settings available after login</string>
     
     <!-- Jellyseerr Authentication -->
     <string name="jellyseerr_auth_method">Authentication Method</string>

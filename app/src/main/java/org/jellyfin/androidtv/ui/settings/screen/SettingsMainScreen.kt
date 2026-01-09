@@ -19,7 +19,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.os.bundleOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -32,10 +31,7 @@ import org.jellyfin.androidtv.ui.base.form.Checkbox
 import org.jellyfin.androidtv.ui.base.list.ListButton
 import org.jellyfin.androidtv.ui.base.list.ListSection
 import org.jellyfin.androidtv.ui.navigation.LocalRouter
-import org.jellyfin.androidtv.ui.preference.PreferencesActivity
 import org.jellyfin.androidtv.ui.preference.category.showDonateDialog
-import org.jellyfin.androidtv.ui.preference.screen.JellyseerrPreferencesScreen
-import org.jellyfin.androidtv.ui.preference.screen.MoonfinPreferencesScreen
 import org.jellyfin.androidtv.ui.settings.Routes
 import org.jellyfin.androidtv.ui.settings.compat.rememberPreference
 import org.jellyfin.androidtv.ui.settings.composable.SettingsColumn
@@ -63,7 +59,7 @@ fun SettingsMainScreen() {
 			ListButton(
 				leadingContent = { Icon(painterResource(R.drawable.ic_users), contentDescription = null) },
 				headingContent = { Text(stringResource(R.string.pref_login)) },
-				onClick = { router.push(Routes.AUTHENTICATION) }
+				onClick = { router.push(Routes.AUTHENTICATION) },
 			)
 		}
 
@@ -85,17 +81,7 @@ fun SettingsMainScreen() {
 				},
 				headingContent = { Text(stringResource(R.string.moonfin_settings)) },
 				captionContent = { Text("Moonfin-specific customization") },
-				onClick = {
-					val intent = Intent(context, PreferencesActivity::class.java).apply {
-						putExtras(
-							bundleOf(
-								PreferencesActivity.EXTRA_SCREEN to MoonfinPreferencesScreen::class.qualifiedName,
-								PreferencesActivity.EXTRA_SCREEN_ARGS to bundleOf(),
-							)
-						)
-					}
-					context.startActivity(intent)
-				}
+				onClick = { router.push(Routes.MOONFIN) }
 			)
 		}
 

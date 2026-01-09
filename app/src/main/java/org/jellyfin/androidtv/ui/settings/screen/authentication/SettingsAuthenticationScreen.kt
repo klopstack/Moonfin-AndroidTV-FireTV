@@ -10,11 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
-import android.content.Intent
-import androidx.core.os.bundleOf
 import org.jellyfin.androidtv.R
-import org.jellyfin.androidtv.ui.preference.PreferencesActivity
 import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.auth.repository.ServerUserRepository
 import org.jellyfin.androidtv.auth.store.AuthenticationPreferences
@@ -125,21 +121,10 @@ fun SettingsAuthenticationScreen(launchedFromLogin: Boolean = false) {
 			}
 
 			item {
-				val context = LocalContext.current
 				ListButton(
 					leadingContent = { Icon(painterResource(R.drawable.ic_lock), contentDescription = null) },
 					headingContent = { Text(stringResource(R.string.lbl_pin_code)) },
-					onClick = {
-						val intent = Intent(context, PreferencesActivity::class.java).apply {
-							putExtras(
-								bundleOf(
-									PreferencesActivity.EXTRA_SCREEN to org.jellyfin.androidtv.ui.preference.screen.PinCodePreferencesScreen::class.qualifiedName,
-									PreferencesActivity.EXTRA_SCREEN_ARGS to bundleOf(),
-								)
-							)
-						}
-						context.startActivity(intent)
-					}
+					onClick = { router.push(Routes.AUTHENTICATION_PIN_CODE) }
 				)
 			}
 		}

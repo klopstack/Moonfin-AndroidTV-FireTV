@@ -8,6 +8,7 @@ import org.jellyfin.androidtv.ui.settings.screen.SettingsMainScreen
 import org.jellyfin.androidtv.ui.settings.screen.SettingsTelemetryScreen
 import org.jellyfin.androidtv.ui.settings.screen.about.SettingsAboutScreen
 import org.jellyfin.androidtv.ui.settings.screen.authentication.SettingsAuthenticationAutoSignInScreen
+import org.jellyfin.androidtv.ui.settings.screen.authentication.SettingsAuthenticationPinCodeScreen
 import org.jellyfin.androidtv.ui.settings.screen.authentication.SettingsAuthenticationScreen
 import org.jellyfin.androidtv.ui.settings.screen.authentication.SettingsAuthenticationServerScreen
 import org.jellyfin.androidtv.ui.settings.screen.authentication.SettingsAuthenticationServerUserScreen
@@ -33,10 +34,28 @@ import org.jellyfin.androidtv.ui.settings.screen.license.SettingsLicensesScreen
 import org.jellyfin.androidtv.ui.settings.screen.livetv.SettingsLiveTvGuideChannelOrderScreen
 import org.jellyfin.androidtv.ui.settings.screen.livetv.SettingsLiveTvGuideFiltersScreen
 import org.jellyfin.androidtv.ui.settings.screen.livetv.SettingsLiveTvGuideOptionsScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinBrowsingBlurScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinDetailsBlurScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinHomeRowsImageScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinMediaBarColorScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinMediaBarContentTypeScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinMediaBarItemCountScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinMediaBarOpacityScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinParentalControlsScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinSeasonalSurpriseScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinShuffleContentTypeScreen
+import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinThemeMusicVolumeScreen
+import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackAdvancedScreen
+import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackAudioBehaviorScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackInactivityPromptScreen
+import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackMaxBitrateScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackPlayerScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackPrerollsScreen
+import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackRefreshRateSwitchingBehaviorScreen
+import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackResumeSubtractDurationScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackScreen
+import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackZoomModeScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.mediasegment.SettingsPlaybackMediaSegmentScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.mediasegment.SettingsPlaybackMediaSegmentsScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.nextup.SettingsPlaybackNextUpBehaviorScreen
@@ -57,6 +76,7 @@ object Routes {
 	const val AUTHENTICATION_SERVER_USER = "/authentication/server/{serverId}/user/{userId}"
 	const val AUTHENTICATION_SORT_BY = "/authentication/sort-by"
 	const val AUTHENTICATION_AUTO_SIGN_IN = "/authentication/auto-sign-in"
+	const val AUTHENTICATION_PIN_CODE = "/authentication/pin-code"
 	const val CUSTOMIZATION = "/customization"
 	const val CUSTOMIZATION_THEME = "/customization/theme"
 	const val CUSTOMIZATION_CLOCK = "/customization/clock"
@@ -89,8 +109,26 @@ object Routes {
 	const val PLAYBACK_PREROLLS = "/playback/prerolls"
 	const val PLAYBACK_MEDIA_SEGMENTS = "/playback/media-segments"
 	const val PLAYBACK_MEDIA_SEGMENT = "/playback/media-segments/{segmentType}"
+	const val PLAYBACK_ADVANCED = "/playback/advanced"
+	const val PLAYBACK_RESUME_SUBTRACT_DURATION = "/playback/resume-subtract-duration"
+	const val PLAYBACK_MAX_BITRATE = "/playback/max-bitrate"
+	const val PLAYBACK_REFRESH_RATE_SWITCHING_BEHAVIOR = "/playback/refresh-rate-switching-behavior"
+	const val PLAYBACK_ZOOM_MODE = "/playback/zoom-mode"
+	const val PLAYBACK_AUDIO_BEHAVIOR = "/playback/audio-behavior"
 	const val JELLYSEERR = "/jellyseerr"
 	const val JELLYSEERR_ROWS = "/jellyseerr/rows"
+	const val MOONFIN = "/moonfin"
+	const val MOONFIN_SHUFFLE_CONTENT_TYPE = "/moonfin/shuffle-content-type"
+	const val MOONFIN_MEDIA_BAR_CONTENT_TYPE = "/moonfin/media-bar-content-type"
+	const val MOONFIN_MEDIA_BAR_ITEM_COUNT = "/moonfin/media-bar-item-count"
+	const val MOONFIN_MEDIA_BAR_OPACITY = "/moonfin/media-bar-opacity"
+	const val MOONFIN_MEDIA_BAR_COLOR = "/moonfin/media-bar-color"
+	const val MOONFIN_THEME_MUSIC_VOLUME = "/moonfin/theme-music-volume"
+	const val MOONFIN_SEASONAL_SURPRISE = "/moonfin/seasonal-surprise"
+	const val MOONFIN_HOME_ROWS_IMAGE = "/moonfin/home-rows-image"
+	const val MOONFIN_DETAILS_BLUR = "/moonfin/details-blur"
+	const val MOONFIN_BROWSING_BLUR = "/moonfin/browsing-blur"
+	const val MOONFIN_PARENTAL_CONTROLS = "/moonfin/parental-controls"
 	const val TELEMETRY = "/telemetry"
 	const val DEVELOPER = "/developer"
 	const val ABOUT = "/about"
@@ -124,6 +162,9 @@ val routes = mapOf<String, RouteComposable>(
 	},
 	Routes.AUTHENTICATION_AUTO_SIGN_IN to {
 		SettingsAuthenticationAutoSignInScreen()
+	},
+	Routes.AUTHENTICATION_PIN_CODE to {
+		SettingsAuthenticationPinCodeScreen()
 	},
 	Routes.CUSTOMIZATION to {
 		SettingsCustomizationScreen()
@@ -243,11 +284,65 @@ val routes = mapOf<String, RouteComposable>(
 			segmentType = context.parameters["segmentType"]?.let(MediaSegmentType::fromNameOrNull)!!,
 		)
 	},
+	Routes.PLAYBACK_ADVANCED to {
+		SettingsPlaybackAdvancedScreen()
+	},
+	Routes.PLAYBACK_RESUME_SUBTRACT_DURATION to {
+		SettingsPlaybackResumeSubtractDurationScreen()
+	},
+	Routes.PLAYBACK_MAX_BITRATE to {
+		SettingsPlaybackMaxBitrateScreen()
+	},
+	Routes.PLAYBACK_REFRESH_RATE_SWITCHING_BEHAVIOR to {
+		SettingsPlaybackRefreshRateSwitchingBehaviorScreen()
+	},
+	Routes.PLAYBACK_ZOOM_MODE to {
+		SettingsPlaybackZoomModeScreen()
+	},
+	Routes.PLAYBACK_AUDIO_BEHAVIOR to {
+		SettingsPlaybackAudioBehaviorScreen()
+	},
 	Routes.JELLYSEERR to {
 		JellyseerrPreferencesScreen()
 	},
 	Routes.JELLYSEERR_ROWS to {
 		JellyseerrRowsConfigScreen()
+	},
+	Routes.MOONFIN to {
+		SettingsMoonfinScreen()
+	},
+	Routes.MOONFIN_SHUFFLE_CONTENT_TYPE to {
+		SettingsMoonfinShuffleContentTypeScreen()
+	},
+	Routes.MOONFIN_MEDIA_BAR_CONTENT_TYPE to {
+		SettingsMoonfinMediaBarContentTypeScreen()
+	},
+	Routes.MOONFIN_MEDIA_BAR_ITEM_COUNT to {
+		SettingsMoonfinMediaBarItemCountScreen()
+	},
+	Routes.MOONFIN_MEDIA_BAR_OPACITY to {
+		SettingsMoonfinMediaBarOpacityScreen()
+	},
+	Routes.MOONFIN_MEDIA_BAR_COLOR to {
+		SettingsMoonfinMediaBarColorScreen()
+	},
+	Routes.MOONFIN_THEME_MUSIC_VOLUME to {
+		SettingsMoonfinThemeMusicVolumeScreen()
+	},
+	Routes.MOONFIN_SEASONAL_SURPRISE to {
+		SettingsMoonfinSeasonalSurpriseScreen()
+	},
+	Routes.MOONFIN_HOME_ROWS_IMAGE to {
+		SettingsMoonfinHomeRowsImageScreen()
+	},
+	Routes.MOONFIN_DETAILS_BLUR to {
+		SettingsMoonfinDetailsBlurScreen()
+	},
+	Routes.MOONFIN_BROWSING_BLUR to {
+		SettingsMoonfinBrowsingBlurScreen()
+	},
+	Routes.MOONFIN_PARENTAL_CONTROLS to {
+		SettingsMoonfinParentalControlsScreen()
 	},
 	Routes.TELEMETRY to {
 		SettingsTelemetryScreen()

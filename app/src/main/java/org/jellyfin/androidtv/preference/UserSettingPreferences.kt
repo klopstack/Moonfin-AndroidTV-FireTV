@@ -158,6 +158,14 @@ class UserSettingPreferences(
 			org.jellyfin.androidtv.constant.ImageType.POSTER
 		}
 	}
+
+	/**
+	 * Set the image type for a specific home row.
+	 */
+	fun setHomeRowImageType(sectionType: HomeSectionType, imageType: org.jellyfin.androidtv.constant.ImageType) {
+		val key = "homeRowImageType_${sectionType.serializedName}"
+		sharedPreferences.edit().putString(key, imageType.name).apply()
+	}
 	
 	init {
 		runMigrations {

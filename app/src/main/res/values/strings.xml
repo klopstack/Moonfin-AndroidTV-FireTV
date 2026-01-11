@@ -938,4 +938,18 @@
     <string name="pref_seasonal_summer">Summer ☀️</string>
     <string name="pref_seasonal_halloween">Halloween 🎃</string>
     <string name="pref_seasonal_fall">Fall 🍁</string>
+    
+    <!-- Genres Grid -->
+    <string name="all_libraries">All Libraries</string>
+    <string name="no_genres_found">No genres found</string>
+    <string name="sort_a_z">A-Z</string>
+    <string name="sort_z_a">Z-A</string>
+    <string name="sort_most_items">Most Items</string>
+    <string name="sort_least_items">Least Items</string>
+    <string name="sort_random">Random</string>
+    <string name="msg_error_loading_data">Failed to load items</string>
+    <plurals name="genre_item_count">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
 </resources>

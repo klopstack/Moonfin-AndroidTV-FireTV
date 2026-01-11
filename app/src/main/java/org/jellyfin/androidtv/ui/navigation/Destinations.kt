@@ -3,7 +3,6 @@ package org.jellyfin.androidtv.ui.navigation
 import kotlinx.serialization.json.Json
 import org.jellyfin.androidtv.constant.Extras
 import org.jellyfin.androidtv.ui.browsing.AllFavoritesFragment
-import org.jellyfin.androidtv.ui.browsing.AllGenresFragment
 import org.jellyfin.androidtv.ui.browsing.BrowseGridFragment
 import org.jellyfin.androidtv.ui.browsing.BrowseRecordingsFragment
 import org.jellyfin.androidtv.ui.browsing.BrowseScheduleFragment
@@ -13,6 +12,8 @@ import org.jellyfin.androidtv.ui.browsing.ByLetterFragment
 import org.jellyfin.androidtv.ui.browsing.CollectionFragment
 import org.jellyfin.androidtv.ui.browsing.GenericFolderFragment
 import org.jellyfin.androidtv.ui.browsing.SuggestedMoviesFragment
+import org.jellyfin.androidtv.ui.browsing.genre.GenreBrowseFragment
+import org.jellyfin.androidtv.ui.browsing.genre.GenresGridFragment
 import org.jellyfin.androidtv.ui.home.HomeFragment
 import org.jellyfin.androidtv.ui.itemdetail.FullDetailsFragment
 import org.jellyfin.androidtv.ui.itemdetail.ItemListFragment
@@ -77,15 +78,33 @@ object Destinations {
 		Extras.Folder to Json.Default.encodeToString(item),
 	)
 
-	// All genres across all libraries
-	val allGenres = fragmentDestination<AllGenresFragment>()
+	// All genres across all libraries (new grid view)
+	val allGenres = fragmentDestination<GenresGridFragment>()
 
 	// All favorites across all libraries
 	val allFavorites = fragmentDestination<AllFavoritesFragment>()
 
+	// Genres grid for a specific library
+	fun libraryGenresGrid(item: BaseItemDto, includeType: String) =
+		fragmentDestination<GenresGridFragment>(
+			Extras.Folder to Json.Default.encodeToString(item),
+			Extras.IncludeType to includeType,
+		)
+
+	// Browse items by genre
+	fun genreBrowse(
+		genreName: String,
+		parentId: UUID? = null,
+		includeType: String? = null
+	) = fragmentDestination<GenreBrowseFragment>(
+		GenreBrowseFragment.ARG_GENRE_NAME to genreName,
+		GenreBrowseFragment.ARG_PARENT_ID to parentId?.toString(),
+		GenreBrowseFragment.ARG_INCLUDE_TYPE to includeType,
+	)
+
 	// TODO only pass item id instead of complete JSON to browsing destinations
 	fun libraryByGenres(item: BaseItemDto, includeType: String) =
-		fragmentDestination<ByGenreFragment>(
+		fragmentDestination<GenresGridFragment>(
 			Extras.Folder to Json.Default.encodeToString(item),
 			Extras.IncludeType to includeType,
 		)

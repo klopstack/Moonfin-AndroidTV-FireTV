@@ -80,9 +80,9 @@ class MainActivity : FragmentActivity() {
 			sessionRepository.state
 				.filter { it == SessionRepositoryState.READY }
 				.first()
-			
+
 			if (!validateAuthentication()) return@launch
-			
+
 			setupActivity(savedInstanceState)
 		}
 	}
@@ -304,19 +304,19 @@ class MainActivity : FragmentActivity() {
 
 	override fun onConfigurationChanged(newConfig: Configuration) {
 		super.onConfigurationChanged(newConfig)
-		
+
 		// Log what type of configuration changed
 		val changes = mutableListOf<String>()
 		if (newConfig.keyboard != resources.configuration.keyboard) changes.add("keyboard")
 		if (newConfig.keyboardHidden != resources.configuration.keyboardHidden) changes.add("keyboardHidden")
 		if (newConfig.navigation != resources.configuration.navigation) changes.add("navigation")
-		
+
 		if (changes.isNotEmpty()) {
 			Timber.d("Input configuration changed (${changes.joinToString()}) - preserving activity and playback state")
 		} else {
 			Timber.d("Configuration changed - preserving activity and playback state")
 		}
-		
+
 		applyTheme()
 	}
 }

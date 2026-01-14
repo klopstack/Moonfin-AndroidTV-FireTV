@@ -131,6 +131,7 @@
         <activity
             android:name=".ui.browsing.MainActivity"
             android:launchMode="singleTask"
+            android:configChanges="keyboard|keyboardHidden|navigation"
             android:windowSoftInputMode="adjustNothing" />
 
         <activity android:name=".ui.playback.ExternalPlayerActivity" />

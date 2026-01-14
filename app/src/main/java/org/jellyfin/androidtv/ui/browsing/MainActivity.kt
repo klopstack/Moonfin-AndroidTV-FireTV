@@ -305,18 +305,18 @@ class MainActivity : FragmentActivity() {
 	override fun onConfigurationChanged(newConfig: Configuration) {
 		super.onConfigurationChanged(newConfig)
 
-		// Log what type of configuration changed
-		val changes = mutableListOf<String>()
-		if (newConfig.keyboard != resources.configuration.keyboard) changes.add("keyboard")
-		if (newConfig.keyboardHidden != resources.configuration.keyboardHidden) changes.add("keyboardHidden")
-		if (newConfig.navigation != resources.configuration.navigation) changes.add("navigation")
+		// Check if this is just an input device change (keyboard/navigation)
+		// These changes don't require theme reapplication and can cause visual glitches during playback
+		val isInputDeviceChange = newConfig.keyboard != resources.configuration.keyboard ||
+			newConfig.keyboardHidden != resources.configuration.keyboardHidden ||
+			newConfig.navigation != resources.configuration.navigation
 
-		if (changes.isNotEmpty()) {
-			Timber.d("Input configuration changed (${changes.joinToString()}) - preserving activity and playback state")
+		if (isInputDeviceChange) {
+			Timber.d("Input device configuration changed - preserving activity and playback state without theme reapplication")
+			// Don't call applyTheme() for input device changes to avoid visual glitches during playback
 		} else {
-			Timber.d("Configuration changed - preserving activity and playback state")
+			Timber.d("Configuration changed - applying theme")
+			applyTheme()
 		}
-
-		applyTheme()
 	}
 }

@@ -122,7 +122,8 @@ fun ItemRowAdapter.retrieveResumeItems(api: ApiClient, query: GetResumeItemsRequ
 					BaseItemDtoBaseRowItem(
 						item = item,
 						preferParentThumb = preferParentThumb,
-						staticHeight = isStaticHeight
+						staticHeight = isStaticHeight,
+						preferSeriesPoster = cardPresenter?.imageType == org.jellyfin.androidtv.constant.ImageType.POSTER
 					)
 				}
 			)
@@ -167,7 +168,8 @@ fun ItemRowAdapter.retrieveNextUpItems(api: ApiClient, query: GetNextUpRequest) 
 						BaseItemDtoBaseRowItem(
 							item = item,
 							preferParentThumb = preferParentThumb,
-							staticHeight = false
+							staticHeight = false,
+							preferSeriesPoster = cardPresenter?.imageType == org.jellyfin.androidtv.constant.ImageType.POSTER
 						)
 					}
 				)
@@ -180,7 +182,8 @@ fun ItemRowAdapter.retrieveNextUpItems(api: ApiClient, query: GetNextUpRequest) 
 						BaseItemDtoBaseRowItem(
 							item = item,
 							preferParentThumb = preferParentThumb,
-							staticHeight = isStaticHeight
+							staticHeight = isStaticHeight,
+							preferSeriesPoster = cardPresenter?.imageType == org.jellyfin.androidtv.constant.ImageType.POSTER
 						)
 					}
 				)
@@ -229,7 +232,8 @@ fun ItemRowAdapter.retrieveMergedContinueWatchingItems(
 					BaseItemDtoBaseRowItem(
 						item = item,
 						preferParentThumb = preferParentThumb,
-						staticHeight = isStaticHeight
+						staticHeight = isStaticHeight,
+						preferSeriesPoster = cardPresenter?.imageType == org.jellyfin.androidtv.constant.ImageType.POSTER
 					)
 				}
 			)
@@ -256,7 +260,8 @@ fun ItemRowAdapter.retrieveLatestMedia(api: ApiClient, query: GetLatestMediaRequ
 						item = item,
 						preferParentThumb = preferParentThumb,
 						staticHeight = isStaticHeight,
-						selectAction = BaseRowItemSelectAction.ShowDetails
+						selectAction = BaseRowItemSelectAction.ShowDetails,
+						preferSeriesPoster = cardPresenter?.imageType == org.jellyfin.androidtv.constant.ImageType.POSTER
 					)
 				}
 			)

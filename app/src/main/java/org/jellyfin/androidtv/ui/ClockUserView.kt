@@ -3,14 +3,20 @@ package org.jellyfin.androidtv.ui
 import android.content.Context
 import android.util.AttributeSet
 import android.view.LayoutInflater
-import android.view.View
 import android.widget.RelativeLayout
 import androidx.core.view.isVisible
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.databinding.ClockUserBugBinding
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.constant.ClockBehavior
 import org.jellyfin.androidtv.ui.navigation.Destinations
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
+import org.jellyfin.androidtv.ui.shuffle.executeQuickShuffle
+import org.jellyfin.androidtv.ui.shuffle.showShuffleDialog
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -23,49 +29,38 @@ class ClockUserView @JvmOverloads constructor(
 	private val binding: ClockUserBugBinding = ClockUserBugBinding.inflate(LayoutInflater.from(context), this, true)
 	private val userPreferences by inject<UserPreferences>()
 	private val navigationRepository by inject<NavigationRepository>()
+	
+	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
 	var isVideoPlayer = false
 		set(value) {
 			field = value
-			updateClockVisibility()
+			updateVisibility()
 		}
 
 	val homeButton get() = binding.home
 	val shuffleButton get() = binding.shuffle
 
-	private var onShuffleClickListener: Runnable? = null
-	private var onShuffleLongClickListener: Runnable? = null
-
 	init {
-		updateClockVisibility()
+		updateVisibility()
 
 		binding.home.setOnClickListener {
 			navigationRepository.reset(Destinations.home, clearHistory = true)
 		}
 
 		binding.shuffle.setOnClickListener {
-			onShuffleClickListener?.run()
+			scope.launch {
+				executeQuickShuffle(userPreferences, navigationRepository)
+			}
 		}
 
 		binding.shuffle.setOnLongClickListener {
-			onShuffleLongClickListener?.run()
+			showShuffleDialog(context, navigationRepository)
 			true
 		}
 	}
 
-	fun setShuffleVisible(visible: Boolean) {
-		binding.shuffle.visibility = if (visible) View.VISIBLE else View.GONE
-	}
-
-	fun setOnShuffleClickListener(listener: Runnable?) {
-		onShuffleClickListener = listener
-	}
-
-	fun setOnShuffleLongClickListener(listener: Runnable?) {
-		onShuffleLongClickListener = listener
-	}
-
-	private fun updateClockVisibility() {
+	private fun updateVisibility() {
 		val showClock = userPreferences[UserPreferences.clockBehavior]
 
 		binding.clock.isVisible = when (showClock) {
@@ -76,8 +71,12 @@ class ClockUserView @JvmOverloads constructor(
 		}
 
 		binding.home.isVisible = !isVideoPlayer
-		if (isVideoPlayer) {
-			binding.shuffle.isVisible = false
-		}
+		binding.shuffle.isVisible = !isVideoPlayer && 
+			userPreferences[UserPreferences.showShuffleButton]
+	}
+	
+	override fun onDetachedFromWindow() {
+		super.onDetachedFromWindow()
+		scope.cancel()
 	}
 }

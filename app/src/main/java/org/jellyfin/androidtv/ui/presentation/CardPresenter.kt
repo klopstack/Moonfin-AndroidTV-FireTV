@@ -6,6 +6,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
@@ -18,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.findViewTreeCompositionContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
@@ -30,6 +32,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.constant.ImageType
+import org.jellyfin.androidtv.ui.base.JellyfinTheme
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.composable.AsyncImage
 import org.jellyfin.androidtv.ui.composable.item.ItemCard
@@ -124,6 +127,7 @@ private data class BaseRowItemDisplayConfig(
 	val aspectRatio: Float,
 	val overrideShowInfo: Boolean? = null,
 	val scaleType: ImageView.ScaleType? = null,
+	val isCircular: Boolean = false,
 )
 
 private fun BaseRowItem.getDisplayConfig(imageType: ImageType, uniformAspect: Boolean): BaseRowItemDisplayConfig = when (baseRowType) {
@@ -157,7 +161,8 @@ private fun BaseRowItem.getDisplayConfig(imageType: ImageType, uniformAspect: Bo
 			BaseItemKind.PERSON,
 			BaseItemKind.MUSIC_ARTIST -> base.copy(
 				iconRes = R.drawable.ic_user,
-				aspectRatio = if (uniformAspect || base.aspectRatio < 0.8f) 1f else base.aspectRatio,
+				aspectRatio = 1f,
+				isCircular = true,
 			)
 
 			BaseItemKind.SEASON, BaseItemKind.SERIES -> base.copy(
@@ -165,18 +170,15 @@ private fun BaseRowItem.getDisplayConfig(imageType: ImageType, uniformAspect: Bo
 				iconRes = R.drawable.ic_tv
 			)
 
-			BaseItemKind.EPISODE -> when (preferSeriesPoster) {
-				true -> base.copy(
-					aspectRatio = ImageHelper.ASPECT_RATIO_2_3.toFloat(),
-					iconRes = R.drawable.ic_tv
-				)
-
-				false -> base.copy(
-					aspectRatio = ImageHelper.ASPECT_RATIO_16_9.toFloat(),
-					iconRes = R.drawable.ic_tv,
-					overrideShowInfo = true,
-				)
-			}
+			BaseItemKind.EPISODE -> base.copy(
+				aspectRatio = when {
+					preferSeriesPoster -> ImageHelper.ASPECT_RATIO_2_3.toFloat()
+					imageType == ImageType.BANNER -> ImageHelper.ASPECT_RATIO_BANNER.toFloat()
+					else -> ImageHelper.ASPECT_RATIO_16_9.toFloat()
+				},
+				iconRes = R.drawable.ic_tv,
+				overrideShowInfo = !preferSeriesPoster,
+			)
 
 			BaseItemKind.COLLECTION_FOLDER, BaseItemKind.USER_VIEW -> base.copy(
 				aspectRatio = ImageHelper.ASPECT_RATIO_16_9.toFloat(),
@@ -247,9 +249,10 @@ private fun BaseRowItem.getDisplayConfig(imageType: ImageType, uniformAspect: Bo
 	)
 
 	BaseRowType.Person -> BaseRowItemDisplayConfig(
-		aspectRatio = ImageHelper.ASPECT_RATIO_7_9.toFloat(),
+		aspectRatio = 1f,
 		image = getImage(imageType),
 		iconRes = R.drawable.ic_user,
+		isCircular = true,
 	)
 
 	BaseRowType.Chapter -> BaseRowItemDisplayConfig(
@@ -341,6 +344,7 @@ private fun CardViewHolderContent(
 					ItemCardBaseItemOverlay(baseItem)
 				}
 			},
+			shape = if (displayConfig.isCircular) CircleShape else JellyfinTheme.shapes.medium,
 			modifier = Modifier
 				.size(size)
 		)

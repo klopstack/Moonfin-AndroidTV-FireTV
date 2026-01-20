@@ -113,7 +113,9 @@ open class BaseItemDtoBaseRowItem @JvmOverloads constructor(
 			preferParentThumb && baseItem?.type == BaseItemKind.EPISODE -> baseItem.parentImages[ImageType.THUMB]
 				?: baseItem.seriesThumbImage
 
-			baseItem?.type == BaseItemKind.SEASON -> baseItem.seriesPrimaryImage
+			baseItem?.type == BaseItemKind.SEASON -> baseItem.itemImages[ImageType.PRIMARY]
+				?: baseItem.seriesPrimaryImage
+
 			baseItem?.type == BaseItemKind.PROGRAM -> baseItem.itemImages[ImageType.THUMB]
 			baseItem?.type == BaseItemKind.AUDIO -> baseItem.albumPrimaryImage
 			else -> null

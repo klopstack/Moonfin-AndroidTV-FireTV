@@ -100,6 +100,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     private boolean preferParentThumb = false;
     private boolean staticHeight = false;
+    private Presenter mPresenter = null;
 
     private final Lazy<org.jellyfin.sdk.api.client.ApiClient> api = inject(org.jellyfin.sdk.api.client.ApiClient.class);
     private org.jellyfin.sdk.api.client.ApiClient customApiClient = null;
@@ -129,6 +130,13 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public QueryType getQueryType() {
         return queryType;
+    }
+
+    public org.jellyfin.androidtv.ui.presentation.CardPresenter getCardPresenter() {
+        if (mPresenter instanceof org.jellyfin.androidtv.ui.presentation.CardPresenter) {
+            return (org.jellyfin.androidtv.ui.presentation.CardPresenter) mPresenter;
+        }
+        return null;
     }
 
     public void setRow(ListRow row) {
@@ -161,6 +169,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetItemsRequest query, int chunkSize, boolean preferParentThumb, boolean staticHeight, Presenter presenter, MutableObjectAdapter<Row> parent, QueryType queryType) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mQuery = query;
@@ -172,6 +181,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetItemsRequest query, int chunkSize, boolean preferParentThumb, boolean staticHeight, PresenterSelector presenter, MutableObjectAdapter<Row> parent, QueryType queryType) {
         super(presenter);
+        // Note: PresenterSelector can't be stored as Presenter - getCardPresenter() will return null for these cases
         this.context = context;
         mParent = parent;
         mQuery = query;
@@ -187,6 +197,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetArtistsRequest query, int chunkSize, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mArtistsQuery = query;
@@ -197,6 +208,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetAlbumArtistsRequest query, int chunkSize, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mAlbumArtistsQuery = query;
@@ -207,6 +219,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetNextUpRequest query, boolean preferParentThumb, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mNextUpQuery = query;
@@ -217,6 +230,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetSeriesTimersRequest query, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         queryType = QueryType.SeriesTimer;
@@ -224,6 +238,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetLatestMediaRequest query, boolean preferParentThumb, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mLatestQuery = query;
@@ -234,6 +249,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(List<BaseItemPerson> people, Context context, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mPersons = people.toArray(new BaseItemPerson[people.size()]);
@@ -243,6 +259,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, List<ChapterItemInfo> chapters, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mChapters = chapters;
@@ -252,6 +269,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, List<org.jellyfin.sdk.model.api.BaseItemDto> items, Presenter presenter, MutableObjectAdapter<Row> parent, QueryType queryType) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mItems = items;
@@ -260,6 +278,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, List<BaseItemDto> items, Presenter presenter, MutableObjectAdapter<Row> parent, boolean staticItems) { // last param is just for sig
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mItems = items;
@@ -272,6 +291,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetSpecialsRequest query, boolean preferParentThumb, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mSpecialsQuery = query;
@@ -281,6 +301,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetAdditionalPartsRequest query, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mAdditionalPartsQuery = query;
@@ -289,6 +310,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetTrailersRequest query, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mTrailersQuery = query;
@@ -297,6 +319,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetLiveTvChannelsRequest query, int chunkSize, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mTvChannelQuery = query;
@@ -306,6 +329,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetRecommendedProgramsRequest query, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mTvProgramQuery = query;
@@ -315,6 +339,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetRecordingsRequest query, int chunkSize, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mTvRecordingQuery = query;
@@ -325,6 +350,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetSimilarItemsRequest query, QueryType queryType, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mSimilarQuery = query;
@@ -337,6 +363,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetUpcomingEpisodesRequest query, boolean preferParentThumb, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mUpcomingQuery = query;
@@ -346,6 +373,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetSeasonsRequest query, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         mSeasonQuery = query;
@@ -354,6 +382,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetUserViewsRequest query, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         queryType = QueryType.Views;
@@ -362,6 +391,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetResumeItemsRequest query, int chunkSize, boolean preferParentThumb, boolean staticHeight, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         resumeQuery = query;
@@ -373,6 +403,7 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
 
     public ItemRowAdapter(Context context, GetResumeItemsRequest resumeQuery, GetNextUpRequest nextUpQuery, boolean preferParentThumb, boolean staticHeight, Presenter presenter, MutableObjectAdapter<Row> parent) {
         super(presenter);
+        mPresenter = presenter;
         this.context = context;
         mParent = parent;
         this.resumeQuery = resumeQuery;
@@ -716,13 +747,10 @@ public class ItemRowAdapter extends MutableObjectAdapter<Object> {
     private void loadStaticItems() {
         if (mItems != null) {
             for (org.jellyfin.sdk.model.api.BaseItemDto item : mItems) {
-                // Annotate item with serverId if set for multi-server support
                 if (serverId != null && item.getServerId() == null) {
                     item = JavaCompat.copyWithServerId(item, serverId);
                 }
-                boolean useEpisodeThumbnail = queryType == QueryType.Search 
-                    && item.getType() == org.jellyfin.sdk.model.api.BaseItemKind.EPISODE;
-                add(new BaseItemDtoBaseRowItem(item, false, false, BaseRowItemSelectAction.ShowDetails, useEpisodeThumbnail));
+                add(new BaseItemDtoBaseRowItem(item, false, false, BaseRowItemSelectAction.ShowDetails, false));
             }
             itemsLoaded = mItems.size();
         } else {

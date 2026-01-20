@@ -15,6 +15,7 @@ class AggregatedItemBaseRowItem @JvmOverloads constructor(
 	preferParentThumb: Boolean = false,
 	staticHeight: Boolean = false,
 	selectAction: BaseRowItemSelectAction = BaseRowItemSelectAction.ShowDetails,
+	preferSeriesPoster: Boolean = false,
 	val server: Server = aggregatedItem.server,
 	val userId: UUID = aggregatedItem.userId,
 	val apiClient: ApiClient = aggregatedItem.apiClient,
@@ -23,4 +24,5 @@ class AggregatedItemBaseRowItem @JvmOverloads constructor(
 	preferParentThumb = preferParentThumb,
 	staticHeight = staticHeight,
 	selectAction = selectAction,
+	preferSeriesPoster = preferSeriesPoster,
 )

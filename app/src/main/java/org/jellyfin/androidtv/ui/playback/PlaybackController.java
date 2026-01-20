@@ -353,7 +353,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
     }
 
     public boolean canSeek() {
-        return !isLiveTv;
+        return !isLiveTv || !directStreamLiveTv;
     }
 
     public boolean isLiveTv() {
@@ -1247,11 +1247,13 @@ public class PlaybackController implements PlaybackControllerNotifiable {
                         mVideoManager.setMediaStreamInfo(subtitleApi, response);
                         mVideoManager.start();
                     }
+                    wasSeeking = false;
                 }
 
                 @Override
                 public void onError(Exception exception) {
                     if (!isActive()) return;
+                    wasSeeking = false;
                     if (mFragment != null)
                         Utils.showToast(mFragment.getContext(), R.string.msg_video_playback_error);
                     Timber.e(exception, "Error trying to seek transcoded stream");
@@ -1270,10 +1272,12 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             boolean wasPausedBeforeSeek = mPlaybackState == PlaybackState.PAUSED || isRespondingToSyncPlayCommand;
             mPlaybackState = PlaybackState.SEEKING;
             if (mVideoManager.seekTo(pos) < 0) {
+                wasSeeking = false;
                 if (mFragment != null)
                     Utils.showToast(mFragment.getContext(), mFragment.getString(R.string.seek_error));
                 pause();
             } else {
+                wasSeeking = false;
                 // Don't automatically resume playback after seek if we're responding to SyncPlay
                 // or if we were paused before the seek
                 if (!wasPausedBeforeSeek) {

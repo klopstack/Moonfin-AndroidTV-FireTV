@@ -993,8 +993,8 @@
     <string name="syncplay_resume_playback_description">Start playing the group\'s content</string>
     <string name="syncplay_halt_playback">Pause playback</string>
     <string name="syncplay_halt_playback_description">Stop following group playback temporarily</string>
-    <string name="syncplay_user_joined">%s joined the group</string>
-    <string name="syncplay_user_left">%s left the group</string>
+    <string name="syncplay_user_joined">%s joined the SyncPlay group</string>
+    <string name="syncplay_user_left">%s left the SyncPlay group</string>
     <string name="syncplay_group_default_name">%s\'s Group</string>
     
     <!-- Genres Grid -->

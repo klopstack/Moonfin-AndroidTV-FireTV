@@ -8,6 +8,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -165,7 +166,7 @@ fun MainToolbar(
 			userViews = views.toList()
 		}
 	}
-	
+
 	// Load aggregated libraries from all servers
 	val aggregationScope = rememberCoroutineScope()
 	var aggregatedLibraries by remember { mutableStateOf<List<org.jellyfin.androidtv.data.model.AggregatedLibrary>>(emptyList()) }
@@ -179,7 +180,7 @@ fun MainToolbar(
 			}
 		}
 	}
-	
+
 	// Track current session for server switching
 	val currentSession by sessionRepository.currentSession.collectAsState()
 
@@ -233,6 +234,7 @@ private fun MainToolbar(
 	val scope = rememberCoroutineScope()
 
 	var showShuffleDialog by remember { mutableStateOf(false) }
+	var userMenuOpen by remember { mutableStateOf(false) }
 
 	val activeButtonColors = ButtonDefaults.colors(
 		containerColor = JellyfinTheme.colorScheme.buttonActive,
@@ -281,49 +283,81 @@ private fun MainToolbar(
 				val isFocused by interactionSource.collectIsFocusedAsState()
 				val scale by animateFloatAsState(if (isFocused) 1.1f else 1f, label = "UserAvatarFocusScale")
 
-				IconButton(
-					onClick = {
-						if (activeButton != MainToolbarActiveButton.User) {
-							mediaManager.clearAudioQueue()
-							sessionRepository.destroyCurrentSession()
-
-							// Open login activity
-							activity?.startActivity(ActivityDestinations.startup(activity))
-							activity?.finishAfterTransition()
-						}
-					},
-					colors = if (userImageVisible) {
-						ButtonDefaults.colors(
-							containerColor = Color.Transparent,
-							contentColor = JellyfinTheme.colorScheme.onButton,
-							focusedContainerColor = JellyfinTheme.colorScheme.buttonFocused,
-							focusedContentColor = JellyfinTheme.colorScheme.onButtonFocused,
-						)
-					} else {
-						toolbarButtonColors
-					},
-					contentPadding = if (userImageVisible) PaddingValues(0.dp) else IconButtonDefaults.ContentPadding,
-					interactionSource = interactionSource,
-					modifier = Modifier.scale(scale),
+				Column(
+					verticalArrangement = Arrangement.spacedBy(4.dp),
+					horizontalAlignment = Alignment.CenterHorizontally,
 				) {
-					if (!userImageVisible) {
-						Icon(
-							imageVector = ImageVector.vectorResource(R.drawable.ic_user),
-							contentDescription = stringResource(R.string.lbl_switch_user),
-						)
-					} else {
-						Image(
-							painter = requireNotNull(userImagePainter),
-							contentDescription = stringResource(R.string.lbl_switch_user),
-							contentScale = ContentScale.Crop,
-							modifier = Modifier
-								.aspectRatio(1f)
-								.border(
-									width = if (isFocused) 2.dp else 0.dp,
-									color = if (isFocused) JellyfinTheme.colorScheme.buttonFocused else Color.Transparent,
-									shape = IconButtonDefaults.Shape
-								)
-								.clip(IconButtonDefaults.Shape)
+					IconButton(
+						onClick = {
+							userMenuOpen = !userMenuOpen
+						},
+						colors = if (userImageVisible) {
+							ButtonDefaults.colors(
+								containerColor = Color.Transparent,
+								contentColor = JellyfinTheme.colorScheme.onButton,
+								focusedContainerColor = JellyfinTheme.colorScheme.buttonFocused,
+								focusedContentColor = JellyfinTheme.colorScheme.onButtonFocused,
+							)
+						} else {
+							toolbarButtonColors
+						},
+						contentPadding = if (userImageVisible) PaddingValues(0.dp) else IconButtonDefaults.ContentPadding,
+						interactionSource = interactionSource,
+						modifier = Modifier.scale(scale),
+					) {
+						if (!userImageVisible) {
+							Icon(
+								imageVector = ImageVector.vectorResource(R.drawable.ic_user),
+								contentDescription = stringResource(R.string.lbl_switch_user),
+							)
+						} else {
+							Image(
+								painter = requireNotNull(userImagePainter),
+								contentDescription = stringResource(R.string.lbl_switch_user),
+								contentScale = ContentScale.Crop,
+								modifier = Modifier
+									.aspectRatio(1f)
+									.border(
+										width = if (isFocused) 2.dp else 0.dp,
+										color = if (isFocused) JellyfinTheme.colorScheme.buttonFocused else Color.Transparent,
+										shape = IconButtonDefaults.Shape
+									)
+									.clip(IconButtonDefaults.Shape)
+							)
+						}
+					}
+
+					// User menu dropdown
+					if (userMenuOpen) {
+						UserMenu(
+							isOpen = userMenuOpen,
+							onOpenChanged = { userMenuOpen = it },
+							onSettings = {
+								settingsViewModel.show()
+							},
+							onJellyseerr = if (jellyseerrEnabled) {
+								{ navigationRepository.navigate(Destinations.jellyseerrDiscover) }
+							} else {
+								null
+							},
+							onSyncPlay = if (syncPlayEnabled) {
+								{ syncPlayViewModel.show() }
+							} else {
+								null
+							},
+							onChangeUser = {
+								mediaManager.clearAudioQueue()
+								sessionRepository.destroyCurrentSession()
+
+								// Open login activity
+								activity?.startActivity(ActivityDestinations.startup(activity))
+								activity?.finishAfterTransition()
+							},
+							jellyseerrEnabled = jellyseerrEnabled,
+							syncPlayEnabled = syncPlayEnabled,
+							colors = toolbarButtonColors,
+							backgroundColor = overlayColor,
+							backgroundAlpha = overlayOpacity,
 						)
 					}
 				}
@@ -408,37 +442,6 @@ private fun MainToolbar(
 					)
 				}
 
-				if (jellyseerrEnabled) {
-					ExpandableIconButton(
-						icon = ImageVector.vectorResource(R.drawable.ic_jellyseerr_jellyfish),
-						label = "Jellyseerr",
-						onClick = {
-							navigationRepository.navigate(Destinations.jellyseerrDiscover)
-						},
-						colors = toolbarButtonColors,
-					)
-				}
-				
-				if (syncPlayEnabled) {
-					ExpandableIconButton(
-						icon = ImageVector.vectorResource(R.drawable.ic_syncplay),
-						label = stringResource(R.string.syncplay),
-						onClick = {
-							syncPlayViewModel.show()
-						},
-						colors = toolbarButtonColors,
-					)
-				}
-
-				ExpandableIconButton(
-					icon = ImageVector.vectorResource(R.drawable.ic_settings),
-					label = "Settings",
-					onClick = {
-						settingsViewModel.show()
-					},
-					colors = toolbarButtonColors,
-				)
-				
 				if (showLibrariesInToolbar) {
 					ExpandableLibrariesButton(
 						activeLibraryId = activeLibraryId,

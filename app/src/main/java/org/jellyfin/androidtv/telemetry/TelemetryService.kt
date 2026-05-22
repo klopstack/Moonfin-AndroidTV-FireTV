@@ -115,7 +115,7 @@ object TelemetryService {
 			appendLine("---")
 			appendLine("client: Moonfin for Android TV")
 			appendLine("client_version: ${BuildConfig.VERSION_NAME}")
-			appendLine("client_repository: https://github.com/TSK-Entertainment/AndroidTV-FireTV")
+			appendLine("client_repository: https://github.com/klopstack/Moonfin-AndroidTV-FireTV")
 			appendLine("type: crash_report")
 			appendLine("format: markdown")
 			appendLine("---")

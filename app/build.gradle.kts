@@ -32,12 +32,12 @@ android {
 		buildConfigField(
 			"String",
 			"GITHUB_OWNER",
-			"\"${project.findProperty("github.owner") ?: "benklop"}\"",
+			"\"${project.findProperty("github.owner") ?: "klopstack"}\"",
 		)
 		buildConfigField(
 			"String",
 			"GITHUB_REPO",
-			"\"${project.findProperty("github.repo") ?: "AndroidTV-FireTV"}\"",
+			"\"${project.findProperty("github.repo") ?: "Moonfin-AndroidTV-FireTV"}\"",
 		)
 	}
 

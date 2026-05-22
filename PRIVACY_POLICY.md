@@ -70,9 +70,9 @@ We may update this privacy policy from time to time. Changes will be posted to t
 ## Contact
 
 If you have questions about this privacy policy, you can open an issue on our GitHub repository:
-https://github.com/TSK-Entertainment/AndroidTV-FireTV/issues
+https://github.com/klopstack/Moonfin-AndroidTV-FireTV/issues
 
 ## Open Source
 
 This client is open-source software. You can review the complete source code to verify our privacy practices:
-https://github.com/TSK-Entertainment/AndroidTV-FireTV
+https://github.com/klopstack/Moonfin-AndroidTV-FireTV

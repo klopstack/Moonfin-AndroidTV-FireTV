@@ -7,9 +7,9 @@
    <img width="4305" height="2659" alt="splash-background" src="https://github.com/user-attachments/assets/c05882da-81ce-47e9-a4b2-c995c337b9b9" />
 </p>
 
-[![License](https://img.shields.io/github/license/TSK-Entertainment/AndroidTV-FireTV.svg)](https://github.com/TSK-Entertainment/AndroidTV-FireTV)
-[![Release](https://img.shields.io/github/release/TSK-Entertainment/AndroidTV-FireTV.svg)](https://github.com/TSK-Entertainment/AndroidTV-FireTV/releases)
-[![github](https://img.shields.io/github/downloads/TSK-Entertainment/AndroidTV-FireTV/total?logo=github&label=Downloads)](https://github.com/TSK-Entertainment/AndroidTV-FireTV/releases)
+[![License](https://img.shields.io/github/license/klopstack/Moonfin-AndroidTV-FireTV.svg)](https://github.com/klopstack/Moonfin-AndroidTV-FireTV)
+[![Release](https://img.shields.io/github/release/klopstack/Moonfin-AndroidTV-FireTV.svg)](https://github.com/klopstack/Moonfin-AndroidTV-FireTV/releases)
+[![github](https://img.shields.io/github/downloads/klopstack/Moonfin-AndroidTV-FireTV/total?logo=github&label=Downloads)](https://github.com/klopstack/Moonfin-AndroidTV-FireTV/releases)
 [![Google Play](https://img.shields.io/badge/Android%20TV-Google%20Play-green?logo=googleplay)](link)
 
 > **Personal Jellyfin/Emby client for the Stonecrusher Media server**
@@ -201,7 +201,7 @@ https://github.com/user-attachments/assets/113fa9d8-039c-4f14-8c95-785ca6d47c9b
 ## Installation
 
 ### Pre-built Releases
-Download the latest APK from the [Releases page](https://github.com/TSK-Entertainment/AndroidTV-FireTV/releases).
+Download the latest APK from the [Releases page](https://github.com/klopstack/Moonfin-AndroidTV-FireTV/releases).
 
 **Supported Devices:**
 - Android TV devices (Android 6.0+)
@@ -252,8 +252,8 @@ To change or disable this behavior, edit `DEFAULT_SERVER_URL` in `app/build.grad
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/TSK-Entertainment/AndroidTV-FireTV.git
-cd AndroidTV-FireTV
+git clone https://github.com/klopstack/Moonfin-AndroidTV-FireTV.git
+cd Moonfin-AndroidTV-FireTV
 ```
 
 2. **Build debug version:**
@@ -319,8 +319,8 @@ Translations contributed to Stonecrusher Media that are universally applicable w
 
 ## Support & Community
 
-- **Issues** - [GitHub Issues](https://github.com/TSK-Entertainment/AndroidTV-FireTV/issues) for bugs and feature requests
-- **Discussions** - [GitHub Discussions](https://github.com/TSK-Entertainment/AndroidTV-FireTV/discussions) for questions and ideas
+- **Issues** - [GitHub Issues](https://github.com/klopstack/Moonfin-AndroidTV-FireTV/issues) for bugs and feature requests
+- **Discussions** - [GitHub Discussions](https://github.com/klopstack/Moonfin-AndroidTV-FireTV/discussions) for questions and ideas
 - **Upstream Jellyfin** - [jellyfin.org](https://jellyfin.org) for server-related questions
 
 ## Credits
@@ -340,5 +340,5 @@ This project inherits the GPL v2 license from the upstream Jellyfin Android TV p
 
 <p align="center">
    <strong>Stonecrusher Media for Android TV</strong> is an independent fork and is not affiliated with the Jellyfin project.<br>
-   <a href="https://github.com/TSK-Entertainment">← Back to Stonecrusher Media repository</a>
+   <a href="https://github.com/klopstack/Moonfin-AndroidTV-FireTV">← Back to Stonecrusher Media repository</a>
 </p>

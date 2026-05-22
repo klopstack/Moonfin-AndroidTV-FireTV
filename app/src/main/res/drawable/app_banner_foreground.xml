@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://www.w3.org/2000/svg"
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="320dp"
     android:height="180dp"
     android:viewportWidth="320"
@@ -7,10 +7,10 @@
     <group
         android:pivotX="54"
         android:pivotY="63"
-        android:scaleX="0.62"
-        android:scaleY="0.62"
-        android:translateX="32"
-        android:translateY="48">
+        android:scaleX="1.28"
+        android:scaleY="1.28"
+        android:translateX="6"
+        android:translateY="22">
     <path android:fillColor="#8A8578" android:pathData="M28,72 C28,52 38,38 54,34 C70,30 82,42 84,58 C86,74 76,88 58,92 C40,96 28,86 28,72 Z"/>
     <path android:fillColor="#B5AFA0" android:pathData="M36,48 C40,40 48,36 56,38 C52,44 44,50 36,48 Z"/>
     <path android:fillColor="#6B665C" android:pathData="M48,88 C56,90 68,88 74,82 C70,90 58,94 48,88 Z"/>

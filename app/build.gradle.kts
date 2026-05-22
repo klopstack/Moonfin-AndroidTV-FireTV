@@ -27,6 +27,18 @@ android {
 		// Pre-configured Jellyfin server; auto-connects on first launch when empty.
 		// Set to "" to restore stock server-selection behavior.
 		buildConfigField("String", "DEFAULT_SERVER_URL", "\"https://jellyfin.stonecrusher.us\"")
+
+		// GitHub repo for OTA update checks (see gradle.properties github.owner / github.repo)
+		buildConfigField(
+			"String",
+			"GITHUB_OWNER",
+			"\"${project.findProperty("github.owner") ?: "benklop"}\"",
+		)
+		buildConfigField(
+			"String",
+			"GITHUB_REPO",
+			"\"${project.findProperty("github.repo") ?: "AndroidTV-FireTV"}\"",
+		)
 	}
 
 	buildFeatures {

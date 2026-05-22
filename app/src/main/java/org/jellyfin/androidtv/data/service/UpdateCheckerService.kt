@@ -32,10 +32,10 @@ class UpdateCheckerService(private val context: Context) {
 	}
 
 	companion object {
-		private const val GITHUB_OWNER = "TSK-Entertainment"
-		private const val GITHUB_REPO = "AndroidTV-FireTV"
-		private const val GITHUB_API_URL = "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"
 		private const val PLUGIN_UPDATE_PATH = "/Moonfin/ClientUpdate"
+
+		private fun githubReleasesLatestUrl(): String =
+			"https://api.github.com/repos/${BuildConfig.GITHUB_OWNER}/${BuildConfig.GITHUB_REPO}/releases/latest"
 	}
 
 	/** Cached result from the last plugin update check (populated on startup sync). */
@@ -131,7 +131,7 @@ class UpdateCheckerService(private val context: Context) {
 	suspend fun checkForUpdate(): Result<UpdateInfo?> = withContext(Dispatchers.IO) {
 		runCatching {
 			val request = Request.Builder()
-				.url(GITHUB_API_URL)
+				.url(githubReleasesLatestUrl())
 				.addHeader("Accept", "application/vnd.github.v3+json")
 				.build()
 
@@ -144,11 +144,12 @@ class UpdateCheckerService(private val context: Context) {
 				val body = response.body?.string() ?: return@runCatching null
 				val release = json.decodeFromString<GitHubRelease>(body)
 
-				// Find the APK asset
+				// GitHub-distribution release APK (e.g. stonecrusher-media-v1.8.2-github-release.apk)
 				val apkAsset = release.assets.firstOrNull { asset ->
 					asset.name.endsWith(".apk", ignoreCase = true) &&
-						(asset.name.contains("debug", ignoreCase = true) ||
-							asset.name.contains("release", ignoreCase = true))
+						asset.name.contains("github", ignoreCase = true) &&
+						asset.name.contains("release", ignoreCase = true) &&
+						!asset.name.contains("debug", ignoreCase = true)
 				}
 
 				if (apkAsset == null) {

@@ -211,11 +211,14 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var audioNightMode = enumPreference("audio_night_mode", false)
 
 		/**
-                 * Maximum number of audio channels for playback.
-                 */
-                var maxAudioChannels = enumPreference("max_audio_channels", MaxAudioChannels.AUTO)
+		 * Maximum number of audio channels for playback.
+		 */
+		var maxAudioChannels = enumPreference("max_audio_channels", MaxAudioChannels.AUTO)
 
-                /**
+		/**
+		 * Enable AC3
+		 */
+		var ac3Enabled = booleanPreference("pref_bitstream_ac3", true)
 
 		/* Live TV */
 		/**

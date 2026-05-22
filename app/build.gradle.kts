@@ -74,7 +74,7 @@ android {
 				val keystoreProperties = Properties()
 				keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 				
-				storeFile = file(keystoreProperties["storeFile"] as String)
+				storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
 				storePassword = keystoreProperties["storePassword"] as String
 				keyAlias = keystoreProperties["keyAlias"] as String
 				keyPassword = keystoreProperties["keyPassword"] as String
@@ -84,8 +84,9 @@ android {
 
 	buildTypes {
 		release {
-			// Use signing config if available
-			if (signingConfigs.names.contains("release")) {
+			// Only sign when keystore.properties exists (local dev or CI decode step)
+			val keystorePropertiesFile = rootProject.file("keystore.properties")
+			if (keystorePropertiesFile.exists()) {
 				signingConfig = signingConfigs.getByName("release")
 			}
 

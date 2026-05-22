@@ -1,15 +1,23 @@
 package org.jellyfin.androidtv.data.repository
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import org.jellyfin.androidtv.preference.LibraryPreferences
-import org.jellyfin.androidtv.preference.PreferencesRepository
+import kotlinx.coroutines.flow.shareIn
+import org.jellyfin.androidtv.auth.repository.SessionRepository
+import org.jellyfin.androidtv.auth.repository.UserRepository
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.userViewsApi
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.CollectionType
+import timber.log.Timber
 
 interface UserViewsRepository {
 	val views: Flow<Collection<BaseItemDto>>
@@ -22,26 +30,49 @@ interface UserViewsRepository {
 
 class UserViewsRepositoryImpl(
 	private val api: ApiClient,
-	private val preferencesRepository: PreferencesRepository,
+	private val sessionRepository: SessionRepository,
+	private val userRepository: UserRepository,
 ) : UserViewsRepository {
-	override val views = flow {
-		val views by api.userViewsApi.getUserViews()
-		val filteredViews = views.items
-			.filter { isSupported(it.collectionType) }
-			.filter { view ->
-				val displayPreferencesId = view.displayPreferencesId ?: return@filter true
-				val prefs = preferencesRepository.getLibraryPreferences(displayPreferencesId, api)
-				!prefs[LibraryPreferences.hidden]
-			}
-		emit(filteredViews)
-	}.flowOn(Dispatchers.IO)
+	private val scope = CoroutineScope(Dispatchers.IO)
 
-	override val allViews = flow {
-		val views by api.userViewsApi.getUserViews()
-		val filteredViews = views.items
-			.filter { isSupported(it.collectionType) }
-		emit(filteredViews)
-	}.flowOn(Dispatchers.IO)
+	// Re-fetch views whenever the active user changes
+	private val sessionChange = sessionRepository.currentSession
+		.filterNotNull()
+		.distinctUntilChangedBy { it.userId }
+
+	override val views: Flow<Collection<BaseItemDto>> = sessionChange
+		.flatMapLatest {
+			flow {
+				try {
+					val views by api.userViewsApi.getUserViews(includeHidden = false)
+					emit(views.items.filter { isSupported(it.collectionType) })
+				} catch (err: Exception) {
+					Timber.e(err, "Failed to get user views")
+					emit(emptyList())
+				}
+			}.flowOn(Dispatchers.IO)
+		}
+		.combine(userRepository.currentUser) { views, user ->
+			val excludes = user?.configuration?.myMediaExcludes.orEmpty().toSet()
+			if (excludes.isEmpty()) views
+			else views.filter { it.id !in excludes }
+		}
+		.shareIn(scope, SharingStarted.Lazily, replay = 1)
+
+	override val allViews: Flow<Collection<BaseItemDto>> = sessionChange
+		.flatMapLatest {
+			flow {
+				try {
+					val views by api.userViewsApi.getUserViews(includeHidden = true)
+					val filteredViews = views.items
+						.filter { isSupported(it.collectionType) }
+					emit(filteredViews)
+				} catch (err: Exception) {
+					Timber.e(err, "Failed to get all user views")
+					emit(emptyList())
+				}
+			}
+		}.flowOn(Dispatchers.IO).shareIn(scope, SharingStarted.Lazily, replay = 1)
 
 	override fun isSupported(collectionType: CollectionType?) = collectionType !in unsupportedCollectionTypes
 	override fun allowViewSelection(collectionType: CollectionType?) = collectionType !in disallowViewSelectionCollectionTypes

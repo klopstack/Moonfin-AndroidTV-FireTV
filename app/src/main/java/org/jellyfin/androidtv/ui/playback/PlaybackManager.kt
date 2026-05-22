@@ -35,6 +35,31 @@ private fun createStreamInfo(
 
 	if (source == null) return@apply
 
+	fun useDirectPlay() {
+		playMethod = PlayMethod.DIRECT_PLAY
+		container = source.container
+		mediaUrl = api.videosApi.getVideoStreamUrl(
+			itemId = itemId,
+			container = container,
+			mediaSourceId = source.id,
+			static = true,
+			tag = source.eTag,
+			liveStreamId = source.liveStreamId,
+		)
+	}
+
+	fun useTranscodingUrl(method: PlayMethod) {
+		val transUrl = source.transcodingUrl
+		if (transUrl != null) {
+			playMethod = method
+			container = source.transcodingContainer
+			mediaUrl = api.createUrl(transUrl, ignorePathParameters = true)
+		} else {
+			Timber.w("PlaybackManager: transcodingUrl is null for %s, falling back to direct play", method)
+			useDirectPlay()
+		}
+	}
+
 	if (options.enableDirectPlay && source.supportsDirectPlay) {
 		playMethod = PlayMethod.DIRECT_PLAY
 		container = source.container
@@ -50,13 +75,9 @@ private fun createStreamInfo(
 			)
 		}
 	} else if (options.enableDirectStream && source.supportsDirectStream) {
-		playMethod = PlayMethod.DIRECT_STREAM
-		container = source.transcodingContainer
-		mediaUrl = api.createUrl(requireNotNull(source.transcodingUrl), ignorePathParameters = true)
+		useTranscodingUrl(PlayMethod.DIRECT_STREAM)
 	} else if (source.supportsTranscoding) {
-		playMethod = PlayMethod.TRANSCODE
-		container = source.transcodingContainer
-		mediaUrl = api.createUrl(requireNotNull(source.transcodingUrl), ignorePathParameters = true)
+		useTranscodingUrl(PlayMethod.TRANSCODE)
 	}
 }
 

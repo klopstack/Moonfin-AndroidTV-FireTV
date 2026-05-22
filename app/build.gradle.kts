@@ -7,6 +7,9 @@ plugins {
 
 import java.util.Properties
 import java.io.FileInputStream
+import java.util.jar.JarEntry
+import java.util.jar.JarFile
+import java.util.jar.JarOutputStream
 
 android {
 	namespace = "org.jellyfin.androidtv"
@@ -33,6 +36,20 @@ android {
 		isCoreLibraryDesugaringEnabled = true
 	}
 
+	flavorDimensions += "distribution"
+
+	productFlavors {
+		create("github") {
+			dimension = "distribution"
+			buildConfigField("boolean", "ENABLE_OTA_UPDATES", "true")
+		}
+
+		create("playstore") {
+			dimension = "distribution"
+			buildConfigField("boolean", "ENABLE_OTA_UPDATES", "false")
+		}
+	}
+
 	signingConfigs {
 		create("release") {
 			// Load keystore properties from keystore.properties file
@@ -55,13 +72,16 @@ android {
 			if (signingConfigs.names.contains("release")) {
 				signingConfig = signingConfigs.getByName("release")
 			}
-			
+
+			isDebuggable = false
+			isMinifyEnabled = true
+			isShrinkResources = true
 			proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
 
-			// Set package names used in various XML files
-			resValue("string", "app_id", namespace!!)
-			resValue("string", "app_search_suggest_authority", "${namespace}.content")
-			resValue("string", "app_search_suggest_intent_data", "content://${namespace}.content/intent")
+			// Set package names used in various XML files (must match applicationId for provider authorities)
+			resValue("string", "app_id", defaultConfig.applicationId!!)
+			resValue("string", "app_search_suggest_authority", "${defaultConfig.applicationId}.content")
+			resValue("string", "app_search_suggest_intent_data", "content://${defaultConfig.applicationId}.content/intent")
 
 			// Set flavored application name
 			resValue("string", "app_name", "Moonfin")
@@ -72,11 +92,15 @@ android {
 		debug {
 			// Use different application id to run release and debug at the same time
 			applicationIdSuffix = ".debug"
-
-			// Set package names used in various XML files
-			resValue("string", "app_id", namespace + applicationIdSuffix)
-			resValue("string", "app_search_suggest_authority", "${namespace + applicationIdSuffix}.content")
-			resValue("string", "app_search_suggest_intent_data", "content://${namespace + applicationIdSuffix}.content/intent")
+			isMinifyEnabled = true
+			isShrinkResources = true
+			proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+			
+			// Set package names used in various XML files (must match applicationId for provider authorities)
+			val debugAppId = defaultConfig.applicationId + applicationIdSuffix
+			resValue("string", "app_id", debugAppId)
+			resValue("string", "app_search_suggest_authority", "${debugAppId}.content")
+			resValue("string", "app_search_suggest_intent_data", "content://${debugAppId}.content/intent")
 
 			// Set flavored application name
 			resValue("string", "app_name", "Moonfin Debug")
@@ -109,11 +133,51 @@ tasks.register("versionTxt") {
 	}
 }
 
+// Strip Utils.class from NewPipe Extractor JAR — replaced by local shadow
+// (see app/src/main/java/org/schabi/newpipe/extractor/utils/Utils.java).
+val pipeExtractorJar: Configuration by configurations.creating {
+	isTransitive = false
+	isCanBeResolved = true
+	isCanBeConsumed = false
+}
+
+val stripPipeExtractorUtils by tasks.registering {
+	description = "Strips Utils.class from NewPipe Extractor JAR (replaced by local shadow)"
+
+	val inputFiles = pipeExtractorJar
+	val outputJar = layout.buildDirectory.file("stripped-libs/NewPipeExtractor-stripped.jar")
+
+	inputs.files(inputFiles)
+	outputs.file(outputJar)
+
+	doLast {
+		val output = outputJar.get().asFile
+		output.parentFile.mkdirs()
+
+		JarFile(inputFiles.singleFile).use { jar ->
+			JarOutputStream(output.outputStream()).use { jos ->
+				jar.entries().asSequence()
+					.filter { it.name != "org/schabi/newpipe/extractor/utils/Utils.class" }
+					.forEach { entry ->
+						jos.putNextEntry(JarEntry(entry.name))
+						if (!entry.isDirectory) {
+							jar.getInputStream(entry).use { it.copyTo(jos) }
+						}
+						jos.closeEntry()
+					}
+			}
+		}
+	}
+}
+
 dependencies {
-	// Jellyfin
 	implementation(projects.design)
+	implementation(projects.server.core)
+	implementation(projects.server.jellyfin)
+	implementation(projects.server.emby)
 	implementation(projects.playback.core)
 	implementation(projects.playback.jellyfin)
+	implementation(projects.playback.emby)
 	implementation(projects.playback.media3.exoplayer)
 	implementation(projects.playback.media3.session)
 	implementation(projects.preference)
@@ -131,7 +195,7 @@ dependencies {
 	implementation(libs.kotlinx.coroutines)
 	implementation(libs.kotlinx.serialization.json)
 
-	// Ktor (HTTP client for Jellyseerr)
+	// Ktor (HTTP client for Seerr)
 	implementation(libs.bundles.ktor)
 
 	// Android(x)
@@ -178,6 +242,14 @@ dependencies {
 
 	// Licenses
 	implementation(libs.aboutlibraries)
+
+	// YouTube stream extraction (n-parameter descrambling)
+	pipeExtractorJar(libs.pipeextractor)
+	compileOnly(libs.pipeextractor)
+	compileOnly(libs.findbugs.jsr305)
+	runtimeOnly(files(stripPipeExtractorUtils))
+	implementation(libs.pipeextractor.nanojson)
+	implementation(libs.pipeextractor.jsoup)
 
 	// Logging
 	implementation(libs.timber)

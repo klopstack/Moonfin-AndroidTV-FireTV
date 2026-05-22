@@ -1,5 +1,6 @@
 package org.jellyfin.androidtv.ui.home.mediabar
 
+import org.jellyfin.sdk.model.api.BaseItemKind
 import java.util.UUID
 
 /**
@@ -29,6 +30,9 @@ data class MediaBarSlideItem(
 	val runtime: Long?,
 	val criticRating: Int?,
 	val communityRating: Float?,
+	val tmdbId: String? = null,
+	val imdbId: String? = null,
+	val itemType: BaseItemKind = BaseItemKind.MOVIE,
 )
 
 /**
@@ -49,3 +53,11 @@ data class SlideshowPlaybackState(
 	val isPaused: Boolean = false,
 	val isTransitioning: Boolean = false,
 )
+
+sealed class TrailerPreviewState {
+	object Idle : TrailerPreviewState()
+	object WaitingToPlay : TrailerPreviewState()
+	data class Buffering(val info: TrailerPreviewInfo) : TrailerPreviewState()
+	data class Playing(val info: TrailerPreviewInfo) : TrailerPreviewState()
+	object Unavailable : TrailerPreviewState()
+}

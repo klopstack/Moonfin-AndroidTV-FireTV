@@ -14,10 +14,11 @@ fun jellyfinPlugin(
 	deviceProfileBuilder: () -> DeviceProfile,
 	lifecycle: Lifecycle? = null,
 	apiClientResolver: ((UUID?) -> ApiClient?)? = null,
+	isActive: () -> Boolean = { true },
 ) = playbackPlugin {
 	provide(JellyfinMediaStreamResolver(api, deviceProfileBuilder))
 
-	val playSessionService = PlaySessionService(api, apiClientResolver)
+	val playSessionService = PlaySessionService(api, apiClientResolver, isActive)
 	provide(playSessionService)
 	provide(PlaySessionSocketService(api, playSessionService, lifecycle))
 

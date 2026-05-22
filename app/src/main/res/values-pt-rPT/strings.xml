@@ -264,9 +264,6 @@
     <string name="pref_clock_display_browsing">Durante a navegação</string>
     <string name="lbl_always">Sempre</string>
     <string name="pref_clock_display">Mostrar relógio</string>
-    <string name="pref_default_rating">Tipo de classificação predefinida</string>
-    <string name="lbl_tomatoes">Tomates</string>
-    <string name="lbl_stars">Estrelas</string>
     <string name="watch_count_overflow">99+</string>
     <string name="lbl_playback_control_ends">Termina às %1$s</string>
     <string name="lbl_sign_in">Por Favor autentique-se</string>
@@ -301,8 +298,6 @@
     <string name="image_size_small">Pequeno</string>
     <string name="image_type_banner">Faixa</string>
     <string name="image_type_thumbnail">Miniatura</string>
-    <string name="enable_smart_view_description">O ecrã inteligente mostra itens relevantes em vez de uma grelha</string>
-    <string name="enable_smart_view">Ativar ecrã inteligente</string>
     <string name="lbl_sign_out">Terminar sessão</string>
     <string name="lbl_remove">Remover</string>
     <string name="lbl_server">Servidor</string>

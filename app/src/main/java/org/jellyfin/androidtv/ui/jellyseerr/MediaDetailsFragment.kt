@@ -2,45 +2,65 @@ package org.jellyfin.androidtv.ui.jellyseerr
 
 import android.graphics.Color
 import android.graphics.drawable.Drawable
-import android.graphics.Outline
 import android.os.Bundle
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewOutlineProvider
+import androidx.core.view.isVisible
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import coil3.ImageLoader
 import coil3.asDrawable
-import coil3.load
 import coil3.request.ImageRequest
 import coil3.toBitmap
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import org.jellyfin.androidtv.util.toHtmlSpanned
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.service.BackgroundService
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverItemDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrMovieDetailsDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrRequestDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrTvDetailsDto
+import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.home.mediabar.SponsorBlockApi
+import org.jellyfin.androidtv.ui.itemdetail.v2.DetailActionButton
+import org.jellyfin.androidtv.ui.itemhandling.JellyseerrMediaBaseRowItem
+import org.jellyfin.androidtv.ui.itemhandling.JellyseerrPersonBaseRowItem
 import org.jellyfin.androidtv.ui.navigation.Destinations
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
-import org.jellyfin.androidtv.ui.TextUnderButton
-import org.jellyfin.androidtv.ui.shared.toolbar.MainToolbarActiveButton
-import org.jellyfin.androidtv.ui.shared.toolbar.NavigationOverlay
+import org.jellyfin.androidtv.ui.presentation.CardPresenter
+import org.jellyfin.androidtv.preference.UserPreferences
+import org.jellyfin.androidtv.preference.constant.NavbarPosition
+import org.jellyfin.androidtv.ui.shared.toolbar.LeftSidebarNavigation
+import org.jellyfin.androidtv.ui.shared.toolbar.Navbar
+import org.jellyfin.androidtv.ui.shared.toolbar.NavbarActiveButton
 import org.jellyfin.androidtv.util.dp
+import org.jellyfin.androidtv.ui.settings.compat.SettingsViewModel
 import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.activityViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import timber.log.Timber
 import java.text.NumberFormat
@@ -58,20 +78,22 @@ class MediaDetailsFragment : Fragment() {
 	private val backgroundService: BackgroundService by inject()
 	private val navigationRepository: NavigationRepository by inject()
 	private val apiClient: ApiClient by inject()
+	private val userPreferences: UserPreferences by inject()
+	private val settingsViewModel by activityViewModel<SettingsViewModel>()
 	
 	private var selectedItem: JellyseerrDiscoverItemDto? = null
 	private var movieDetails: JellyseerrMovieDetailsDto? = null
 	private var tvDetails: JellyseerrTvDetailsDto? = null
 	private var requestButton: View? = null
-	private var cancelRequestButton: View? = null
-	private var trailerButton: View? = null
-	private var playInMoonfinButton: View? = null
 	private var castSection: View? = null
 	private var toolbarContainer: View? = null
+	private var topToolbarOverlayView: View? = null
 	private var sidebarId: Int = View.NO_ID
+	private var navbarContainerView: View? = null
+	private var mainContainerRef: FrameLayout? = null
 
 	// Items per section (cast/recommendations/similar)
-	private val ITEMS_PER_SECTION = 45  // 3 pages * ~15 items per page
+	private val ITEMS_PER_SECTION = 15
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -101,13 +123,31 @@ class MediaDetailsFragment : Fragment() {
 	): View {
 		sidebarId = View.generateViewId()
 		
-		val mainContainer = FrameLayout(requireContext()).apply {
+		val mainContainer = object : FrameLayout(requireContext()) {
+			override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+				if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+					if (super.dispatchKeyEvent(event)) return true
+
+					val focused = findFocus()
+					if (focused != null && isAtLeftEdge(focused)) {
+						val sidebar = findViewById<View>(sidebarId)
+						if (sidebar != null && sidebar.isVisible) {
+							sidebar.requestFocus()
+							return true
+						}
+					}
+					return false
+				}
+				return super.dispatchKeyEvent(event)
+			}
+		}.apply {
 			layoutParams = ViewGroup.LayoutParams(
 				ViewGroup.LayoutParams.MATCH_PARENT,
 				ViewGroup.LayoutParams.MATCH_PARENT
 			)
 			setBackgroundColor(Color.parseColor("#111827"))
 		}
+		mainContainerRef = mainContainer
 
 		val scrollView = ScrollView(requireContext()).apply {
 			layoutParams = FrameLayout.LayoutParams(
@@ -118,8 +158,6 @@ class MediaDetailsFragment : Fragment() {
 			isFocusable = true
 			isFocusableInTouchMode = true
 			isScrollbarFadingEnabled = false
-			nextFocusLeftId = sidebarId
-			setPadding(0, 80.dp(context), 0, 0)
 			clipToPadding = false
 		}
 
@@ -134,37 +172,150 @@ class MediaDetailsFragment : Fragment() {
 		scrollView.addView(rootLayout)
 		rootLayout.addView(createBackdropWithHeaderSection())
 		
+		scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+			setTopToolbarVisible(scrollY < 100)
+		}
+		
 		mainContainer.addView(scrollView)
 		
-		val sidebarContainer = FrameLayout(requireContext()).apply {
-			layoutParams = FrameLayout.LayoutParams(
-				FrameLayout.LayoutParams.WRAP_CONTENT,
-				FrameLayout.LayoutParams.MATCH_PARENT
-			).apply {
-				gravity = Gravity.START
-			}
-			elevation = 8f * resources.displayMetrics.density
-		}
-		
-		val sidebarOverlay = ComposeView(requireContext()).apply {
-			id = sidebarId
-			layoutParams = FrameLayout.LayoutParams(
-				FrameLayout.LayoutParams.WRAP_CONTENT,
-				FrameLayout.LayoutParams.MATCH_PARENT
-			)
-			setContent {
-				NavigationOverlay(
-					activeButton = MainToolbarActiveButton.Jellyseerr
-				)
-			}
-		}
-		toolbarContainer = sidebarOverlay
-		sidebarContainer.addView(sidebarOverlay)
-		mainContainer.addView(sidebarContainer)
+		setupNavbar()
 		
 		return mainContainer
 	}
-	
+
+	private fun setupNavbar() {
+		val container = mainContainerRef ?: return
+
+		navbarContainerView?.let { container.removeView(it) }
+		navbarContainerView = null
+		topToolbarOverlayView = null
+
+		val navbarPosition = userPreferences[UserPreferences.navbarPosition]
+
+		when (navbarPosition) {
+			NavbarPosition.LEFT -> {
+				val sidebarContainer = FrameLayout(requireContext()).apply {
+					layoutParams = FrameLayout.LayoutParams(
+						FrameLayout.LayoutParams.WRAP_CONTENT,
+						FrameLayout.LayoutParams.MATCH_PARENT
+					).apply {
+						gravity = Gravity.START
+					}
+					elevation = 8f * resources.displayMetrics.density
+				}
+				
+				val sidebarOverlay = ComposeView(requireContext()).apply {
+					id = sidebarId
+					layoutParams = FrameLayout.LayoutParams(
+						FrameLayout.LayoutParams.WRAP_CONTENT,
+						FrameLayout.LayoutParams.MATCH_PARENT
+					)
+					setContent {
+						LeftSidebarNavigation(
+							activeButton = NavbarActiveButton.Jellyseerr
+						)
+					}
+				}
+				toolbarContainer = sidebarOverlay
+				sidebarContainer.addView(sidebarOverlay)
+				navbarContainerView = sidebarContainer
+				container.addView(sidebarContainer)
+			}
+			NavbarPosition.TOP -> {
+				val topToolbarContainer = FrameLayout(requireContext()).apply {
+					layoutParams = FrameLayout.LayoutParams(
+						FrameLayout.LayoutParams.MATCH_PARENT,
+						FrameLayout.LayoutParams.WRAP_CONTENT
+					).apply {
+						gravity = Gravity.TOP
+					}
+					elevation = 8f * resources.displayMetrics.density
+				}
+				
+				val topToolbarOverlay = ComposeView(requireContext()).apply {
+					id = sidebarId
+					layoutParams = FrameLayout.LayoutParams(
+						FrameLayout.LayoutParams.MATCH_PARENT,
+						FrameLayout.LayoutParams.WRAP_CONTENT
+					)
+					setContent {
+						Navbar(
+							activeButton = NavbarActiveButton.Jellyseerr
+						)
+					}
+				}
+				toolbarContainer = topToolbarOverlay
+				topToolbarOverlayView = topToolbarContainer
+				topToolbarContainer.addView(topToolbarOverlay)
+				navbarContainerView = topToolbarContainer
+				container.addView(topToolbarContainer)
+			}
+		}
+	}
+
+	private fun setTopToolbarVisible(visible: Boolean) {
+		val toolbar = topToolbarOverlayView ?: return
+		if (visible) {
+			toolbar.animate().cancel()
+			toolbar.visibility = View.VISIBLE
+			toolbar.animate()
+				.alpha(1f)
+				.translationY(0f)
+				.setDuration(200)
+				.start()
+		} else {
+			toolbar.animate().cancel()
+			toolbar.animate()
+				.alpha(0f)
+				.translationY(-toolbar.height.toFloat())
+				.setDuration(200)
+				.withEndAction { toolbar.visibility = View.GONE }
+				.start()
+		}
+	}
+
+	/**
+	 * Check if a focused view is at the left edge of its scrollable parent.
+	 * For views inside a HorizontalScrollView at scrollX == 0 and first child position,
+	 * or for views that are the first focusable child in their row.
+	 */
+	private fun isAtLeftEdge(view: View): Boolean {
+		val hsv = findParentOfType<android.widget.HorizontalScrollView>(view)
+		if (hsv != null) {
+			if (hsv.scrollX != 0) return false
+			val rowContainer = hsv.getChildAt(0) as? ViewGroup ?: return true
+			val firstChild = rowContainer.getChildAt(0) ?: return true
+			return view === firstChild || isDescendantOf(view, firstChild)
+		}
+		// For non-scrolling containers (e.g. button row), check if this is the leftmost focusable
+		val parent = view.parent as? ViewGroup ?: return true
+		for (i in 0 until parent.childCount) {
+			val child = parent.getChildAt(i)
+			if (child.isFocusable) {
+				return child === view
+			}
+		}
+		return true
+	}
+
+	private fun isDescendantOf(view: View, ancestor: View): Boolean {
+		var current: android.view.ViewParent? = view.parent
+		while (current != null) {
+			if (current === ancestor) return true
+			current = current.parent
+		}
+		return false
+	}
+
+	private inline fun <reified T : View> findParentOfType(view: View): T? {
+		var current = view.parent
+		while (current != null) {
+			if (current is T) return current
+			current = current.parent
+		}
+		return null
+	}
+
 	private fun createBackdropWithHeaderSection(): View {
 		val container = FrameLayout(requireContext()).apply {
 			layoutParams = LinearLayout.LayoutParams(
@@ -235,6 +386,8 @@ class MediaDetailsFragment : Fragment() {
 			}
 			setBackgroundColor(Color.parseColor("#111827"))
 			setPadding(50.dp(context), 0, 50.dp(context), 0)
+			clipChildren = false
+			clipToPadding = false
 		}
 		contentWrapper.addView(createOverviewSection())
 		contentWrapper.addView(createCastSection())
@@ -304,6 +457,12 @@ class MediaDetailsFragment : Fragment() {
 
 	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 		super.onViewCreated(view, savedInstanceState)
+
+		settingsViewModel.settingsClosedCounter
+			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
+			.onEach { setupNavbar() }
+			.launchIn(lifecycleScope)
+
 		loadFullDetails()
 		
 		// Focus will be handled automatically by the first focusable element
@@ -596,42 +755,24 @@ class MediaDetailsFragment : Fragment() {
 	}
 
 	private fun createActionButtonsSection(): View {
-		val container = LinearLayout(requireContext()).apply {
-			orientation = LinearLayout.HORIZONTAL
-			gravity = android.view.Gravity.START
-			layoutParams = LinearLayout.LayoutParams(
-				LinearLayout.LayoutParams.MATCH_PARENT,
-				LinearLayout.LayoutParams.WRAP_CONTENT
-			).apply {
-				topMargin = 24.dp(context)
-			}
-		}
-
-		val buttonTopMargin = 0
-
 		// Check request status
-		// Get mediaInfo from full details if available, otherwise from selectedItem
 		val mediaInfo = movieDetails?.mediaInfo ?: tvDetails?.mediaInfo ?: selectedItem?.mediaInfo
 		val hdStatus = mediaInfo?.status
 		val status4k = mediaInfo?.status4k
-		
+
 		// Check for declined requests
 		val requests = mediaInfo?.requests
 		val hdDeclined = requests?.any { !it.is4k && it.status == 3 } == true
 		val fourKDeclined = requests?.any { it.is4k && it.status == 3 } == true
-		
+
 		// Determine if HD/4K are requestable
-		// Blocked if: pending (2), processing (3), available (5), blacklisted (6), or declined
-		// Requestable if: not requested (null/1), or partially available (4)
 		val isHdBlocked = (hdStatus != null && hdStatus >= 2 && hdStatus != 4) || hdDeclined
 		val is4kBlocked = (status4k != null && status4k >= 2 && status4k != 4) || fourKDeclined
-		
-		// Determine button state and label
+
 		val canRequestHd = !isHdBlocked
 		val canRequest4k = !is4kBlocked
 		val canRequestAny = canRequestHd || canRequest4k
-		
-		// Determine the button label based on status
+
 		val requestLabel = when {
 			!canRequestAny -> getStatusLabel(hdStatus, status4k, hdDeclined, fourKDeclined)
 			hdStatus == 4 && status4k == 4 -> "Request More"
@@ -640,93 +781,61 @@ class MediaDetailsFragment : Fragment() {
 			else -> "Request"
 		}
 
-		// Single Request button
-		requestButton = TextUnderButton(requireContext()).apply {
-			setLabel(requestLabel)
-			setIcon(R.drawable.ic_select_quality)
-			isEnabled = canRequestAny
-			isFocusable = canRequestAny
-			isFocusableInTouchMode = canRequestAny
-			alpha = if (canRequestAny) 1.0f else 0.5f
-			setOnClickListener {
-				if (canRequestAny) {
-					handleRequestClick(canRequestHd, canRequest4k, hdStatus, status4k)
-				}
-			}
-			id = View.generateViewId()
-			nextFocusLeftId = sidebarId
-			layoutParams = LinearLayout.LayoutParams(
-				LinearLayout.LayoutParams.WRAP_CONTENT,
-				LinearLayout.LayoutParams.WRAP_CONTENT
-			).apply {
-				marginEnd = 8.dp(context)
-				topMargin = buttonTopMargin
-			}
-		}
-		container.addView(requestButton)
-
-		// Cancel Request button - show if there are pending (status=1) requests
 		val pendingRequests = requests?.filter { it.status == JellyseerrRequestDto.STATUS_PENDING } ?: emptyList()
-		if (pendingRequests.isNotEmpty()) {
-			cancelRequestButton = TextUnderButton(requireContext()).apply {
-				setLabel("Cancel Request")
-				setIcon(R.drawable.ic_delete)
-				setOnClickListener {
-					showCancelRequestDialog(pendingRequests)
-				}
-				id = View.generateViewId()
-				nextFocusLeftId = sidebarId
-				layoutParams = LinearLayout.LayoutParams(
-					LinearLayout.LayoutParams.WRAP_CONTENT,
-					LinearLayout.LayoutParams.WRAP_CONTENT
-				).apply {
-					marginEnd = 8.dp(context)
-					topMargin = buttonTopMargin
-				}
-			}
-			container.addView(cancelRequestButton)
-		}
+		val showPlayButton = hdStatus == 5 || hdStatus == 4
 
-		// Watch Trailer button
-		trailerButton = TextUnderButton(requireContext()).apply {
-			setLabel("Watch Trailer")
-			setIcon(R.drawable.ic_trailer)
-			setOnClickListener {
-				playTrailer()
-			}
+		val composeView = ComposeView(requireContext()).apply {
 			id = View.generateViewId()
-			nextFocusLeftId = sidebarId
 			layoutParams = LinearLayout.LayoutParams(
-				LinearLayout.LayoutParams.WRAP_CONTENT,
+				LinearLayout.LayoutParams.MATCH_PARENT,
 				LinearLayout.LayoutParams.WRAP_CONTENT
 			).apply {
-				marginEnd = 8.dp(context)
-				topMargin = buttonTopMargin
+				topMargin = 24.dp(context)
+			}
+			setContent {
+				JellyfinTheme {
+					Row(
+						horizontalArrangement = Arrangement.spacedBy(12.dp),
+					) {
+						DetailActionButton(
+							label = requestLabel,
+							icon = ImageVector.vectorResource(R.drawable.ic_select_quality),
+							onClick = {
+								if (canRequestAny) {
+									handleRequestClick(canRequestHd, canRequest4k, hdStatus, status4k)
+								}
+							},
+							modifier = if (!canRequestAny) Modifier.alpha(0.5f) else Modifier,
+						)
+
+						if (pendingRequests.isNotEmpty()) {
+							DetailActionButton(
+								label = "Cancel",
+								icon = ImageVector.vectorResource(R.drawable.ic_delete),
+								onClick = { showCancelRequestDialog(pendingRequests) },
+							)
+						}
+
+						DetailActionButton(
+							label = "Trailer",
+							icon = ImageVector.vectorResource(R.drawable.ic_trailer),
+							onClick = { playTrailer() },
+						)
+
+						if (showPlayButton) {
+							DetailActionButton(
+								label = "Play",
+								icon = ImageVector.vectorResource(R.drawable.ic_play),
+								onClick = { playInMoonfin() },
+							)
+						}
+					}
+				}
 			}
 		}
-		container.addView(trailerButton)
-		
-		// Play in Moonfin button (only show if available in library)
-		if (hdStatus == 5 || hdStatus == 4) {
-			playInMoonfinButton = TextUnderButton(requireContext()).apply {
-				setLabel("Play in Moonfin")
-				setIcon(R.drawable.ic_play)
-				setOnClickListener {
-					playInMoonfin()
-				}
-				id = View.generateViewId()
-				nextFocusLeftId = sidebarId
-				layoutParams = LinearLayout.LayoutParams(
-					LinearLayout.LayoutParams.WRAP_CONTENT,
-					LinearLayout.LayoutParams.WRAP_CONTENT
-				).apply {
-					topMargin = buttonTopMargin
-				}
-			}
-			container.addView(playInMoonfinButton)
-		}
-		
-		return container
+
+		requestButton = composeView
+		return composeView
 	}
 	
 	/**
@@ -883,10 +992,10 @@ class MediaDetailsFragment : Fragment() {
 		}
 		overviewTextGroup.addView(overviewHeading)
 
-		// Overview text
 		val overview = movieDetails?.overview ?: tvDetails?.overview ?: selectedItem?.overview
 		val overviewText = TextView(requireContext()).apply {
-			text = overview?.ifEmpty { "Overview unavailable." } ?: "Overview unavailable."
+			val htmlText = overview?.toHtmlSpanned()
+			text = if (htmlText?.isNotEmpty() == true) htmlText else "Overview unavailable."
 			textSize = 14f
 			setTextColor(Color.parseColor("#9CA3AF")) // gray-400
 			layoutParams = LinearLayout.LayoutParams(
@@ -921,7 +1030,7 @@ class MediaDetailsFragment : Fragment() {
 				320.dp(context), // w-80 = 20rem = 320px
 				LinearLayout.LayoutParams.WRAP_CONTENT
 			).apply {
-				topMargin = (100.dp(context) * 0.05).toInt() // Lower by 5%
+				topMargin = (100.dp(context) * 0.33).toInt()
 			}
 			setBackgroundColor(Color.TRANSPARENT) // Transparent background
 			setPadding(0, 0, 0, 0)
@@ -1091,9 +1200,11 @@ class MediaDetailsFragment : Fragment() {
 				LinearLayout.LayoutParams.MATCH_PARENT,
 				LinearLayout.LayoutParams.WRAP_CONTENT
 			).apply {
-				topMargin = (-24.dp(context) * 0.7).toInt() // Raised by 30% (from 0.4 to 0.7)
+				topMargin = (-24.dp(context) * 0.7).toInt()
 			}
 			setPadding(24.dp(context), 0, 24.dp(context), 24.dp(context))
+			clipChildren = false
+			clipToPadding = false
 			id = View.generateViewId()
 		}
 		
@@ -1133,11 +1244,30 @@ class MediaDetailsFragment : Fragment() {
 					LinearLayout.LayoutParams.WRAP_CONTENT,
 					LinearLayout.LayoutParams.WRAP_CONTENT
 				)
+				clipChildren = false
+				clipToPadding = false
 			}
 			
+			val castPresenter = CardPresenter(true, 130)
 			castList.forEach { cast ->
-				val castCard = createCastCard(cast.id, cast.name ?: "Unknown", cast.character ?: "Unknown", cast.profilePath)
-				castRow.addView(castCard)
+				val rowItem = JellyseerrPersonBaseRowItem(cast)
+				val vh = castPresenter.onCreateViewHolder(castRow)
+				castPresenter.onBindViewHolder(vh, rowItem)
+				vh.view.apply {
+					setOnClickListener {
+						navigationRepository.navigate(Destinations.jellyseerrPersonDetails(cast.id))
+					}
+					val lp = layoutParams as? ViewGroup.MarginLayoutParams
+					if (lp != null) {
+						lp.marginEnd = 12.dp(context)
+					} else {
+						layoutParams = LinearLayout.LayoutParams(
+							LinearLayout.LayoutParams.WRAP_CONTENT,
+							LinearLayout.LayoutParams.WRAP_CONTENT
+						).apply { marginEnd = 12.dp(context) }
+					}
+				}
+				castRow.addView(vh.view)
 			}
 			
 			horizontalScrollView.addView(castRow)
@@ -1148,7 +1278,7 @@ class MediaDetailsFragment : Fragment() {
 			val noCast = TextView(requireContext()).apply {
 				text = "Cast information not available"
 				textSize = 14f
-				setTextColor(Color.parseColor("#9CA3AF")) // gray-400
+				setTextColor(Color.parseColor("#9CA3AF"))
 				layoutParams = LinearLayout.LayoutParams(
 					LinearLayout.LayoutParams.MATCH_PARENT,
 					LinearLayout.LayoutParams.WRAP_CONTENT
@@ -1160,278 +1290,180 @@ class MediaDetailsFragment : Fragment() {
 		return container
 	}
 	
-	private fun createCastCard(personId: Int, name: String, character: String, profilePath: String?): View {
-		val cardWidth = 130.dp(requireContext())
-		val imageSize = 100.dp(requireContext())
-		
-		val card = LinearLayout(requireContext()).apply {
+	/**
+	 * Creates a paginated horizontal card row. Loads page 1 immediately,
+	 * then fetches subsequent pages when focus reaches the last 2 cards.
+	 */
+	private fun createPaginatedCardRow(
+		headingText: String,
+		emptyText: String,
+		maxPages: Int = 3,
+		fetchPage: suspend (page: Int) -> List<JellyseerrDiscoverItemDto>,
+	): View {
+		val container = LinearLayout(requireContext()).apply {
 			orientation = LinearLayout.VERTICAL
-			layoutParams = LinearLayout.LayoutParams(cardWidth, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-				rightMargin = 12.dp(context)
-			}
-			gravity = Gravity.CENTER_HORIZONTAL
-			isFocusable = true
-			isFocusableInTouchMode = true
-			nextFocusLeftId = sidebarId
-			setPadding(8.dp(context), 8.dp(context), 8.dp(context), 8.dp(context))
-			
-			setOnFocusChangeListener { view, hasFocus ->
-				if (hasFocus) {
-					view.scaleX = 1.1f
-					view.scaleY = 1.1f
-					view.setBackgroundColor(Color.parseColor("#374151")) // gray-700
-				} else {
-					view.scaleX = 1.0f
-					view.scaleY = 1.0f
-					view.setBackgroundColor(Color.TRANSPARENT)
-				}
-			}
-
-		setOnClickListener {
-			// Navigate to person details
-			navigationRepository.navigate(Destinations.jellyseerrPersonDetails(personId))
-		}
-	}
-
-	val imageContainer = FrameLayout(requireContext()).apply {
-			layoutParams = LinearLayout.LayoutParams(imageSize, imageSize).apply {
-				gravity = Gravity.CENTER_HORIZONTAL
-				bottomMargin = 8.dp(context)
-			}
-		}
-		
-		val profileImage = ImageView(requireContext()).apply {
-			layoutParams = FrameLayout.LayoutParams(imageSize, imageSize)
-			scaleType = ImageView.ScaleType.CENTER_CROP
-			setBackgroundColor(Color.parseColor("#1F2937"))
-			
-			clipToOutline = true
-			outlineProvider = object : ViewOutlineProvider() {
-				override fun getOutline(view: View, outline: Outline) {
-					outline.setOval(0, 0, view.width, view.height)
-				}
-			}
-		}
-		
-		if (!profilePath.isNullOrEmpty()) {
-			val imageUrl = "https://image.tmdb.org/t/p/w185$profilePath"
-			profileImage.load(imageUrl)
-		}
-		
-		imageContainer.addView(profileImage)
-		card.addView(imageContainer)
-		
-		val nameText = TextView(requireContext()).apply {
-			text = name
-			textSize = 14f
-			setTextColor(Color.WHITE)
-			maxLines = 2
-			gravity = Gravity.CENTER
 			layoutParams = LinearLayout.LayoutParams(
 				LinearLayout.LayoutParams.MATCH_PARENT,
 				LinearLayout.LayoutParams.WRAP_CONTENT
 			).apply {
-				bottomMargin = 4.dp(context)
+				topMargin = 32.dp(context)
+			}
+			clipChildren = false
+			clipToPadding = false
+		}
+
+		val heading = TextView(requireContext()).apply {
+			text = headingText
+			textSize = 22f
+			setTextColor(Color.WHITE)
+			setTypeface(typeface, android.graphics.Typeface.BOLD)
+			layoutParams = LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT,
+				LinearLayout.LayoutParams.WRAP_CONTENT
+			).apply {
+				bottomMargin = 16.dp(context)
 			}
 		}
-		card.addView(nameText)
-		
-		val characterText = TextView(requireContext()).apply {
-			text = character
-			textSize = 12f
-			setTextColor(Color.parseColor("#9CA3AF")) // gray-400
-			maxLines = 2
-			gravity = Gravity.CENTER
+		container.addView(heading)
+
+		val scrollView = android.widget.HorizontalScrollView(requireContext()).apply {
 			layoutParams = LinearLayout.LayoutParams(
 				LinearLayout.LayoutParams.MATCH_PARENT,
 				LinearLayout.LayoutParams.WRAP_CONTENT
 			)
+			isHorizontalScrollBarEnabled = false
+			setPadding(12.dp(context), 0, 0, 0)
+			clipChildren = false
+			clipToPadding = false
 		}
-		card.addView(characterText)
-		
-		return card
+
+		val row = LinearLayout(requireContext()).apply {
+			orientation = LinearLayout.HORIZONTAL
+			layoutParams = LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.WRAP_CONTENT,
+				LinearLayout.LayoutParams.WRAP_CONTENT
+			)
+			clipChildren = false
+			clipToPadding = false
+		}
+		scrollView.addView(row)
+		container.addView(scrollView)
+
+		var currentPage = 0
+		var isLoadingMore = false
+		var allPagesLoaded = false
+		val posterPresenter = CardPresenter()
+
+		fun addCards(items: List<JellyseerrDiscoverItemDto>) {
+			items.forEach { item ->
+				val rowItem = JellyseerrMediaBaseRowItem(item)
+				val vh = posterPresenter.onCreateViewHolder(row)
+				posterPresenter.onBindViewHolder(vh, rowItem)
+				vh.view.apply {
+					setOnClickListener {
+						val itemJson = Json.encodeToString(JellyseerrDiscoverItemDto.serializer(), item)
+						navigationRepository.navigate(Destinations.jellyseerrMediaDetails(itemJson))
+					}
+					val lp = layoutParams as? ViewGroup.MarginLayoutParams
+					if (lp != null) {
+						lp.marginEnd = 12.dp(context)
+					} else {
+						layoutParams = LinearLayout.LayoutParams(
+							LinearLayout.LayoutParams.WRAP_CONTENT,
+							LinearLayout.LayoutParams.WRAP_CONTENT
+						).apply { marginEnd = 12.dp(context) }
+					}
+				}
+				row.addView(vh.view)
+			}
+			// Attach focus listener on last 2 cards to trigger next page load
+			if (!allPagesLoaded) {
+				val childCount = row.childCount
+				for (i in maxOf(0, childCount - 2) until childCount) {
+					row.getChildAt(i)?.setOnFocusChangeListener { _, hasFocus ->
+						if (hasFocus && !isLoadingMore && !allPagesLoaded) {
+							isLoadingMore = true
+							lifecycleScope.launch {
+								try {
+									val nextPage = currentPage + 1
+									if (nextPage > maxPages) {
+										allPagesLoaded = true
+										isLoadingMore = false
+										return@launch
+									}
+									val newItems = fetchPage(nextPage)
+									if (newItems.isEmpty()) {
+										allPagesLoaded = true
+									} else {
+										currentPage = nextPage
+										addCards(newItems)
+									}
+								} catch (e: Exception) {
+									Timber.e(e, "Failed to load page for $headingText")
+								} finally {
+									isLoadingMore = false
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Load page 1
+		lifecycleScope.launch {
+			try {
+				val firstPage = fetchPage(1)
+				if (firstPage.isNotEmpty()) {
+					currentPage = 1
+					addCards(firstPage)
+				} else {
+					scrollView.isVisible = false
+					container.addView(TextView(requireContext()).apply {
+						text = emptyText
+						textSize = 14f
+						setTextColor(Color.parseColor("#9CA3AF"))
+						layoutParams = LinearLayout.LayoutParams(
+							LinearLayout.LayoutParams.MATCH_PARENT,
+							LinearLayout.LayoutParams.WRAP_CONTENT
+						)
+					})
+				}
+			} catch (e: Exception) {
+				Timber.e(e, "Failed to load first page for $headingText")
+			}
+		}
+
+		return container
 	}
 
 	private fun createRecommendationsSection(): View {
-		val container = LinearLayout(requireContext()).apply {
-			orientation = LinearLayout.VERTICAL
-			layoutParams = LinearLayout.LayoutParams(
-				LinearLayout.LayoutParams.MATCH_PARENT,
-				LinearLayout.LayoutParams.WRAP_CONTENT
-			).apply {
-				topMargin = 32.dp(context)
+		return createPaginatedCardRow(
+			headingText = "Recommendations",
+			emptyText = "No recommendations found",
+		) { page ->
+			val result = when {
+				movieDetails != null -> viewModel.getRecommendationsMovies(selectedItem!!.id, page)
+				tvDetails != null -> viewModel.getRecommendationsTv(selectedItem!!.id, page)
+				else -> null
 			}
+			result?.getOrNull()?.results ?: emptyList()
 		}
-
-		val recommendationsHeading = TextView(requireContext()).apply {
-			text = "Recommendations"
-			textSize = 22f
-			setTextColor(Color.WHITE)
-			setTypeface(typeface, android.graphics.Typeface.BOLD)
-			layoutParams = LinearLayout.LayoutParams(
-				LinearLayout.LayoutParams.MATCH_PARENT,
-				LinearLayout.LayoutParams.WRAP_CONTENT
-			).apply {
-				bottomMargin = 16.dp(context)
-			}
-		}
-		container.addView(recommendationsHeading)
-
-		// Load recommendations content
-		lifecycleScope.launch {
-			try {
-				// Load first 3 pages to get ~60 items (after filtering)
-				val allRecommendations = mutableListOf<JellyseerrDiscoverItemDto>()
-				for (page in 1..3) {
-					val recommendationsResult = when {
-						movieDetails != null -> viewModel.getRecommendationsMovies(selectedItem!!.id, page)
-						tvDetails != null -> viewModel.getRecommendationsTv(selectedItem!!.id, page)
-						else -> null
-					}
-					recommendationsResult?.getOrNull()?.let { pageResult ->
-						allRecommendations.addAll(pageResult.results ?: emptyList())
-					}
-				}
-
-				val recommendationsList = allRecommendations.take(ITEMS_PER_SECTION)
-
-				if (recommendationsList.isNotEmpty()) {
-					val scrollView = android.widget.HorizontalScrollView(requireContext()).apply {
-						layoutParams = LinearLayout.LayoutParams(
-							LinearLayout.LayoutParams.MATCH_PARENT,
-							LinearLayout.LayoutParams.WRAP_CONTENT
-						)
-						isHorizontalScrollBarEnabled = false
-						setPadding(12.dp(context), 0, 0, 0)
-					}
-
-					val recommendationsRow = LinearLayout(requireContext()).apply {
-						orientation = LinearLayout.HORIZONTAL
-						layoutParams = LinearLayout.LayoutParams(
-							LinearLayout.LayoutParams.WRAP_CONTENT,
-							LinearLayout.LayoutParams.WRAP_CONTENT
-						)
-					}
-
-					recommendationsList.forEach { item ->
-						val posterCard = createPosterCard(item)
-						recommendationsRow.addView(posterCard)
-					}
-
-					scrollView.addView(recommendationsRow)
-					container.addView(scrollView)
-				} else {
-					val noRecommendations = TextView(requireContext()).apply {
-						text = "No recommendations found"
-						textSize = 14f
-						setTextColor(Color.parseColor("#9CA3AF"))
-						layoutParams = LinearLayout.LayoutParams(
-							LinearLayout.LayoutParams.MATCH_PARENT,
-							LinearLayout.LayoutParams.WRAP_CONTENT
-						)
-					}
-					container.addView(noRecommendations)
-				}
-			} catch (e: Exception) {
-				Timber.e(e, "Failed to load recommendations")
-			}
-		}
-
-		return container
 	}
 
 	private fun createSimilarSection(): View {
-		val container = LinearLayout(requireContext()).apply {
-			orientation = LinearLayout.VERTICAL
-			layoutParams = LinearLayout.LayoutParams(
-				LinearLayout.LayoutParams.MATCH_PARENT,
-				LinearLayout.LayoutParams.WRAP_CONTENT
-			).apply {
-				topMargin = 32.dp(context)
+		val similarTitle = if (tvDetails != null) "Similar Series" else "Similar Titles"
+		return createPaginatedCardRow(
+			headingText = similarTitle,
+			emptyText = "No similar titles found",
+		) { page ->
+			val result = when {
+				movieDetails != null -> viewModel.getSimilarMovies(selectedItem!!.id, page)
+				tvDetails != null -> viewModel.getSimilarTv(selectedItem!!.id, page)
+				else -> null
 			}
+			result?.getOrNull()?.results ?: emptyList()
 		}
-
-		// Dynamic title based on media type
-		val similarTitle = when {
-			tvDetails != null -> "Similar Series"
-			else -> "Similar Titles"
-		}
-
-		val similarHeading = TextView(requireContext()).apply {
-			text = similarTitle
-			textSize = 22f
-			setTextColor(Color.WHITE)
-			setTypeface(typeface, android.graphics.Typeface.BOLD)
-			layoutParams = LinearLayout.LayoutParams(
-				LinearLayout.LayoutParams.MATCH_PARENT,
-				LinearLayout.LayoutParams.WRAP_CONTENT
-			).apply {
-				bottomMargin = 16.dp(context)
-			}
-		}
-		container.addView(similarHeading)
-
-		// Load similar content
-		lifecycleScope.launch {
-			try {
-				// Load first 3 pages to get ~60 items (after filtering)
-				val allSimilar = mutableListOf<JellyseerrDiscoverItemDto>()
-				for (page in 1..3) {
-					val similarResult = when {
-						movieDetails != null -> viewModel.getSimilarMovies(selectedItem!!.id, page)
-						tvDetails != null -> viewModel.getSimilarTv(selectedItem!!.id, page)
-						else -> null
-					}
-					similarResult?.getOrNull()?.let { pageResult ->
-						allSimilar.addAll(pageResult.results ?: emptyList())
-					}
-				}
-
-				val similarList = allSimilar.take(ITEMS_PER_SECTION)
-
-				if (similarList.isNotEmpty()) {
-					val scrollView = android.widget.HorizontalScrollView(requireContext()).apply {
-						layoutParams = LinearLayout.LayoutParams(
-							LinearLayout.LayoutParams.MATCH_PARENT,
-							LinearLayout.LayoutParams.WRAP_CONTENT
-						)
-						isHorizontalScrollBarEnabled = false
-						setPadding(12.dp(context), 0, 0, 0)
-					}
-
-					val similarRow = LinearLayout(requireContext()).apply {
-						orientation = LinearLayout.HORIZONTAL
-						layoutParams = LinearLayout.LayoutParams(
-							LinearLayout.LayoutParams.WRAP_CONTENT,
-							LinearLayout.LayoutParams.WRAP_CONTENT
-						)
-					}
-
-					similarList.forEach { item ->
-						val posterCard = createPosterCard(item)
-						similarRow.addView(posterCard)
-					}
-
-					scrollView.addView(similarRow)
-					container.addView(scrollView)
-				} else {
-					val noSimilar = TextView(requireContext()).apply {
-						text = "No similar titles found"
-						textSize = 14f
-						setTextColor(Color.parseColor("#9CA3AF"))
-						layoutParams = LinearLayout.LayoutParams(
-							LinearLayout.LayoutParams.MATCH_PARENT,
-							LinearLayout.LayoutParams.WRAP_CONTENT
-						)
-					}
-					container.addView(noSimilar)
-				}
-			} catch (e: Exception) {
-				Timber.e(e, "Failed to load similar content")
-			}
-		}
-
-		return container
 	}
 
 	private fun createKeywordsSection(): View {
@@ -1443,6 +1475,8 @@ class MediaDetailsFragment : Fragment() {
 			).apply {
 				topMargin = 32.dp(context)
 			}
+			clipChildren = false
+			clipToPadding = false
 		}
 
 		// Get keywords from movie or TV details
@@ -1479,6 +1513,8 @@ class MediaDetailsFragment : Fragment() {
 				LinearLayout.LayoutParams.WRAP_CONTENT
 			)
 			setPadding(0, 0, 0, 0)
+			clipChildren = false
+			clipToPadding = false
 		}
 
 		// Group keywords into rows - dynamic width wrapping
@@ -1495,6 +1531,8 @@ class MediaDetailsFragment : Fragment() {
 					).apply {
 						bottomMargin = 12.dp(context)
 					}
+					clipChildren = false
+					clipToPadding = false
 				}
 				keywordsContainer.addView(currentRow)
 				itemsInRow = 0
@@ -1527,7 +1565,6 @@ class MediaDetailsFragment : Fragment() {
 				}
 				isFocusable = true
 				isFocusableInTouchMode = true
-				nextFocusLeftId = sidebarId
 
 				setOnClickListener {
 					// Navigate to browse-by with keyword filter
@@ -1567,75 +1604,6 @@ class MediaDetailsFragment : Fragment() {
 
 		container.addView(keywordsContainer)
 		return container
-	}
-
-	private fun createPosterCard(item: JellyseerrDiscoverItemDto): View {
-		val cardWidth = 150.dp(requireContext())
-		val imageHeight = 225.dp(requireContext())
-
-		val card = LinearLayout(requireContext()).apply {
-			orientation = LinearLayout.VERTICAL
-			layoutParams = LinearLayout.LayoutParams(cardWidth, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-				marginEnd = 16.dp(context)
-			}
-			setPadding(0, 0, 0, 16.dp(context))
-			isFocusable = true
-			isFocusableInTouchMode = true
-			nextFocusLeftId = sidebarId
-
-			setOnFocusChangeListener { view, hasFocus ->
-				if (hasFocus) {
-					view.scaleX = 1.05f
-					view.scaleY = 1.05f
-				} else {
-					view.scaleX = 1.0f
-					view.scaleY = 1.0f
-				}
-			}
-
-			setOnClickListener {
-				// Navigate to the details of this similar item
-				val itemJson = Json.encodeToString(JellyseerrDiscoverItemDto.serializer(), item)
-				navigationRepository.navigate(Destinations.jellyseerrMediaDetails(itemJson))
-			}
-		}
-
-		val imageContainer = FrameLayout(requireContext()).apply {
-			layoutParams = LinearLayout.LayoutParams(cardWidth, imageHeight).apply {
-				bottomMargin = 8.dp(context)
-			}
-		}
-
-		val posterImage = ImageView(requireContext()).apply {
-			layoutParams = FrameLayout.LayoutParams(
-				FrameLayout.LayoutParams.MATCH_PARENT,
-				FrameLayout.LayoutParams.MATCH_PARENT
-			)
-			scaleType = ImageView.ScaleType.CENTER_CROP
-			setBackgroundColor(Color.parseColor("#1F2937"))
-
-			item.posterPath?.let { path ->
-				val imageUrl = "https://image.tmdb.org/t/p/w500$path"
-				load(imageUrl)
-			}
-		}
-		imageContainer.addView(posterImage)
-		card.addView(imageContainer)
-
-		val titleText = TextView(requireContext()).apply {
-			text = item.title ?: item.name ?: "Unknown"
-			textSize = 14f
-			setTextColor(Color.WHITE)
-			maxLines = 2
-			ellipsize = android.text.TextUtils.TruncateAt.END
-			layoutParams = LinearLayout.LayoutParams(
-				LinearLayout.LayoutParams.MATCH_PARENT,
-				LinearLayout.LayoutParams.WRAP_CONTENT
-			)
-		}
-		card.addView(titleText)
-
-		return card
 	}
 
 	private fun formatDate(dateString: String): String? {
@@ -1961,32 +1929,36 @@ class MediaDetailsFragment : Fragment() {
 	}
 
 	private fun playTrailer() {
-		val item = selectedItem ?: return
-		
-		// Open YouTube search for the trailer
-		// Format: "[Movie/Show Name] [Year] official trailer"
-		val year = when {
-			item.mediaType == "movie" -> item.releaseDate?.take(4)
-			else -> item.firstAirDate?.take(4)
+		val videos = movieDetails?.relatedVideos ?: tvDetails?.relatedVideos ?: emptyList()
+		val youtubeTrailer = videos
+			.filter { it.site.equals("YouTube", ignoreCase = true) && it.type.equals("Trailer", ignoreCase = true) }
+			.maxByOrNull { it.size ?: 0 }
+			?: videos.firstOrNull { it.site.equals("YouTube", ignoreCase = true) }
+
+		val videoId = youtubeTrailer?.key
+		if (videoId == null) {
+			Toast.makeText(requireContext(), "No trailer available", Toast.LENGTH_SHORT).show()
+			return
 		}
-		val title = item.title ?: item.name ?: "Unknown"
-		val searchQuery = "$title ${year ?: ""} official trailer"
-		
-		try {
-			// Create a generic YouTube search intent without specifying a package
-			// This allows the user to choose their preferred app (YouTube, SmartTube, etc.)
-			val youtubeSearchUrl = "https://www.youtube.com/results?search_query=${android.net.Uri.encode(searchQuery)}"
-			val intent = android.content.Intent(
-				android.content.Intent.ACTION_VIEW,
-				android.net.Uri.parse(youtubeSearchUrl)
-			)
-			
-			// Show app chooser to allow user to select their preferred app
-			val chooser = android.content.Intent.createChooser(intent, "Play Trailer")
-			startActivity(chooser)
-		} catch (e: Exception) {
-			Timber.e(e, "Error opening trailer")
-			Toast.makeText(requireContext(), "Unable to open trailer", Toast.LENGTH_SHORT).show()
+
+		lifecycleScope.launch {
+			try {
+				val segments = withContext(Dispatchers.IO) {
+					SponsorBlockApi.getSkipSegments(videoId)
+				}
+				val startSeconds = SponsorBlockApi.calculateStartTime(segments)
+				val segmentsJson = segments.joinToString(",", "[", "]") { seg ->
+					"""{"start":${seg.startTime},"end":${seg.endTime},"category":"${seg.category}","action":"${seg.actionType}"}"""
+				}
+				navigationRepository.navigate(Destinations.trailerPlayer(
+					videoId = videoId,
+					startSeconds = startSeconds,
+					segmentsJson = segmentsJson,
+				))
+			} catch (e: Exception) {
+				Timber.w(e, "Failed to play trailer")
+				Toast.makeText(requireContext(), "Unable to play trailer", Toast.LENGTH_SHORT).show()
+			}
 		}
 	}
 	

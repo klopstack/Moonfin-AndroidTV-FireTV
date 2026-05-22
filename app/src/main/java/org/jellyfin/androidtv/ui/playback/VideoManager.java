@@ -11,12 +11,14 @@ import android.net.Uri;
 import android.os.Handler;
 import android.util.TypedValue;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
 import androidx.core.graphics.TypefaceCompat;
+import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
@@ -131,6 +133,8 @@ public class VideoManager {
         // Create our own custom SubtitleView that we can control independently
         mCustomSubtitleView = new SubtitleView(activity);
         mCustomSubtitleView.setFixedTextSize(TypedValue.COMPLEX_UNIT_DIP, userPreferences.get(UserPreferences.Companion.getSubtitlesTextSize()));
+        mCustomSubtitleView.setApplyEmbeddedFontSizes(false);
+        mCustomSubtitleView.setApplyEmbeddedStyles(true);
         mCustomSubtitleView.setBottomPaddingFraction(userPreferences.get(UserPreferences.Companion.getSubtitlesOffsetPosition()));
         mCustomSubtitleView.setStyle(subtitleStyle);
         
@@ -146,45 +150,45 @@ public class VideoManager {
         mSubtitleDelayHandler = new SubtitleDelayHandler(mCustomSubtitleView);
         mExoPlayer.addListener(mSubtitleDelayHandler);
 
-        // Subtitle position and size patch for wide aspect ratio videos (PR #4816)
+        // Expand subtitle view to fill screen for wide aspect ratio videos
         mExoPlayer.addListener(new Player.Listener() {
-            /**
-             * This Listener will await VideoSize info in order to override SubtitleView
-             * layout parameters in case it is a widescreen video. It will fill the entire
-             * screen instead of just the video view.
-             * @param videoSize The new size of the video.
-             */
             @Override
             public void onVideoSizeChanged(@NonNull VideoSize videoSize) {
                 if (videoSize.height == 0 || videoSize.width == 0)
                     return;
-                // Use our custom subtitle view instead of PlayerView's
                 SubtitleView subtitleView = mCustomSubtitleView;
                 int videoHeight = videoSize.height;
                 int videoWidth = videoSize.width;
                 float aspectRatio = (float) videoWidth / videoHeight;
-                // We're changing wide aspect ratio video subtitle to match others, so return if lower AR
                 if (aspectRatio < 1.78f)
                     return;
-                // In case movie is not 1080p, transform videoHeight in its 1080p equivalent
-                // because display dimensions are 1080p conformant
+                // Normalize to display-conformant 1080p equivalent
                 if (videoHeight != mExoPlayerView.getHeight())
                     videoHeight = (int) (mExoPlayerView.getWidth() / aspectRatio);
                 FrameLayout.LayoutParams subslp = (FrameLayout.LayoutParams) subtitleView.getLayoutParams();
                 int verticalMargins = mExoPlayerView.getHeight() - videoHeight;
                 subslp.height = mExoPlayerView.getHeight();
-                // Elevate SubtitleView by 1 vertical margin, otherwise it will start drawing below the top of the screen
                 subslp.topMargin = verticalMargins / (-2);
-                // Store new params and make the subs view visible despite being outside parent
                 subtitleView.setLayoutParams(subslp);
+                // Disable clipping on all ancestors so subtitles render outside player bounds
                 mExoPlayerView.setClipChildren(false);
+                ViewGroup ancestor = (ViewGroup) mExoPlayerView.getParent();
+                while (ancestor != null) {
+                    ancestor.setClipChildren(false);
+                    ancestor.setClipToPadding(false);
+                    ancestor = ancestor.getParent() instanceof ViewGroup
+                            ? (ViewGroup) ancestor.getParent() : null;
+                }
             }
         });
 
         mExoPlayer.addListener(new Player.Listener() {
             @Override
             public void onPlayerError(@NonNull PlaybackException error) {
-                Timber.e("***** Got error from player");
+                Timber.e(error, "***** Player error: code=%d message=%s", error.errorCode, error.getMessage());
+                if (error.getCause() != null) {
+                    Timber.e(error.getCause(), "***** Player error cause");
+                }
                 if (mPlaybackControllerNotifiable != null) mPlaybackControllerNotifiable.onError();
                 stopProgressLoop();
             }
@@ -269,7 +273,8 @@ public class VideoManager {
         // Create audio delay processor
         mAudioDelayProcessor = new AudioDelayProcessor();
         
-        // Create custom renderers factory with audio processor
+        // Create custom renderers factory that appends audio delay processor
+        // to the default processor chain (instead of replacing it)
         DefaultRenderersFactory defaultRendererFactory = new DefaultRenderersFactory(context) {
             @Override
             protected androidx.media3.exoplayer.audio.AudioSink buildAudioSink(
@@ -279,7 +284,11 @@ public class VideoManager {
                 return new androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context)
                         .setEnableFloatOutput(enableFloatOutput)
                         .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                        .setAudioProcessors(new androidx.media3.common.audio.AudioProcessor[]{mAudioDelayProcessor})
+                        .setAudioProcessors(new androidx.media3.common.audio.AudioProcessor[]{
+                                new androidx.media3.common.audio.SonicAudioProcessor(),
+                                new androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor(),
+                                mAudioDelayProcessor
+                        })
                         .build();
             }
         };
@@ -303,6 +312,11 @@ public class VideoManager {
         DefaultDataSource.Factory dataSourceFactory = new DefaultDataSource.Factory(context, exoPlayerHttpDataSourceFactory);
         exoPlayerBuilder.setRenderersFactory(defaultRendererFactory);
         exoPlayerBuilder.setMediaSourceFactory(new DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory));
+
+        exoPlayerBuilder.setAudioAttributes(new AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build(), true);
 
         return exoPlayerBuilder;
     }
@@ -348,6 +362,27 @@ public class VideoManager {
             return bufferedPosition;
         }
         return -1;
+    }
+
+    /**
+     * Seek within the player's buffer without triggering a network request if possible.
+     * ExoPlayer will seek within buffered content instantly if available.
+     * @param pos the position to seek to in ms
+     * @return true if seek was attempted
+     */
+    public boolean seekWithinBuffer(long pos) {
+        if (!isInitialized())
+            return false;
+        
+        long currentPos = mExoPlayer.getCurrentPosition();
+        long bufferedEnd = mExoPlayer.getBufferedPosition();
+        
+        // For HLS/transcoded streams, ExoPlayer maintains a buffer window
+        // If we're seeking backwards within reasonable range, it should use cached data
+        // The buffer start is harder to determine, but ExoPlayer handles this gracefully
+        Timber.i("Attempting seek from %d to %d (buffered up to: %d)", currentPos, pos, bufferedEnd);
+        mExoPlayer.seekTo(pos);
+        return true;
     }
 
     public long getCurrentPosition() {

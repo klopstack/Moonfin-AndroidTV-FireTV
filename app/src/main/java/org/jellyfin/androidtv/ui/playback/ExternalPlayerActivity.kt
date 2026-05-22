@@ -35,6 +35,7 @@ import org.koin.android.ext.android.inject
 import timber.log.Timber
 import java.io.File
 import java.time.Instant
+import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -70,6 +71,10 @@ class ExternalPlayerActivity : FragmentActivity() {
 
 		// The extra keys used by various video players to read the end position
 		private val resultPositionExtras = arrayOf(API_MX_RESULT_POSITION, API_VLC_RESULT_POSITION)
+
+		private const val STATE_ITEM_ID = "state_item_id"
+		private const val STATE_MEDIA_SOURCE_ID = "state_media_source_id"
+		private const val STATE_RUNTIME_TICKS = "state_runtime_ticks"
 	}
 
 	private val videoQueueManager by inject<VideoQueueManager>()
@@ -96,11 +101,35 @@ class ExternalPlayerActivity : FragmentActivity() {
 
 	private var currentItem: Pair<BaseItemDto, MediaSourceInfo>? = null
 
+	private var savedItemId: UUID? = null
+	private var savedMediaSourceId: String? = null
+	private var savedRuntimeTicks: Long? = null
+
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 
+		if (savedInstanceState != null) {
+			savedItemId = savedInstanceState.getString(STATE_ITEM_ID)?.toUUIDOrNull()
+			savedMediaSourceId = savedInstanceState.getString(STATE_MEDIA_SOURCE_ID)
+			savedRuntimeTicks = if (savedInstanceState.containsKey(STATE_RUNTIME_TICKS))
+				savedInstanceState.getLong(STATE_RUNTIME_TICKS) else null
+			Timber.i("Restored external player state: itemId=$savedItemId")
+			return
+		}
+
 		val position = intent.getLongExtra(EXTRA_POSITION, 0).milliseconds
 		playNext(position)
+	}
+
+	override fun onSaveInstanceState(outState: Bundle) {
+		super.onSaveInstanceState(outState)
+
+		val (item, mediaSource) = currentItem ?: return
+		outState.putString(STATE_ITEM_ID, item.id.toString())
+		outState.putString(STATE_MEDIA_SOURCE_ID, mediaSource.id)
+		(mediaSource.runTimeTicks ?: item.runTimeTicks)?.let { ticks ->
+			outState.putLong(STATE_RUNTIME_TICKS, ticks)
+		}
 	}
 
 	private fun playNext(position: Duration = Duration.ZERO) {
@@ -130,24 +159,21 @@ class ExternalPlayerActivity : FragmentActivity() {
 			?.sortedWith(compareBy<MediaStream> { it.isDefault }.thenBy { it.index })
 			.orEmpty()
 
-		val subtitleUrls = externalSubtitles.map { mediaStream ->
-			// We cannot use the DeliveryUrl as that is only populated when using the playback info API, which we skip as we'll always direct
-			// play when using external players. We need to infer the subtitle format based on its path (similar to how the server
-			// calculates it)
+		val subtitleUris = externalSubtitles.map { mediaStream ->
 			val format = mediaStream.path?.substringAfterLast('.', missingDelimiterValue = mediaStream.codec.orEmpty()) ?: "srt"
 			api.subtitleApi.getSubtitleUrl(
 				routeItemId = item.id,
 				routeMediaSourceId = mediaSource.id.toString(),
 				routeIndex = mediaStream.index,
 				routeFormat = format,
-			)
+			).toUri()
 		}.toTypedArray()
 		val subtitleNames = externalSubtitles.map { it.displayTitle ?: it.title.orEmpty() }.toTypedArray()
 		val subtitleLanguages = externalSubtitles.map { it.language.orEmpty() }.toTypedArray()
 
 		Timber.i(
-			"Starting item ${item.id} from $position with ${subtitleUrls.size} external subtitles: $url${
-				subtitleUrls.joinToString(", ", ", ")
+			"Starting item ${item.id} from $position with ${subtitleUris.size} external subtitles: $url${
+				subtitleUris.joinToString(", ", ", ")
 			}"
 		)
 
@@ -171,11 +197,11 @@ class ExternalPlayerActivity : FragmentActivity() {
 			putExtra(API_MX_TITLE, title)
 			putExtra(API_MX_FILENAME, fileName)
 			putExtra(API_MX_SECURE_URI, true)
-			putExtra(API_MX_SUBS, subtitleUrls)
+			putExtra(API_MX_SUBS, subtitleUris)
 			putExtra(API_MX_SUBS_NAME, subtitleNames)
 			putExtra(API_MX_SUBS_FILENAME, subtitleLanguages)
 
-			if (subtitleUrls.isNotEmpty()) putExtra(API_VLC_SUBTITLES, subtitleUrls.first().toString())
+			if (subtitleUris.isNotEmpty()) putExtra(API_VLC_SUBTITLES, subtitleUris.first())
 
 			putExtra(API_VIMU_SEEK_POSITION, position.inWholeMilliseconds.toInt())
 			putExtra(API_VIMU_RESUME, false)
@@ -184,6 +210,9 @@ class ExternalPlayerActivity : FragmentActivity() {
 
 		try {
 			currentItem = item to mediaSource
+			savedItemId = item.id
+			savedMediaSourceId = mediaSource.id
+			savedRuntimeTicks = mediaSource.runTimeTicks ?: item.runTimeTicks
 			playVideoLauncher.launch(playIntent)
 		} catch (_: ActivityNotFoundException) {
 			Toast.makeText(this, R.string.no_player_message, Toast.LENGTH_LONG).show()
@@ -193,13 +222,6 @@ class ExternalPlayerActivity : FragmentActivity() {
 
 
 	private fun onItemFinished(result: Intent?) {
-		if (currentItem == null) {
-			Toast.makeText(this@ExternalPlayerActivity, R.string.video_error_unknown_error, Toast.LENGTH_LONG).show()
-			finish()
-			return
-		}
-
-		val (item, mediaSource) = currentItem!!
 		val extras = result?.extras ?: Bundle.EMPTY
 
 		val endPosition = resultPositionExtras.firstNotNullOfOrNull { key ->
@@ -208,16 +230,27 @@ class ExternalPlayerActivity : FragmentActivity() {
 			else null
 		}
 
-		val runtime = (mediaSource.runTimeTicks ?: item.runTimeTicks)?.ticks
-		val shouldPlayNext = runtime != null && endPosition != null && endPosition >= (runtime * 0.9)
+		val itemId = currentItem?.first?.id ?: savedItemId
+		val mediaSourceId = currentItem?.second?.id ?: savedMediaSourceId
+		val runtimeTicks = currentItem?.second?.runTimeTicks ?: currentItem?.first?.runTimeTicks ?: savedRuntimeTicks
+
+		if (itemId == null || mediaSourceId == null) {
+			Timber.w("Cannot report playback stop: no item data available")
+			Toast.makeText(this@ExternalPlayerActivity, R.string.video_error_unknown_error, Toast.LENGTH_LONG).show()
+			finish()
+			return
+		}
+
+		val runtime = runtimeTicks?.ticks
+		val shouldPlayNext = currentItem != null && runtime != null && endPosition != null && endPosition >= (runtime * 0.9)
 
 		lifecycleScope.launch {
 			runCatching {
 				withContext(Dispatchers.IO) {
 					api.playStateApi.reportPlaybackStopped(
 						PlaybackStopInfo(
-							itemId = item.id,
-							mediaSourceId = mediaSource.id,
+							itemId = itemId,
+							mediaSourceId = mediaSourceId,
 							positionTicks = endPosition?.inWholeTicks,
 							failed = false,
 						)
@@ -228,10 +261,11 @@ class ExternalPlayerActivity : FragmentActivity() {
 				Toast.makeText(this@ExternalPlayerActivity, R.string.video_error_unknown_error, Toast.LENGTH_LONG).show()
 			}
 
-			dataRefreshService.lastPlayback = Instant.now()
-			when (item.type) {
-				BaseItemKind.MOVIE -> dataRefreshService.lastMoviePlayback = Instant.now()
-				BaseItemKind.EPISODE -> dataRefreshService.lastTvPlayback = Instant.now()
+			val now = Instant.now()
+			dataRefreshService.lastPlayback = now
+			when (currentItem?.first?.type) {
+				BaseItemKind.MOVIE -> dataRefreshService.lastMoviePlayback = now
+				BaseItemKind.EPISODE -> dataRefreshService.lastTvPlayback = now
 				else -> Unit
 			}
 

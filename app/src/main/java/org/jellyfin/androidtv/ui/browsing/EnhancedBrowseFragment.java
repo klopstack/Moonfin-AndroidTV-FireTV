@@ -55,6 +55,7 @@ import org.jellyfin.androidtv.util.CoroutineUtils;
 import org.jellyfin.androidtv.util.InfoLayoutHelper;
 import org.jellyfin.androidtv.util.KeyProcessor;
 import org.jellyfin.androidtv.util.MarkdownRenderer;
+import org.jellyfin.androidtv.util.Utils;
 import org.jellyfin.androidtv.util.sdk.ApiClientFactory;
 import org.jellyfin.androidtv.util.sdk.compat.JavaCompat;
 import org.jellyfin.sdk.api.client.ApiClient;
@@ -64,6 +65,7 @@ import org.koin.java.KoinJavaComponent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import kotlin.Lazy;
 import kotlinx.serialization.json.Json;
@@ -71,6 +73,7 @@ import kotlinx.serialization.json.Json;
 public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.OnKeyListener {
     protected TextView mTitle;
     private LinearLayout mInfoRow;
+    private LinearLayout mRatingsRow;
     private TextView mSummary;
 
     protected static final int BY_LETTER = 0;
@@ -88,6 +91,7 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.
     protected BaseItemKind itemType;
     protected boolean showViews = true;
     protected boolean justLoaded = true;
+    protected UUID mUserId = null;  // For multi-server support
 
     protected RowsSupportFragment mRowsFragment;
     protected CompositeClickedListener mClickedListener = new CompositeClickedListener();
@@ -124,6 +128,7 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.
 
         mTitle = binding.title;
         mInfoRow = binding.infoRow;
+        mRatingsRow = binding.ratingsRow;
         mSummary = binding.summary;
 
         // Inject the RowsSupportFragment in the results container
@@ -164,6 +169,15 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.
         if (!getArguments().containsKey(Extras.Folder)) return;
         mFolder = Json.Default.decodeFromString(BaseItemDto.Companion.serializer(), getArguments().getString(Extras.Folder));
         if (mFolder == null) return;
+
+        // Apply ServerId from navigation argument if present and folder doesn't have one
+        String serverIdArg = getArguments().getString("ServerId");
+        if (serverIdArg != null && (mFolder.getServerId() == null || mFolder.getServerId().isEmpty())) {
+            mFolder = JavaCompat.copyWithServerId(mFolder, serverIdArg);
+        }
+        
+        // Store userId from arguments for API client creation
+        mUserId = Utils.uuidOrNull(getArguments().getString("UserId"));
 
         if (mFolder.getCollectionType() != null) {
             switch (mFolder.getCollectionType()) {
@@ -234,7 +248,16 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.
         ApiClient folderApiClient = null;
         String folderServerId = null;
         if (mFolder != null) {
-            folderApiClient = apiClientFactory.getValue().getApiClientForItem(mFolder);
+            // Use userId if available (from navigation arguments) for correct server authentication
+            if (mUserId != null && mFolder.getServerId() != null) {
+                UUID serverId = Utils.uuidOrNull(mFolder.getServerId());
+                if (serverId != null) {
+                    folderApiClient = apiClientFactory.getValue().getApiClient(serverId, mUserId);
+                }
+            }
+            if (folderApiClient == null) {
+                folderApiClient = apiClientFactory.getValue().getApiClientForItem(mFolder);
+            }
             folderServerId = mFolder.getServerId();
         }
         if (folderApiClient == null) {
@@ -283,9 +306,14 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.
                     break;
             }
 
-            rowAdapter.setApiClient(folderApiClient);
-            if (folderServerId != null) {
-                rowAdapter.setServerId(folderServerId);
+            if (def.getServerId() != null) {
+                rowAdapter.setApiClient(apiClientFactory.getValue().getApiClientForServer(def.getServerId()));
+                rowAdapter.setServerId(def.getServerId().toString());
+            } else {
+                rowAdapter.setApiClient(folderApiClient);
+                if (folderServerId != null) {
+                    rowAdapter.setServerId(folderServerId);
+                }
             }
 
             rowAdapter.setReRetrieveTriggers(def.getChangeTriggers());
@@ -469,6 +497,7 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.
             if (!(item instanceof BaseRowItem)) {
                 mTitle.setText(mFolder != null ? mFolder.getName() : "");
                 mInfoRow.removeAllViews();
+                mRatingsRow.removeAllViews();
                 mSummary.setText("");
                 mCurrentItem = null;
                 mCurrentRow = null;
@@ -481,7 +510,6 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.
 
             mCurrentItem = rowItem;
             mCurrentRow = (ListRow) row;
-            mInfoRow.removeAllViews();
 
             mTitle.setText(rowItem.getName(requireContext()));
 
@@ -491,6 +519,7 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.
             else mSummary.setText(null);
 
             InfoLayoutHelper.addInfoRow(requireContext(), rowItem.getBaseItem(), mInfoRow, true);
+            InfoLayoutHelper.addRatingsRow(requireContext(), rowItem.getBaseItem(), mRatingsRow);
 
             ItemRowAdapter adapter = (ItemRowAdapter) ((ListRow) row).getAdapter();
             adapter.loadMoreItemsIfNeeded(adapter.indexOf(rowItem));

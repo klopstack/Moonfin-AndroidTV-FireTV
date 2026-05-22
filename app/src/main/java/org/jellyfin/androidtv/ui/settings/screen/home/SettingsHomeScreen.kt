@@ -40,6 +40,8 @@ import org.koin.compose.koinInject
 @Composable
 fun SettingsHomeScreen() {
 	val userSettingPreferences = koinInject<UserSettingPreferences>()
+	val userPreferences = koinInject<org.jellyfin.androidtv.preference.UserPreferences>()
+	val router = org.jellyfin.androidtv.ui.navigation.LocalRouter.current
 	
 	var sections by remember { mutableStateOf(userSettingPreferences.homeSectionsConfig) }
 	var focusedSectionType by remember { mutableStateOf<HomeSectionType?>(null) }
@@ -67,8 +69,28 @@ fun SettingsHomeScreen() {
 			)
 		}
 		
-		// Display each section with checkbox and reorder buttons
-		// Filter out MEDIA_BAR since it's controlled by a separate toggle in Moonfin settings
+		// Home Rows Image Size
+		item {
+			val posterSize by org.jellyfin.androidtv.ui.settings.compat.rememberPreference(userPreferences, org.jellyfin.androidtv.preference.UserPreferences.posterSize)
+			ListButton(
+				leadingContent = { Icon(painterResource(R.drawable.ic_aspect_ratio), contentDescription = null) },
+				headingContent = { Text(stringResource(R.string.pref_poster_size)) },
+				captionContent = { Text(stringResource(posterSize.nameRes)) },
+				onClick = { router.push(org.jellyfin.androidtv.ui.settings.Routes.HOME_POSTER_SIZE) }
+			)
+		}
+
+		// Home Rows Image Type
+		item {
+			ListButton(
+				leadingContent = { Icon(painterResource(R.drawable.ic_grid), contentDescription = null) },
+				headingContent = { Text(stringResource(R.string.pref_home_rows_image_type)) },
+				onClick = { router.push(org.jellyfin.androidtv.ui.settings.Routes.HOME_ROWS_IMAGE_TYPE) }
+			)
+		}
+
+		item { ListSection(headingContent = { Text(stringResource(R.string.home_sections_description)) }) }
+		
 		val configurableSections = sections
 			.filter { it.type != HomeSectionType.MEDIA_BAR }
 			.sortedBy { it.order }
@@ -154,14 +176,12 @@ private fun HomeSectionRow(
 	val focusRequester = remember { FocusRequester() }
 	var isFocused by remember { mutableStateOf(false) }
 	
-	// Request focus when this item should be focused
 	LaunchedEffect(shouldRequestFocus) {
 		if (shouldRequestFocus) {
 			focusRequester.requestFocus()
 		}
 	}
 	
-	// Single button for the entire row - left/right keys move the item up/down
 	ListButton(
 		modifier = Modifier
 			.fillMaxWidth()
@@ -199,7 +219,6 @@ private fun HomeSectionRow(
 			Text(context.getString(section.type.nameRes))
 		},
 		trailingContent = {
-			// Visual indicators for up/down (not interactive)
 			Row(
 				horizontalArrangement = Arrangement.spacedBy(4.dp),
 				verticalAlignment = Alignment.CenterVertically

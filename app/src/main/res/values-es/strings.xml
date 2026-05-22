@@ -23,6 +23,7 @@
     <string name="lbl_favorite_channels">Canales favoritos</string>
     <string name="lbl_other_channels">Otros canales</string>
     <string name="lbl_collections">Colecciones</string>
+    <string name="lbl_items_in_collection">Elementos de la colección</string>
     <string name="lbl_movies">Películas</string>
     <string name="lbl_tv_series">Series de TV</string>
     <string name="lbl_other">Otro</string>
@@ -45,6 +46,7 @@
     <string name="lbl_runs">Duración</string>
     <string name="lbl_ends">Termina</string>
     <string name="lbl_directed_by">Dirigido Por</string>
+    <string name="lbl_studios">Estudios</string>
     <string name="lbl_last_played">"Ultimos vistos "</string>
     <string name="lbl_other_options">Otras opciones</string>
     <string name="lbl_people">Gente</string>
@@ -119,7 +121,9 @@
     <string name="lbl_open_artist">Mostrar artista</string>
     <string name="lbl_add_to_queue">Añadir a la cola</string>
     <string name="msg_items_added">" Elemento añadido"</string>
+    <string name="lbl_playlist">Lista de reproducción</string>
     <string name="lbl_playlists">Listas de reproducción</string>
+    <string name="lbl_season_episodes">Temporada %1$d Episodios</string>
     <string name="lbl_enable_cinema_mode">Modo cine</string>
     <string name="lbl_episodes">Episodios</string>
     <string name="lbl_album">Álbum</string>
@@ -198,10 +202,13 @@
     <string name="lbl_starting_with">comenzando con aquellos cuyo nombre comienza con</string>
     <string name="lbl_rating">Calificación parental</string>
     <string name="lbl_critic_rating">Puntuación crítica (Tomates)</string>
+    <string name="lbl_date_episode_added">Añadido el (episodio)</string>
     <string name="lbl_premier_date">Fecha de estreno</string>
     <string name="lbl_series_recordings">Grabaciones de Series</string>
-    <string name="lbl_ended">FINALIZADO</string>
     <string name="lbl__continuing">CONTINUANDO</string>
+    <string name="lbl__continuing_title">Continuando</string>
+    <string name="lbl_ended">FINALIZADO</string>
+    <string name="lbl_ended_title">Finalizado</string>
     <string name="lbl_from">desde</string>
     <string name="lbl_refresh_switching">Cambio de frecuencia de actualización</string>
     <string name="lbl_bitstream_ac3">Audio Bitstream Dolby Digital</string>
@@ -257,7 +264,11 @@
     <string name="seek_error">Incapaz de retroceder o avanzar</string>
     <string name="lbl_load_guide_data">Cargar programación de canales</string>
     <string name="lbl_subtitle_track">Selecciona track de subtitulos</string>
+    <string name="lbl_default">Predeterminado</string>
+    <string name="lbl_track">Pista</string>
+    <string name="lbl_tracks">Pistas</string>
     <string name="lbl_audio_track">Selecciona un track de audio</string>
+    <string name="lbl_shuffle">Aleatorio</string>
     <string name="lbl_pause">Pausar</string>
     <string name="watch_count_overflow">99+</string>
     <string name="lbl_playback_control_ends">Termina %1$s</string>
@@ -266,9 +277,6 @@
     <string name="pref_clock_display_playback">Durante la reproducción</string>
     <string name="lbl_always">Siempre</string>
     <string name="pref_clock_display">Mostrar reloj</string>
-    <string name="pref_default_rating">Tipo de valoración por defecto</string>
-    <string name="lbl_tomatoes">tomates</string>
-    <string name="lbl_stars">estrellas</string>
     <string name="login_username_field_empty">El usuario no puede estar vacío</string>
     <string name="login_server_unavailable">Imposible conectar con el servidor</string>
     <string name="login_invalid_credentials">Usuario y/o contraseña inválidos</string>
@@ -290,8 +298,6 @@
     <string name="image_size_medium">Mediano</string>
     <string name="image_size_small">Pequeño</string>
     <string name="image_type_thumbnail">Miniatura</string>
-    <string name="enable_smart_view_description">La pantalla inteligente muestra elementos relevantes en lugar de una cuadrícula</string>
-    <string name="enable_smart_view">Activar pantalla inteligente</string>
     <string name="lbl_sign_out">Desconectar</string>
     <string name="lbl_remove">Eliminar</string>
     <string name="lbl_server">Servidor</string>
@@ -385,6 +391,7 @@
     <string name="pref_subtitles_background_title">Activar fondo</string>
     <string name="server_connection_failed_candidates">Imposible conectar con el servidor. Dirección usada: %1$s</string>
     <string name="pref_next_up_timeout_disabled">∞</string>
+    <string name="lbl_audio_track_missing">No hay pistas de audio disponibles</string>
     <string name="lbl_playback_speed">Velocidad de reproducción</string>
     <string name="pref_show_backdrop_description">Cambia el fondo de pantalla según el elemento seleccionado</string>
     <string name="lbl_shuffle_queue">Cambiar a aleatorio</string>
@@ -426,6 +433,7 @@
     <string name="image_size_xlarge">Enorme</string>
     <string name="image_size_smallest">Muy pequeño</string>
     <string name="image_type_poster">Cartel</string>
+    <string name="lbl_subtitle_track_title">Pista de subtítulos</string>
     <string name="lbl_subtitle_delay">Retardo de los subtítulos</string>
     <string name="lbl_additional_parts">Partes adicionales</string>
     <string name="pref_telemetry_description">Enviar informe de fallos, incluye registros</string>
@@ -536,6 +544,11 @@
         <item quantity="many">%1$s álbumes</item>
         <item quantity="other">%1$s álbumes</item>
     </plurals>
+    <plurals name="season_count">
+        <item quantity="one">%1$s Temporada</item>
+        <item quantity="many">%1$s Temporadas</item>
+        <item quantity="other">%1$s Temporadas</item>
+    </plurals>
     <string name="random">Aleatorio</string>
     <string name="pref_playback_advanced">Preferencias avanzadas de reproducción</string>
     <string name="unreleased">Sin estrenar</string>
@@ -584,6 +597,7 @@
     <string name="runtime_minutes">%1$dm</string>
     <string name="lbl_from_beginning">Reproducir desde el inicio</string>
     <string name="pref_subtitles_bold">Texto en negrita</string>
+    <string name="lbl_restart">Reiniciar</string>
     <string name="lbl_exit">Salir</string>
     <string name="lbl_still_watching_default">3 episodios o 90 minutos</string>
     <string name="lbl_still_watching_short">2 episodios o 60 minutos</string>
@@ -631,4 +645,15 @@
     <string name="pref_playback_prerolls">Intros</string>
     <string name="playback_video_player_external_empty">No tiene instalada ninguna aplicación de reproducción de vídeo en su dispositivo que pueda abrir vídeos de Jellyfin.</string>
     <string name="filters">Filtros</string>
+    <string name="lbl_sort_and_filter">Ordenar y filtrar</string>
+    <string name="lbl_status_title">Estado</string>
+    <string name="lbl_directors">Directores</string>
+    <string name="lbl_writers">Guionistas</string>
+    <string name="lbl_date_series_added">Añadido el (serie)</string>
+    <string name="lbl_audio_track_title">Pista de audio</string>
+    <string name="select_version_title">Seleccionar versión</string>
+    <string name="lbl_version_number">Versión %1$d</string>
+    <string name="lbl_movies_count">Películas (%1$d)</string>
+    <string name="lbl_series_count">Series (%1$d)</string>
+    <string name="select_reorder_items">Para reordenar los elementos, presiona izquierda y derecha en el D‑pad</string>
 </resources>

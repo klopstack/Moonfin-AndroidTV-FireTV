@@ -17,6 +17,7 @@ class PrePlaybackTrackSelector(private val context: Context) {
 	companion object {
 		private const val PREF_AUDIO_STREAM_INDEX = "selected_audio_stream_index"
 		private const val PREF_SUBTITLE_STREAM_INDEX = "selected_subtitle_stream_index"
+		private const val PREF_MEDIA_SOURCE_ID = "selected_media_source_id"
 		private const val PREF_ITEM_ID = "selected_for_item_id"
 	}
 	
@@ -101,6 +102,24 @@ class PrePlaybackTrackSelector(private val context: Context) {
 		} else null
 	}
 	
+	fun setSelectedMediaSource(itemId: String, sourceId: String?) {
+		prefs.edit().apply {
+			putString(PREF_ITEM_ID, itemId)
+			if (sourceId != null) {
+				putString(PREF_MEDIA_SOURCE_ID, sourceId)
+			} else {
+				remove(PREF_MEDIA_SOURCE_ID)
+			}
+			apply()
+		}
+		Timber.d("PrePlayback: Saved media source %s for item %s", sourceId, itemId)
+	}
+
+	fun getSelectedMediaSource(itemId: String): String? {
+		if (prefs.getString(PREF_ITEM_ID, null) != itemId) return null
+		return prefs.getString(PREF_MEDIA_SOURCE_ID, null)
+	}
+
 	/**
 	 * Clear selections for current item
 	 */

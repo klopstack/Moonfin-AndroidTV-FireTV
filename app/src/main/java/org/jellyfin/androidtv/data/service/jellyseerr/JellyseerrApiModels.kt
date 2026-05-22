@@ -168,24 +168,6 @@ data class JellyseerrUserDto(
 	}
 }
 
-// ==================== Blacklist Models ====================
-
-@Serializable
-data class JellyseerrBlacklistPageDto(
-	val pageInfo: JellyseerrPageInfoDto? = null,
-	val results: List<JellyseerrBlacklistItemDto> = emptyList(),
-)
-
-@Serializable
-data class JellyseerrBlacklistItemDto(
-	val id: Int,
-	val mediaType: String, // "movie" or "tv"
-	val tmdbId: Int,
-	val title: String? = null,
-	val createdAt: String? = null,
-	val user: JellyseerrUserDto? = null,
-)
-
 // ==================== Discover/Trending Models ====================
 
 @Serializable
@@ -307,6 +289,7 @@ data class JellyseerrMovieDetailsDto(
 	val externalIds: JellyseerrExternalIds? = null,
 	val mediaInfo: JellyseerrMediaInfoDto? = null,
 	val keywords: List<JellyseerrKeywordDto> = emptyList(),
+	val relatedVideos: List<JellyseerrRelatedVideoDto> = emptyList(),
 )
 
 @Serializable
@@ -332,6 +315,17 @@ data class JellyseerrTvDetailsDto(
 	val externalIds: JellyseerrExternalIds? = null,
 	val mediaInfo: JellyseerrMediaInfoDto? = null,
 	val keywords: List<JellyseerrKeywordDto> = emptyList(),
+	val relatedVideos: List<JellyseerrRelatedVideoDto> = emptyList(),
+)
+
+@Serializable
+data class JellyseerrRelatedVideoDto(
+	val url: String? = null,
+	val key: String? = null,
+	val name: String? = null,
+	val size: Int? = null,
+	val type: String? = null,
+	val site: String? = null,
 )
 
 @Serializable

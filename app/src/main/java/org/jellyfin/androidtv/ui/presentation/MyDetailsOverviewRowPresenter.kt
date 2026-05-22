@@ -9,8 +9,6 @@ import org.jellyfin.androidtv.util.InfoLayoutHelper
 import org.jellyfin.androidtv.util.MarkdownRenderer
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.PersonKind
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
 class MyDetailsOverviewRowPresenter(
 	private val markdownRenderer: MarkdownRenderer,
@@ -25,6 +23,7 @@ class MyDetailsOverviewRowPresenter(
 			setTitle(row.item.name)
 
 			InfoLayoutHelper.addInfoRow(view.context, row.item, row.item.mediaSources?.getOrNull(row.selectedMediaSourceIndex), binding.fdMainInfoRow, false)
+			InfoLayoutHelper.addRatingsRow(view.context, row.item, binding.fdRatingsRow)
 			// Hide genre row - now in grouped metadata
 			binding.fdGenreRow.isVisible = false
 
@@ -64,53 +63,35 @@ class MyDetailsOverviewRowPresenter(
 	private fun populateGroupedMetadata(row: MyDetailsOverviewRow) {
 		val item = row.item
 
-		// Genres group - hide for episodes
 		val genres = if (item.type == BaseItemKind.EPISODE) null else item.genres?.joinToString(", ")
 		binding.fdGenresGroup.isVisible = !genres.isNullOrBlank()
-		binding.fdGenresContent.text = genres			// Director group
-			val director = item.people?.filter { it.type == PersonKind.DIRECTOR }?.joinToString(", ") { it.name ?: "" }
-			binding.fdDirectorGroup.isVisible = !director.isNullOrBlank()
-			binding.fdDirectorContent.text = director
+		binding.fdGenresContent.text = genres
 
-			// Writers group
-			val writers = item.people?.filter { it.type == PersonKind.WRITER }?.joinToString(", ") { it.name ?: "" }
-			binding.fdWritersGroup.isVisible = !writers.isNullOrBlank()
-			binding.fdWritersContent.text = writers
+		val director = item.people?.filter { it.type == PersonKind.DIRECTOR }?.joinToString(", ") { it.name ?: "" }
+		binding.fdDirectorGroup.isVisible = !director.isNullOrBlank()
+		binding.fdDirectorContent.text = director
 
-			// Studios group
-			val studios = item.studios?.joinToString(", ") { it.name ?: "" }
-			binding.fdStudiosGroup.isVisible = !studios.isNullOrBlank()
-			binding.fdStudiosContent.text = studios
+		val writers = item.people?.filter { it.type == PersonKind.WRITER }?.joinToString(", ") { it.name ?: "" }
+		binding.fdWritersGroup.isVisible = !writers.isNullOrBlank()
+		binding.fdWritersContent.text = writers
 
-			// Runs group (runtime)
-			val runs = item.runTimeTicks?.let {
-				val totalMinutes = (it / 600000000).toInt()
-				val hours = totalMinutes / 60
-				val minutes = totalMinutes % 60
-				if (hours > 0) "${hours}h ${minutes}min" else "${minutes}min"
-			}
-			binding.fdRunsGroup.isVisible = !runs.isNullOrBlank()
-			binding.fdRunsContent.text = runs
+		val studios = item.studios?.joinToString(", ") { it.name ?: "" }
+		binding.fdStudiosGroup.isVisible = !studios.isNullOrBlank()
+		binding.fdStudiosContent.text = studios
 
-			// Ends group (calculated end time if watched now, or actual end time for live TV)
-			val ends = if (item.endDate != null) {
-				// For live TV, show actual end time
-				item.endDate?.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
-			} else {
-				// For movies/shows, calculate end time based on current time + runtime
-				item.runTimeTicks?.let {
-					val now = java.time.LocalDateTime.now()
-					val runtimeMinutes = (it / 600000000).toInt()
-					val endTime = now.plusMinutes(runtimeMinutes.toLong())
-					endTime.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
-				}
-			}
-			binding.fdEndsGroup.isVisible = !ends.isNullOrBlank()
-			binding.fdEndsContent.text = ends
-		}
+		// Use InfoItem values from FullDetailsFragment instead of recalculating
+		val runs = row.infoItem2?.value
+		binding.fdRunsGroup.isVisible = !runs.isNullOrBlank()
+		binding.fdRunsContent.text = runs
+
+		val ends = row.infoItem3?.value
+		binding.fdEndsGroup.isVisible = !ends.isNullOrBlank()
+		binding.fdEndsContent.text = ends
+	}
 
 		fun setTitle(title: String?) {
 			binding.fdTitle.text = title
+			binding.fdTitle.isSelected = true
 		}
 
 		fun setSummary(summary: String?) {
@@ -119,6 +100,11 @@ class MyDetailsOverviewRowPresenter(
 
 		fun setInfoValue3(text: String?) {
 			binding.infoValue3.text = text
+		}
+
+		fun updateEndTime(text: String?) {
+			binding.fdEndsContent.text = text
+			binding.fdEndsGroup.isVisible = !text.isNullOrBlank()
 		}
 	}
 

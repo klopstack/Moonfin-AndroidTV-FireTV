@@ -5,6 +5,7 @@ import androidx.preference.PreferenceManager
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jellyfin.androidtv.constant.HomeSectionType
+import org.jellyfin.androidtv.preference.constant.AppTheme
 import org.jellyfin.preference.booleanPreference
 import org.jellyfin.preference.enumPreference
 import org.jellyfin.preference.intPreference
@@ -33,13 +34,31 @@ class UserSettingPreferences(
 	companion object {
 		val skipBackLength = intPreference("skipBackLength", 10_000)
 		val skipForwardLength = intPreference("skipForwardLength", 30_000)
+
+		/**
+		 * Duration in milliseconds to rewind when resuming from pause.
+		 * Allows users to rewatch a few seconds they may have missed while paused.
+		 */
+		val unpauseRewindDuration = intPreference("unpauseRewindDuration", 0)
+
+		/**
+		 * Whether to show the item description/overview on the pause screen.
+		 */
+		val showDescriptionOnPause = booleanPreference("showDescriptionOnPause", false)
 		
 		// Media Bar settings
 		val mediaBarEnabled = booleanPreference("mediaBarEnabled", true)
+		val mediaBarSourceType = stringPreference("mediaBarSourceType", "plugin")
 		val mediaBarContentType = stringPreference("mediaBarContentType", "both")
 		val mediaBarItemCount = stringPreference("mediaBarItemCount", "10")
+		val mediaBarExcludedGenres = stringPreference("mediaBarExcludedGenres", "[]")
 		val mediaBarOverlayOpacity = intPreference("mediaBarOverlayOpacity", 50)
 		val mediaBarOverlayColor = stringPreference("mediaBarOverlayColor", "gray")
+		val mediaBarTrailerPreview = booleanPreference("mediaBarTrailerPreview", true)
+
+		// Episode preview settings
+		val episodePreviewEnabled = booleanPreference("episodePreviewEnabled", true)
+		val previewAudioEnabled = booleanPreference("previewAudioEnabled", true)
 		
 		// Home rows image type settings
 		val homeRowsUniversalOverride = booleanPreference("homeRowsUniversalOverride", false)
@@ -50,6 +69,19 @@ class UserSettingPreferences(
 		val backgroundBlurAmount = intPreference("backgroundBlurAmount", 10)
 		val detailsBackgroundBlurAmount = intPreference("detailsBackgroundBlurAmount", 10)
 		val browsingBackgroundBlurAmount = intPreference("browsingBackgroundBlurAmount", 10)
+
+		// Rating settings
+		val enableAdditionalRatings = booleanPreference("enableAdditionalRatings", false)
+		val mdblistApiKey = stringPreference("mdblistApiKey", "")
+		val enableEpisodeRatings = booleanPreference("enableEpisodeRatings", false)
+		val tmdbApiKey = stringPreference("tmdbApiKey", "")
+		val showRatingLabels = booleanPreference("showRatingLabels", true)
+		
+		/**
+		 * Comma-separated list of enabled rating types.
+		 * Default: "RATING_TOMATOES,RATING_STARS" (RT and Community Rating)
+		 */
+		val enabledRatings = stringPreference("enabledRatings", "RATING_TOMATOES,RATING_STARS")
 
 		// New home sections configuration (JSON storage)
 		val homeSectionsJson = stringPreference("home_sections_config", "")
@@ -80,6 +112,9 @@ class UserSettingPreferences(
 		val themeMusicEnabled = booleanPreference("themeMusicEnabled", false)
 		val themeMusicVolume = intPreference("themeMusicVolume", 30) // 0-100
 		val themeMusicOnHomeRows = booleanPreference("themeMusicOnHomeRows", false)
+
+		/* Display */
+		val focusColor = enumPreference("focus_color", AppTheme.WHITE)
 
 		/* Security */
 		/**
@@ -245,6 +280,54 @@ class UserSettingPreferences(
 				// Save the new config
 				val jsonString = json.encodeToString(newConfigs)
 				putString(homeSectionsJson.key, jsonString)
+			}
+			
+			// Migration 3: Add PLAYLISTS section if it doesn't exist (replaces old WATCHLIST)
+			migration(toVersion = 3) { prefs ->
+				val existingConfig = prefs.getString(homeSectionsJson.key, "")
+				if (existingConfig.isNullOrBlank()) return@migration
+				
+				try {
+					val configs = json.decodeFromString<List<HomeSectionConfig>>(existingConfig)
+					// Check if PLAYLISTS already exists (either new or migrated from watchlist)
+					val hasPlaylists = configs.any { it.type == HomeSectionType.PLAYLISTS }
+					if (!hasPlaylists) {
+						// Add PLAYLISTS as disabled at the end
+						val maxOrder = configs.maxOfOrNull { it.order } ?: -1
+						val updatedConfigs = configs + HomeSectionConfig(
+							type = HomeSectionType.PLAYLISTS,
+							enabled = false,
+							order = maxOrder + 1
+						)
+						putString(homeSectionsJson.key, json.encodeToString(updatedConfigs))
+					}
+				} catch (e: Exception) {
+					// If parsing fails, leave as-is (defaults will be used)
+				}
+			}
+			
+			// Migration 4: Migrate single rating preference to multi-select
+			// Note: Old defaultRatingType is in UserPreferences (default shared prefs)
+			// New enabledRatings is in UserSettingPreferences (same store for global)
+			migration(toVersion = 4) { prefs ->
+				// Check if enabledRatings already exists (skip if already migrated)
+				val existingRatings = prefs.getString(enabledRatings.key, null)
+				if (existingRatings != null) return@migration
+				
+				// Read old single rating type from the same shared preferences
+				// (UserSettingPreferences uses default shared prefs when userId is null)
+				val oldRatingType = prefs.getString("pref_rating_type", "RATING_TOMATOES")
+				
+				// Convert to new multi-select format
+				// If user had a specific rating selected, enable both that and community rating
+				val newEnabledRatings = when (oldRatingType) {
+					"RATING_HIDDEN" -> "" // No ratings
+					"RATING_STARS" -> "RATING_STARS" // Just community rating
+					"RATING_TOMATOES" -> "RATING_TOMATOES,RATING_STARS" // RT + Stars (default)
+					else -> "$oldRatingType,RATING_STARS" // User's preference + community rating
+				}
+				
+				putString(enabledRatings.key, newEnabledRatings)
 			}
 		}
 	}

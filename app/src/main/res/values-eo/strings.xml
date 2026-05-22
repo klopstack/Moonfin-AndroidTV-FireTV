@@ -167,8 +167,6 @@
     <string name="image_type_thumbnail">Bildeto</string>
     <string name="login_authenticating">Aŭtentigatas…</string>
     <string name="lbl_always">Ĉiam</string>
-    <string name="lbl_tomatoes">Tomatoj</string>
-    <string name="lbl_stars">Steloj</string>
     <string name="watch_count_overflow">99+</string>
     <string name="lbl_Reset">Restarigu</string>
     <string name="pref_about_title">Pri</string>
@@ -205,10 +203,8 @@
     <string name="lbl_use_series_thumbnails">Preferi seriajn avizojn</string>
     <string name="lbl_hide_unwatched_count">Kaŝi nespektitan kalkulon</string>
     <string name="pref_watched_indicator">Montri spektindikilojn</string>
-    <string name="enable_smart_view">Ebligi inteligentan ekranon</string>
     <string name="lbl_user_server">%1$s sur %2$s</string>
     <string name="server_connecting">Konektante al %1$s</string>
-    <string name="pref_default_rating">Defaŭlta taksada tipo</string>
     <string name="lbl_playback_control_ends">Finiĝas je %1$s</string>
     <string name="just_one">Nur ĉi tiu</string>
     <string name="seek_error">Nekapable serĉi</string>
@@ -350,7 +346,6 @@
 \nAldoni novan konton premante la butonon \"Aldoni konton\".</string>
     <string name="welcome_content">Konekti al via servilo por komenci.</string>
     <string name="login_help_description">Jellyfin bezonas servilon por konektiĝi. Viziti nian dokumentaron ĉe docs.jellyfin.org aŭ skani la QR-kodon por komenci kun Jellyfin.</string>
-    <string name="enable_smart_view_description">Inteligenta ekrano montras koncernajn aĵojn anstataŭ krado</string>
     <string name="lbl_remove_users">Ĉi tio ankaŭ forigos ĉiujn asocigitajn kontojn</string>
     <string name="episode_missing_message_2">Ĉi tiu epizodo mankas el via plurmediteko. Ludado estos haltata.</string>
     <string name="episode_missing_message">Ĉi tiu epizodo mankas el via plurmediteko. Ĉu vi ŝatus preterlasi ĝin kaj daŭrigi al la sekva\?</string>

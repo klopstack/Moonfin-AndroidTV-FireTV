@@ -7,18 +7,18 @@ android-desugar = "2.1.5"
 android-gradle = "9.0.0"
 android-minSdk = "23"
 android-targetSdk = "36"
-androidx-activity = "1.12.2"
+androidx-activity = "1.12.3"
 androidx-appcompat = "1.7.1"
 androidx-cardview = "1.0.0"
-androidx-compose-foundation = "1.10.1"
+androidx-compose-foundation = "1.10.2"
 androidx-compose-material3 = "1.3.1"
-androidx-compose-ui = "1.10.1"
+androidx-compose-ui = "1.10.2"
 androidx-constraintlayout = "2.2.1"
 androidx-core = "1.17.0"
 androidx-fragment = "1.8.9"
 androidx-leanback = "1.2.0"
 androidx-lifecycle = "2.10.0"
-androidx-media3 = "1.9.0"
+androidx-media3 = "1.9.2"
 androidx-navigation3 = "1.0.0"
 androidx-preference = "1.2.1"
 androidx-recyclerview = "1.4.0"
@@ -26,21 +26,23 @@ androidx-startup = "1.2.0"
 androidx-tv-material = "1.0.0"
 androidx-tvprovider = "1.1.0"
 androidx-window = "1.5.1"
-androidx-work = "2.11.0"
+androidx-work = "2.11.1"
 coil = "3.3.0"
 detekt = "1.23.8"
+emby-client = "4.9.3.0"
 java-jdk = "21"
 jellyfin-androidx-media = "1.9.0+1"
-jellyfin-sdk = "1.8.5"
+jellyfin-sdk = "1.8.6"
 koin = "4.1.1"
 koin-compose = "4.1.1"
-kotest = "6.0.7"
-kotlin = "2.3.0"
+kotest = "6.1.3"
+kotlin = "2.3.10"
 kotlinx-coroutines = "1.10.2"
-kotlinx-serialization = "1.9.0"
+kotlinx-serialization = "1.10.0"
 ktor = "3.0.3"
 markwon = "4.6.2"
-mockk = "1.14.7"
+mockk = "1.14.9"
+pipeextractor = "v0.26.0"
 slf4j-timber = "0.0.4"
 timber = "5.0.1"
 
@@ -53,6 +55,9 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 
 [libraries]
+# Emby
+emby-client = { module = "org.emby:emby-client", version.ref = "emby-client" }
+
 # Jellyfin
 jellyfin-sdk = { module = "org.jellyfin.sdk:jellyfin-core", version.ref = "jellyfin-sdk" }
 
@@ -62,7 +67,7 @@ kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-androi
 kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
-# Ktor (HTTP client for Jellyseerr)
+# Ktor (HTTP client for Seerr)
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
@@ -99,6 +104,7 @@ androidx-window = { module = "androidx.window:window", version.ref = "androidx-w
 androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "androidx-work" }
 
 # Dependency Injection
+koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-android-compat = { module = "io.insert-koin:koin-android-compat", version.ref = "koin" }
 koin-android-core = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin-compose" }
@@ -130,6 +136,12 @@ acra-toast = { module = "ch.acra:acra-toast", version.ref = "acra" }
 # Libraries
 aboutlibraries = { module = "com.mikepenz:aboutlibraries-core", version.ref = "aboutlibraries" }
 
+# YouTube stream extraction
+pipeextractor = { module = "com.github.teamnewpipe:NewPipeExtractor", version.ref = "pipeextractor" }
+# NewPipe Extractor transitive dependencies (kept in sync with the library's POM)
+pipeextractor-nanojson = { module = "com.github.TeamNewPipe:nanojson", version = "e9d656ddb49a412a5a0a5d5ef20ca7ef09549996" }
+pipeextractor-jsoup = { module = "org.jsoup:jsoup", version = "1.22.1" }
+findbugs-jsr305 = { module = "com.google.code.findbugs:jsr305", version = "3.0.2" }
 # Logging
 slf4j-timber = { module = "io.github.unveloper:slf4j-timber", version.ref = "slf4j-timber" }
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }

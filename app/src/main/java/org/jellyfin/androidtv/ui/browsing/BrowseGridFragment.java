@@ -20,6 +20,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.leanback.widget.BaseGridView;
+import androidx.leanback.widget.FocusHighlight;
 import androidx.leanback.widget.OnItemViewClickedListener;
 import androidx.leanback.widget.OnItemViewSelectedListener;
 import androidx.leanback.widget.Presenter;
@@ -101,6 +102,7 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
     private BaseItemDto mFolder;
     private LibraryPreferences libraryPreferences;
     private UUID mServerId = null;
+    private UUID mUserId = null;
 
     private HorizontalGridBrowseBinding binding;
     private ItemRowAdapter mAdapter;
@@ -150,6 +152,7 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         mFolder = Json.Default.decodeFromString(BaseItemDto.Companion.serializer(), getArguments().getString(Extras.Folder));
         mParentId = mFolder.getId();
         mServerId = Utils.uuidOrNull(getArguments().getString("ServerId"));
+        mUserId = Utils.uuidOrNull(getArguments().getString("UserId"));
         mainTitle = mFolder.getName();
         libraryPreferences = preferencesRepository.getValue().getLibraryPreferences(Objects.requireNonNull(mFolder.getDisplayPreferencesId()), api.getValue());
         mPosterSizeSetting = libraryPreferences.get(LibraryPreferences.Companion.getPosterSize());
@@ -158,7 +161,7 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         mCardFocusScale = getResources().getFraction(R.fraction.card_scale_focus, 1, 1);
 
         if (mGridDirection.equals(GridDirection.VERTICAL))
-            setGridPresenter(new VerticalGridPresenter());
+            setGridPresenter(new VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_LARGE, false));
         else
             setGridPresenter(new HorizontalGridPresenter());
 
@@ -258,6 +261,7 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         }
         gridPresenter.setOnItemViewSelectedListener(mRowSelectedListener);
         gridPresenter.setOnItemViewClickedListener(mClickedListener);
+        gridPresenter.setShadowEnabled(false);
         mGridPresenter = gridPresenter;
     }
 
@@ -270,6 +274,7 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         }
         gridPresenter.setOnItemViewSelectedListener(mRowSelectedListener);
         gridPresenter.setOnItemViewClickedListener(mClickedListener);
+        gridPresenter.setShadowEnabled(false);
         mGridPresenter = gridPresenter;
     }
 
@@ -278,9 +283,11 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         if (item != null) {
             binding.title.setText(item.getFullName(requireContext()));
             InfoLayoutHelper.addInfoRow(requireContext(), item.getBaseItem(), binding.infoRow, true);
+            InfoLayoutHelper.addRatingsRow(requireContext(), item.getBaseItem(), binding.ratingsRow);
         } else {
             binding.title.setText("");
             binding.infoRow.removeAllViews();
+            binding.ratingsRow.removeAllViews();
         }
     }
 
@@ -368,6 +375,8 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
                 } else {
                     return cardHeight * ImageHelper.ASPECT_RATIO_2_3;
                 }
+            case SQUARE:
+                return cardHeight;
             case THUMB:
                 return cardHeight * ImageHelper.ASPECT_RATIO_16_9;
             case BANNER:
@@ -389,6 +398,8 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
                 } else {
                     return cardWidth / ImageHelper.ASPECT_RATIO_2_3;
                 }
+            case SQUARE:
+                return cardWidth;
             case THUMB:
                 return cardWidth / ImageHelper.ASPECT_RATIO_16_9;
             case BANNER:
@@ -580,7 +591,7 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
             mGridDirection = gridDirection;
 
             if (mGridDirection.equals(GridDirection.VERTICAL) && (mGridPresenter == null || !(mGridPresenter instanceof VerticalGridPresenter))) {
-                setGridPresenter(new VerticalGridPresenter());
+                setGridPresenter(new VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_LARGE, false));
             } else if (mGridDirection.equals(GridDirection.HORIZONTAL) && (mGridPresenter == null || !(mGridPresenter instanceof HorizontalGridPresenter))) {
                 setGridPresenter(new HorizontalGridPresenter());
             }
@@ -594,14 +605,16 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         if (!justLoaded) {
             //Re-retrieve anything that needs it but delay slightly so we don't take away gui landing
             if (mAdapter != null) {
+                // Save the current selected position before any refresh operations
+                final int savedPosition = mSelectedPosition;
                 mHandler.postDelayed(() -> {
                     if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED))
                         return;
 
                     if (mAdapter != null && mAdapter.size() > 0) {
-                        if (!mAdapter.ReRetrieveIfNeeded()) {
-                            refreshCurrentItem();
-                        }
+                        // Only refresh the adapter, don't refresh current item to avoid unnecessary poster reload
+                        mAdapter.ReRetrieveIfNeeded();
+                        restorePositionAndUpdateBackground(savedPosition);
                     }
                 }, 500);
             }
@@ -659,9 +672,13 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
 
         // If browsing a library from another server, use that server's API client
         if (mServerId != null) {
-            // Get current user ID from session for multi-user support
-            org.jellyfin.androidtv.auth.repository.Session currentSession = sessionRepository.getValue().getCurrentSession().getValue();
-            UUID userId = (currentSession != null) ? currentSession.getUserId() : null;
+            // Use the userId passed for this server (from AggregatedLibrary)
+            // Fall back to current session's userId if not provided
+            UUID userId = mUserId;
+            if (userId == null) {
+                org.jellyfin.androidtv.auth.repository.Session currentSession = sessionRepository.getValue().getCurrentSession().getValue();
+                userId = (currentSession != null) ? currentSession.getUserId() : null;
+            }
             
             ApiClient serverApiClient = (userId != null) 
                 ? apiClientFactory.getValue().getApiClient(mServerId, userId)
@@ -711,6 +728,16 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         }
 
         mAdapter.setSortBy(getSortOption(libraryPreferences.get(LibraryPreferences.Companion.getSortBy())));
+        
+        // Set up a listener to restore position after retrieval completes
+        final int savedPosition = mSelectedPosition;
+        mAdapter.setRetrieveFinishedListener(new EmptyResponse(getLifecycle()) {
+            @Override
+            public void onResponse() {
+                restorePositionAndUpdateBackground(savedPosition);
+            }
+        });
+        
         mAdapter.Retrieve();
     }
 
@@ -923,6 +950,23 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         }
     }
 
+    private void restorePositionAndUpdateBackground(int position) {
+        if (position >= 0 && position < mAdapter.size() && mGridView != null) {
+            // Only change selection if it's different to avoid triggering card rebind
+            if (mGridView.getSelectedPosition() != position) {
+                mGridView.setSelectedPosition(position);
+            }
+            Object item = mAdapter.get(position);
+            if (item instanceof BaseRowItem) {
+                BaseRowItem rowItem = (BaseRowItem) item;
+                mCurrentItem = rowItem;
+                mHandler.removeCallbacks(mDelayedSetItem);
+                backgroundService.getValue().setBackground(rowItem.getBaseItem(), BlurContext.BROWSING);
+                setItem(rowItem);
+            }
+        }
+    }
+
     private final Runnable mDelayedSetItem = new Runnable() {
         @Override
         public void run() {
@@ -941,12 +985,13 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
             if (!(item instanceof BaseRowItem)) {
                 mCurrentItem = null;
                 binding.title.setText(mainTitle);
+                binding.infoRow.removeAllViews();
+                binding.ratingsRow.removeAllViews();
                 //fill in default background
                 backgroundService.getValue().clearBackgrounds();
             } else {
                 mCurrentItem = (BaseRowItem) item;
                 binding.title.setText(mCurrentItem.getName(requireContext()));
-                binding.infoRow.removeAllViews();
                 mHandler.postDelayed(mDelayedSetItem, VIEW_SELECT_UPDATE_DELAY);
 
                 if (!determiningPosterSize)

@@ -280,7 +280,7 @@
                     tools:text="Returning Series" />
             </LinearLayout>
 
-            <!-- Availability (Jellyseerr Request Status) -->
+            <!-- Availability (Seerr Request Status) -->
             <LinearLayout
                 android:id="@+id/fdAvailabilityGroup"
                 android:layout_width="match_parent"

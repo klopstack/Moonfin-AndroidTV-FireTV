@@ -1,6 +1,7 @@
 package org.jellyfin.androidtv.data.service
 
 import android.content.Context
+import android.os.Build
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import coil3.ImageLoader
@@ -15,6 +16,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.auth.model.Server
 import org.jellyfin.androidtv.preference.UserPreferences
+import org.jellyfin.androidtv.preference.UserSettingPreferences
+import org.jellyfin.androidtv.util.BitmapBlur
 import org.jellyfin.androidtv.util.apiclient.getUrl
 import org.jellyfin.androidtv.util.apiclient.itemBackdropImages
 import org.jellyfin.androidtv.util.apiclient.parentBackdropImages
@@ -22,7 +25,10 @@ import org.jellyfin.androidtv.util.sdk.ApiClientFactory
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.imageApi
+import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.model.api.BaseItemDto
+import org.jellyfin.sdk.model.api.ImageType
+import org.jellyfin.sdk.model.api.ItemSortBy
 import timber.log.Timber
 import java.util.UUID
 import java.time.Instant
@@ -41,6 +47,7 @@ class BackgroundService(
 	private val jellyfin: Jellyfin,
 	private val api: ApiClient,
 	private val userPreferences: UserPreferences,
+	private val userSettingPreferences: UserSettingPreferences,
 	private val imageLoader: ImageLoader,
 	private val apiClientFactory: ApiClientFactory,
 ) {
@@ -64,6 +71,13 @@ class BackgroundService(
 	val currentBackground get() = _currentBackground.asStateFlow()
 	val blurContext get() = _blurContext.asStateFlow()
 	val enabled get() = _enabled.asStateFlow()
+	
+	/**
+	 * Returns true if blur should be applied via Compose modifier (Android 12+),
+	 * false if blur is pre-applied to bitmap (Android 11 and below).
+	 */
+	val useComposeBlur: Boolean
+		get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
 	/**
 	 * Use all available backdrops from [baseItem] as background.
@@ -126,22 +140,83 @@ class BackgroundService(
 		loadBackgrounds(setOf(imageUrl))
 	}
 
+	fun setBackgroundFromLibrary(libraryId: UUID, blurContext: BlurContext = BlurContext.BROWSING) {
+		if (!userPreferences[UserPreferences.backdropEnabled])
+			return clearBackgrounds()
+
+		_blurContext.value = blurContext
+
+		loadBackgroundsJob?.cancel()
+		loadBackgroundsJob = scope.launch(Dispatchers.IO) {
+			try {
+				// Try to find an item with a backdrop image
+				val response by api.itemsApi.getItems(
+					parentId = libraryId,
+					recursive = true,
+					sortBy = listOf(ItemSortBy.RANDOM),
+					limit = 1,
+					imageTypes = listOf(ImageType.BACKDROP),
+				)
+				val item = response.items.firstOrNull()
+				if (item != null) {
+					val backdropUrls = (item.itemBackdropImages + item.parentBackdropImages)
+						.map { it.getUrl(api) }
+						.toSet()
+					if (backdropUrls.isNotEmpty()) {
+						loadBackgrounds(backdropUrls)
+						return@launch
+					}
+				}
+
+				// Fallback: fetch any item with a primary image
+				val fallback by api.itemsApi.getItems(
+					parentId = libraryId,
+					recursive = true,
+					sortBy = listOf(ItemSortBy.RANDOM),
+					limit = 1,
+					imageTypes = listOf(ImageType.PRIMARY),
+				)
+				val fallbackItem = fallback.items.firstOrNull()
+				if (fallbackItem != null) {
+					val primaryUrl = api.imageApi.getItemImageUrl(
+						itemId = fallbackItem.id,
+						imageType = ImageType.PRIMARY,
+					)
+					loadBackgrounds(setOf(primaryUrl))
+					return@launch
+				}
+			} catch (e: Exception) {
+				Timber.w(e, "Failed to fetch random backdrop from library $libraryId")
+			}
+			clearBackgrounds()
+		}
+	}
+
 	private fun loadBackgrounds(backdropUrls: Set<String>) {
 		if (backdropUrls.isEmpty()) return clearBackgrounds()
 
-		// Re-enable backgrounds if disabled
 		_enabled.value = true
+		
+		val blurAmount = when (_blurContext.value) {
+			BlurContext.DETAILS -> userSettingPreferences[UserSettingPreferences.detailsBackgroundBlurAmount]
+			BlurContext.BROWSING -> userSettingPreferences[UserSettingPreferences.browsingBackgroundBlurAmount]
+			BlurContext.NONE -> 0
+		}
 
-		// Cancel current loading job
 		loadBackgroundsJob?.cancel()
 		loadBackgroundsJob = scope.launch(Dispatchers.IO) {
 			_backgrounds = backdropUrls.mapNotNull { url ->
-				imageLoader.execute(
+				val bitmap = imageLoader.execute(
 					request = ImageRequest.Builder(context).data(url).build()
-				).image?.toBitmap()?.asImageBitmap()
+				).image?.toBitmap()
+				
+				if (bitmap != null && !useComposeBlur && blurAmount > 0) {
+					BitmapBlur.blur(bitmap, blurAmount).asImageBitmap()
+				} else {
+					bitmap?.asImageBitmap()
+				}
 			}
 
-			// Go to first background
 			_currentIndex = 0
 			update()
 		}

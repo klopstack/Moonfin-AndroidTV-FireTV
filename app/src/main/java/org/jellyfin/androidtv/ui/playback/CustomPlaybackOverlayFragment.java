@@ -51,6 +51,7 @@ import org.jellyfin.androidtv.ui.ObservableHorizontalScrollView;
 import org.jellyfin.androidtv.ui.ObservableScrollView;
 import org.jellyfin.androidtv.ui.ProgramGridCell;
 import org.jellyfin.androidtv.ui.ScrollViewListener;
+import org.jellyfin.androidtv.ui.itemhandling.BaseItemPersonBaseRowItem;
 import org.jellyfin.androidtv.ui.itemhandling.ChapterItemInfoBaseRowItem;
 import org.jellyfin.androidtv.ui.itemhandling.ItemRowAdapter;
 import org.jellyfin.androidtv.ui.livetv.LiveTvGuide;
@@ -68,6 +69,7 @@ import org.jellyfin.androidtv.util.CoroutineUtils;
 import org.jellyfin.androidtv.util.DateTimeExtensionsKt;
 import org.jellyfin.androidtv.util.ImageHelper;
 import org.jellyfin.androidtv.util.InfoLayoutHelper;
+import org.jellyfin.androidtv.preference.UserSettingPreferences;
 import org.jellyfin.androidtv.util.TextUtilsKt;
 import org.jellyfin.androidtv.util.TimeUtils;
 import org.jellyfin.androidtv.util.Utils;
@@ -135,6 +137,28 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
     private final Lazy<NavigationRepository> navigationRepository = inject(NavigationRepository.class);
     private final Lazy<BackgroundService> backgroundService = inject(BackgroundService.class);
     private final Lazy<ImageHelper> imageHelper = inject(ImageHelper.class);
+    private final Lazy<org.jellyfin.androidtv.preference.UserPreferences> userPreferences = inject(org.jellyfin.androidtv.preference.UserPreferences.class);
+
+    // Trickplay scrub auto-confirm: when the user stops pressing D-pad left/right
+    // during scrub mode, this fires after 1.5s to confirm the seek and restore play state.
+    private final Handler seekAutoConfirmHandler = new Handler(android.os.Looper.getMainLooper());
+    private boolean wasPlayingBeforeScrub = false;
+    private final Runnable seekAutoConfirmRunnable = () -> {
+        if (getActivity() == null) return;
+        View focused = requireActivity().getCurrentFocus();
+        if (focused != null) {
+            focused.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER));
+            focused.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_CENTER));
+        }
+        if (wasPlayingBeforeScrub) {
+            seekAutoConfirmHandler.postDelayed(() -> {
+                PlaybackController pc = playbackControllerContainer.getValue().getPlaybackController();
+                if (!pc.isPlaying() && pc.hasInitializedVideoManager()) {
+                    pc.play(pc.getCurrentPosition());
+                }
+            }, 200);
+        }
+    };
 
     private final PlaybackOverlayFragmentHelper helper = new PlaybackOverlayFragmentHelper(this);
 
@@ -382,6 +406,13 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
             } else if (item instanceof BaseItemDto) {
                 hidePopupPanel();
                 switchChannel(((BaseItemDto) item).getId());
+            } else if (item instanceof BaseItemPersonBaseRowItem) {
+                BaseItemPersonBaseRowItem rowItem = (BaseItemPersonBaseRowItem) item;
+                hidePopupPanel();
+                closePlayer();
+                if (rowItem.getItemId() != null) {
+                    navigationRepository.getValue().navigate(Destinations.INSTANCE.itemDetails(rowItem.getItemId(), null));
+                }
             }
         }
     };
@@ -494,10 +525,10 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                         // Capture values before clearing
                         kotlin.jvm.functions.Function0<kotlin.Unit> onPlayNext = binding.skipOverlay.getOnPlayNext();
                         Long targetPosition = binding.skipOverlay.getTargetPositionMs();
-                        
+
                         // Clear overlay immediately to hide button
                         clearSkipOverlay();
-                        
+
                         if (onPlayNext != null) {
                             // Invoke the callback (which will call playbackController.next())
                             onPlayNext.invoke();
@@ -505,7 +536,7 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                             // Regular skip - seek to target position
                             playbackControllerContainer.getValue().getPlaybackController().seek(targetPosition, true);
                         }
-                        
+
                         leanbackOverlayFragment.setShouldShowOverlay(false);
                         return true;
                     }
@@ -596,6 +627,33 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                             playbackControllerContainer.getValue().getPlaybackController().rewind();
                             setFadingEnabled(true);
                             return true;
+                        }
+
+                        // D-pad left/right on seekbar: trickplay ON uses Leanback scrub mode
+                        // with auto-confirm after 1.5s; trickplay OFF does immediate skip.
+                        if (leanbackOverlayFragment.isControlsOverlayVisible()) {
+                            View focusedView = requireActivity().getCurrentFocus();
+                            boolean isProgressBarFocused = focusedView instanceof androidx.leanback.widget.PlaybackTransportRowView
+                                    || (focusedView != null && focusedView.getParent() instanceof androidx.leanback.widget.PlaybackTransportRowView);
+                            if (isProgressBarFocused && (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_LEFT)) {
+                                boolean trickPlayEnabled = userPreferences.getValue().get(org.jellyfin.androidtv.preference.UserPreferences.Companion.getTrickPlayEnabled());
+                                if (trickPlayEnabled) {
+                                    // Save play state on first scrub press for restore after auto-confirm
+                                    if (!seekAutoConfirmHandler.hasCallbacks(seekAutoConfirmRunnable)) {
+                                        wasPlayingBeforeScrub = playbackControllerContainer.getValue().getPlaybackController().isPlaying();
+                                    }
+                                    seekAutoConfirmHandler.removeCallbacks(seekAutoConfirmRunnable);
+                                    seekAutoConfirmHandler.postDelayed(seekAutoConfirmRunnable, 1500);
+                                } else {
+                                    if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                                        playbackControllerContainer.getValue().getPlaybackController().fastForward();
+                                    } else {
+                                        playbackControllerContainer.getValue().getPlaybackController().rewind();
+                                    }
+                                    leanbackOverlayFragment.updateCurrentPosition();
+                                    return true;
+                                }
+                            }
                         }
                     }
 
@@ -1176,6 +1234,15 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         }, 500);
     }
 
+    public void showCastSelector() {
+        prepareCastAdapter();
+        showChapterPanel();
+        mHandler.postDelayed(() -> {
+            if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) return;
+            mPopupPanelVisible = true;
+        }, 500);
+    }
+
     private int getCurrentChapterIndex(BaseItemDto item, long pos) {
         int ndx = 0;
         Timber.d("*** looking for chapter at pos: %d", pos);
@@ -1272,6 +1339,17 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                 binding.itemSubtitle.setText(BaseItemExtensionsKt.getDisplayName(current, requireContext()));
             } else {
                 binding.itemTitle.setText(current.getName());
+                binding.itemSubtitle.setText(current.getName());
+            }
+            // Show description on pause screen if enabled
+            UserSettingPreferences userSettingPreferences = org.koin.java.KoinJavaComponent.get(UserSettingPreferences.class);
+            boolean showDescription = userSettingPreferences.get(UserSettingPreferences.Companion.getShowDescriptionOnPause());
+            String overview = current.getOverview();
+            if (showDescription && overview != null && !overview.isEmpty()) {
+                binding.itemDescription.setText(overview);
+                binding.itemDescription.setVisibility(View.VISIBLE);
+            } else {
+                binding.itemDescription.setVisibility(View.GONE);
             }
             // Update the logo
             String imageUrl = imageHelper.getValue().getLogoImageUrl(current, 440);
@@ -1280,9 +1358,13 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
                 binding.itemTitle.setVisibility(View.GONE);
                 binding.itemLogo.setContentDescription(current.getName());
                 binding.itemLogo.load(imageUrl, null, null, 1.0, 0);
+                if (current.getType() != BaseItemKind.EPISODE) {
+                    binding.itemSubtitle.setVisibility(View.GONE);
+                }
             } else {
                 binding.itemLogo.setVisibility(View.GONE);
                 binding.itemTitle.setVisibility(View.VISIBLE);
+                binding.itemSubtitle.setVisibility(View.VISIBLE);
             }
 
             if (playbackControllerContainer.getValue().getPlaybackController().isLiveTv()) {
@@ -1330,10 +1412,41 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
         });
     }
 
+    private void prepareCastAdapter() {
+        BaseItemDto item = playbackControllerContainer.getValue().getPlaybackController().getCurrentlyPlayingItem();
+        
+        CustomPlaybackOverlayFragmentHelperKt.loadCastForItem(this, item, people -> {
+            if (people != null && !people.isEmpty()) {
+                ArrayObjectAdapter castAdapter = new ArrayObjectAdapter(new CardPresenter(true, 120));
+                for (org.jellyfin.sdk.model.api.BaseItemPerson person : people) {
+                    castAdapter.add(new BaseItemPersonBaseRowItem(person));
+                }
+                if (mChapterRow != null) mPopupRowAdapter.remove(mChapterRow);
+                mChapterRow = new ListRow(new HeaderItem(requireContext().getString(R.string.lbl_cast)), castAdapter);
+                mPopupRowAdapter.add(mChapterRow);
+            }
+            return null;
+        });
+    }
+
     public void closePlayer() {
         if (navigating) return;
         navigating = true;
 
+        // Reset display mode before performing navigation so HDMI mode switch
+        // occurs during the transition, not after. This prevents a black screen
+        // from appearing post-navigation, possibly after the UI has already rendered,
+        // which can look glitchy
+        WindowManager.LayoutParams params = getActivity().getWindow().getAttributes();
+        int currentModeId = params.preferredDisplayModeId;
+        params.preferredDisplayModeId = 0;
+        getActivity().getWindow().setAttributes(params);
+
+        // actually perform the navigation
+        performNavigation();
+}
+
+    private void performNavigation() {
         if (navigationRepository.getValue().getCanGoBack()) {
             navigationRepository.getValue().goBack();
         } else {
@@ -1357,16 +1470,15 @@ public class CustomPlaybackOverlayFragment extends Fragment implements LiveTvGui
 
     @Override
     public void onDestroy() {
+        seekAutoConfirmHandler.removeCallbacks(seekAutoConfirmRunnable);
         super.onDestroy();
 
         // Show system bars
         WindowCompat.setDecorFitsSystemWindows(requireActivity().getWindow(), true);
         WindowCompat.getInsetsController(requireActivity().getWindow(), requireActivity().getWindow().getDecorView()).show(WindowInsetsCompat.Type.systemBars());
 
-        // Reset display mode
-        WindowManager.LayoutParams params = getActivity().getWindow().getAttributes();
-        params.preferredDisplayModeId = 0;
-        getActivity().getWindow().setAttributes(params);
+        // Display mode reset now happens in closePlayer() before navigation
+        // to ensure HDMI mode switch occurs during the transition, not after
     }
 
     public PlaybackController getPlaybackController() {

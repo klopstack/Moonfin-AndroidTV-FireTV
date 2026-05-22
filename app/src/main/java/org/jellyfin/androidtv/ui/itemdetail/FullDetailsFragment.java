@@ -55,6 +55,7 @@ import org.jellyfin.androidtv.ui.RecordingIndicatorView;
 import org.jellyfin.androidtv.constant.ImageType;
 import org.jellyfin.androidtv.ui.TextUnderButton;
 import org.jellyfin.androidtv.ui.browsing.BrowsingUtils;
+import org.jellyfin.androidtv.ui.itemhandling.BaseItemDtoBaseRowItem;
 import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem;
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher;
 import org.jellyfin.androidtv.ui.itemhandling.ItemRowAdapter;
@@ -77,6 +78,7 @@ import org.jellyfin.androidtv.util.PlaybackHelper;
 import org.jellyfin.androidtv.util.TimeUtils;
 import org.jellyfin.androidtv.util.Utils;
 import org.jellyfin.androidtv.util.apiclient.BaseItemUtils;
+import org.jellyfin.androidtv.util.apiclient.EmptyResponse;
 import org.jellyfin.androidtv.util.apiclient.Response;
 import org.jellyfin.androidtv.util.sdk.BaseItemExtensionsKt;
 import org.jellyfin.androidtv.util.sdk.TrailerUtils;
@@ -86,6 +88,7 @@ import org.jellyfin.sdk.model.api.BaseItemKind;
 import org.jellyfin.sdk.model.api.BaseItemPerson;
 import org.jellyfin.sdk.model.api.MediaSourceInfo;
 import org.jellyfin.sdk.model.api.MediaStream;
+import org.jellyfin.sdk.model.api.MediaStreamType;
 import org.jellyfin.sdk.model.api.MediaType;
 import org.jellyfin.sdk.model.api.PersonKind;
 import org.jellyfin.sdk.model.api.SeriesTimerInfoDto;
@@ -95,10 +98,12 @@ import org.koin.java.KoinJavaComponent;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
 import kotlin.Lazy;
@@ -111,6 +116,8 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
 
     TextUnderButton mResumeButton;
     private TextUnderButton mVersionsButton;
+    private TextUnderButton mAudioTrackButton;
+    private TextUnderButton mSubtitleTrackButton;
     TextUnderButton mPrevButton;
     private TextUnderButton mRecordButton;
     private TextUnderButton mRecSeriesButton;
@@ -136,6 +143,9 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
 
     private Handler mLoopHandler = new Handler();
     private Runnable mClockLoop;
+    private Runnable mPersonBackdropLoop;
+    private List<BaseItemDto> mPersonFilmographyItems = new ArrayList<>();
+    private static final int PERSON_BACKDROP_ROTATION_INTERVAL = 8000; // 8 seconds
 
     BaseItemDto mBaseItem;
 
@@ -318,7 +328,9 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
                 if (viewholder == null) return;
 
                 if (mBaseItem != null && ((mBaseItem.getRunTimeTicks() != null && mBaseItem.getRunTimeTicks() > 0) || mBaseItem.getRunTimeTicks() != null)) {
-                    viewholder.setInfoValue3(getEndTime());
+                    String endTime = getEndTime();
+                    viewholder.setInfoValue3(endTime);
+                    viewholder.updateEndTime(endTime);
                     mLoopHandler.postDelayed(this, 15000);
                 }
             }
@@ -330,6 +342,33 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
     private void stopClock() {
         if (mLoopHandler != null && mClockLoop != null) {
             mLoopHandler.removeCallbacks(mClockLoop);
+        }
+        stopPersonBackdropRotation();
+    }
+
+    private void startPersonBackdropRotation() {
+        if (mPersonFilmographyItems.isEmpty()) return;
+
+        mPersonBackdropLoop = new Runnable() {
+            @Override
+            public void run() {
+                if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) return;
+                if (mPersonFilmographyItems.isEmpty()) return;
+
+                BaseItemDto randomItem = mPersonFilmographyItems.get(new Random().nextInt(mPersonFilmographyItems.size()));
+                backgroundService.getValue().setBackground(randomItem);
+                mLoopHandler.postDelayed(this, PERSON_BACKDROP_ROTATION_INTERVAL);
+            }
+        };
+
+        BaseItemDto randomItem = mPersonFilmographyItems.get(new Random().nextInt(mPersonFilmographyItems.size()));
+        backgroundService.getValue().setBackground(randomItem);
+        mLoopHandler.postDelayed(mPersonBackdropLoop, PERSON_BACKDROP_ROTATION_INTERVAL);
+    }
+
+    private void stopPersonBackdropRotation() {
+        if (mLoopHandler != null && mPersonBackdropLoop != null) {
+            mLoopHandler.removeCallbacks(mPersonBackdropLoop);
         }
     }
 
@@ -573,11 +612,44 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
                 addInfoRows(adapter);
                 break;
             case PERSON:
+                mPersonFilmographyItems.clear();
+                final int[] loadedAdapters = {0};
+
                 ItemRowAdapter personMoviesAdapter = new ItemRowAdapter(requireContext(), BrowsingUtils.createPersonItemsRequest(mBaseItem.getId(), BaseItemKind.MOVIE), 100, false, new CardPresenter(), adapter);
                 addItemRow(adapter, personMoviesAdapter, 0, getString(R.string.lbl_movies));
 
+                personMoviesAdapter.setRetrieveFinishedListener(new EmptyResponse(getLifecycle()) {
+                    @Override
+                    public void onResponse() {
+                        for (Object item : personMoviesAdapter) {
+                            if (item instanceof BaseItemDtoBaseRowItem) {
+                                mPersonFilmographyItems.add(((BaseItemDtoBaseRowItem) item).getBaseItem());
+                            }
+                        }
+                        loadedAdapters[0]++;
+                        if (loadedAdapters[0] >= 2 && !mPersonFilmographyItems.isEmpty()) {
+                            startPersonBackdropRotation();
+                        }
+                    }
+                });
+
                 ItemRowAdapter personSeriesAdapter = new ItemRowAdapter(requireContext(), BrowsingUtils.createPersonItemsRequest(mBaseItem.getId(), BaseItemKind.SERIES), 100, false, new CardPresenter(), adapter);
                 addItemRow(adapter, personSeriesAdapter, 1, getString(R.string.lbl_tv_series));
+
+                personSeriesAdapter.setRetrieveFinishedListener(new EmptyResponse(getLifecycle()) {
+                    @Override
+                    public void onResponse() {
+                        for (Object item : personSeriesAdapter) {
+                            if (item instanceof BaseItemDtoBaseRowItem) {
+                                mPersonFilmographyItems.add(((BaseItemDtoBaseRowItem) item).getBaseItem());
+                            }
+                        }
+                        loadedAdapters[0]++;
+                        if (loadedAdapters[0] >= 2 && !mPersonFilmographyItems.isEmpty()) {
+                            startPersonBackdropRotation();
+                        }
+                    }
+                });
 
                 ItemRowAdapter personEpisodesAdapter = new ItemRowAdapter(requireContext(), BrowsingUtils.createPersonItemsRequest(mBaseItem.getId(), BaseItemKind.EPISODE), 100, false, new CardPresenter(), adapter);
                 addItemRow(adapter, personEpisodesAdapter, 2, getString(R.string.lbl_episodes));
@@ -696,12 +768,19 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
     }
 
     private String getEndTime() {
-        if (mBaseItem != null && mBaseItem.getType() != BaseItemKind.MUSIC_ARTIST && mBaseItem.getType() != BaseItemKind.PERSON) {
+        if (mBaseItem != null && mBaseItem.getType() != BaseItemKind.MUSIC_ARTIST && mBaseItem.getType() != BaseItemKind.PERSON && mBaseItem.getType() != BaseItemKind.SERIES) {
             Long runtime = Utils.getSafeValue(mBaseItem.getRunTimeTicks(), mBaseItem.getRunTimeTicks());
             if (runtime != null && runtime > 0) {
-                LocalDateTime endTime = mBaseItem.getType() == BaseItemKind.PROGRAM && mBaseItem.getEndDate() != null ? mBaseItem.getEndDate() : LocalDateTime.now().plusNanos(runtime * 100);
-                if (JavaCompat.getCanResume(mBaseItem)) {
-                    endTime = LocalDateTime.now().plusNanos((runtime - mBaseItem.getUserData().getPlaybackPositionTicks()) * 100);
+                // Convert ticks to milliseconds (10,000 ticks = 1 ms)
+                long runtimeMs = runtime / 10000;
+                LocalDateTime endTime;
+                if (mBaseItem.getType() == BaseItemKind.PROGRAM && mBaseItem.getEndDate() != null) {
+                    endTime = mBaseItem.getEndDate();
+                } else if (JavaCompat.getCanResume(mBaseItem)) {
+                    long remainingMs = (runtime - mBaseItem.getUserData().getPlaybackPositionTicks()) / 10000;
+                    endTime = LocalDateTime.now().plus(remainingMs, ChronoUnit.MILLIS);
+                } else {
+                    endTime = LocalDateTime.now().plus(runtimeMs, ChronoUnit.MILLIS);
                 }
                 return DateTimeExtensionsKt.getTimeFormatter(getContext()).format(endTime);
             }
@@ -818,8 +897,28 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
                 shuffleButton = TextUnderButton.create(requireContext(), R.drawable.ic_shuffle, buttonSize, 2, getString(R.string.lbl_shuffle_all), new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        play(mBaseItem, 0, true);
+                        // If this is a genre, shuffle within that genre
+                        if (mBaseItem.getType() == BaseItemKind.GENRE) {
+                            java.util.UUID serverId = org.jellyfin.androidtv.util.UUIDUtils.parseUUID(mBaseItem.getServerId());
+                            org.jellyfin.androidtv.ui.shuffle.ShuffleUtilsKt.executeGenreShuffle(
+                                requireContext(),
+                                mBaseItem.getName(),
+                                mBaseItem.getParentId(),
+                                serverId,
+                                KoinJavaComponent.get(org.jellyfin.androidtv.preference.UserPreferences.class),
+                                KoinJavaComponent.get(NavigationRepository.class)
+                            );
+                        } else {
+                            play(mBaseItem, 0, true);
+                        }
                     }
+                });
+                shuffleButton.setOnLongClickListener(v -> {
+                    org.jellyfin.androidtv.ui.shuffle.ShuffleDialogLauncherKt.showShuffleDialog(
+                        requireContext(),
+                        KoinJavaComponent.get(NavigationRepository.class)
+                    );
+                    return true;
                 });
                 mDetailsOverviewRow.addAction(shuffleButton);
             }
@@ -834,7 +933,6 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
                 mDetailsOverviewRow.addAction(imix);
             }
         }
-        //Video versions button
         if (mBaseItem.getMediaSources() != null && mBaseItem.getMediaSources().size() > 1) {
             mVersionsButton = TextUnderButton.create(requireContext(), R.drawable.ic_guide, buttonSize, 0, getString(R.string.select_version), new View.OnClickListener() {
                 @Override
@@ -850,6 +948,47 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
             mDetailsOverviewRow.addAction(mVersionsButton);
         }
 
+        if (mBaseItem.getMediaSources() != null && !mBaseItem.getMediaSources().isEmpty()) {
+            MediaSourceInfo mediaSource = mBaseItem.getMediaSources().get(0);
+            if (mediaSource.getMediaStreams() != null) {
+                List<MediaStream> mediaStreams = mediaSource.getMediaStreams();
+                
+                // Count audio tracks without using streams (desugaring issue)
+                int audioTrackCount = 0;
+                for (MediaStream stream : mediaStreams) {
+                    if (stream.getType() == MediaStreamType.AUDIO) {
+                        audioTrackCount++;
+                    }
+                }
+                if (audioTrackCount > 1) {
+                    mAudioTrackButton = TextUnderButton.create(requireContext(), R.drawable.ic_select_audio, buttonSize, 0, getString(R.string.lbl_audio_track), new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            FullDetailsFragmentHelperKt.showAudioTrackSelector(FullDetailsFragment.this, v, mBaseItem);
+                        }
+                    });
+                    mDetailsOverviewRow.addAction(mAudioTrackButton);
+                }
+
+                // Count subtitle tracks without using streams (desugaring issue)
+                int subtitleTrackCount = 0;
+                for (MediaStream stream : mediaStreams) {
+                    if (stream.getType() == MediaStreamType.SUBTITLE) {
+                        subtitleTrackCount++;
+                    }
+                }
+                if (subtitleTrackCount > 0) {
+                    mSubtitleTrackButton = TextUnderButton.create(requireContext(), R.drawable.ic_select_subtitle, buttonSize, 0, getString(R.string.lbl_subtitle_track), new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            FullDetailsFragmentHelperKt.showSubtitleTrackSelector(FullDetailsFragment.this, v, mBaseItem);
+                        }
+                    });
+                    mDetailsOverviewRow.addAction(mSubtitleTrackButton);
+                }
+            }
+        }
+
         if (TrailerUtils.hasPlayableTrailers(requireContext(), mBaseItem)) {
             trailerButton = TextUnderButton.create(requireContext(), R.drawable.ic_trailer, buttonSize, 0, getString(R.string.lbl_play_trailers), new View.OnClickListener() {
                 @Override
@@ -863,7 +1002,6 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
 
         if (mProgramInfo != null && Utils.canManageRecordings(KoinJavaComponent.<UserRepository>get(UserRepository.class).getCurrentUser().getValue())) {
             if (mBaseItem.getEndDate().isAfter(LocalDateTime.now())) {
-                //Record button
                 mRecordButton = TextUnderButton.create(requireContext(), R.drawable.ic_record, buttonSize, 4, getString(R.string.lbl_record), new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -970,6 +1108,17 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
             });
             favButton.setActivated(userData.isFavorite());
             mDetailsOverviewRow.addAction(favButton);
+
+            //Add to Playlist
+            if (mBaseItem.getType() != BaseItemKind.PERSON) {
+                TextUnderButton addToPlaylistButton = TextUnderButton.create(requireContext(), R.drawable.ic_add, buttonSize, 0, getString(R.string.lbl_add_to_playlist), new View.OnClickListener() {
+                    @Override
+                    public void onClick(final View v) {
+                        org.jellyfin.androidtv.ui.playlist.AddToPlaylistDialogLauncherKt.showAddToPlaylistDialog(requireContext(), mBaseItem.getId());
+                    }
+                });
+                mDetailsOverviewRow.addAction(addToPlaylistButton);
+            }
         }
 
         if (mBaseItem.getType() == BaseItemKind.EPISODE && mBaseItem.getSeriesId() != null) {
@@ -1053,7 +1202,6 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
 
         }
 
-        //Now, create a more button to show if needed
         moreButton = TextUnderButton.create(requireContext(), R.drawable.ic_more, buttonSize, 0, getString(R.string.lbl_other_options), new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -1079,8 +1227,15 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
         mResumeButton.setVisibility(resumeButtonVisible ? View.VISIBLE : View.GONE);
 
         if (resumeButtonVisible) {
+            playButton.setLabel(getString(R.string.lbl_from_beginning));
+            playButton.setIcon(R.drawable.ic_loop, BUTTON_SIZE);
             mResumeButton.requestFocus();
         } else {
+            String playLabel = BaseItemExtensionsKt.isLiveTv(mBaseItem) ? getString(R.string.lbl_tune_to_channel) 
+                : Utils.getSafeValue(mBaseItem.isFolder(), false) ? getString(R.string.lbl_play_all) 
+                : getString(R.string.lbl_play);
+            playButton.setLabel(playLabel);
+            playButton.setIcon(R.drawable.ic_play, BUTTON_SIZE);
             playButton.requestFocus();
         }
     }
@@ -1119,12 +1274,11 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
         int visibleOptions = mDetailsOverviewRow.getVisibleActions();
 
         List<TextUnderButton> actionsList = new ArrayList<>();
-        // added in order of priority (should match res/menu/menu_details_more.xml)
+        // added in order of priority (least important last)
         if (queueButton != null) actionsList.add(queueButton);
-        if (trailerButton != null) actionsList.add(trailerButton);
         if (shuffleButton != null) actionsList.add(shuffleButton);
-        if (favButton != null) actionsList.add(favButton);
-        if (goToSeriesButton != null) actionsList.add(goToSeriesButton);
+        if (mPrevButton != null) actionsList.add(mPrevButton);
+        if (deleteButton != null) actionsList.add(deleteButton);
 
         // reverse the list so the less important actions are hidden first
         Collections.reverse(actionsList);

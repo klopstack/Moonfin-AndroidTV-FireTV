@@ -4,26 +4,44 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import org.jellyfin.androidtv.data.service.pluginsync.PluginSyncService
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.constant.NavbarPosition
+import org.jellyfin.androidtv.ui.settings.compat.SettingsViewModel
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinActivityViewModel
 import java.util.UUID
 
 /**
- * A composable that wraps content with either a left sidebar or top toolbar
- * based on the user's navbar position preference.
+ * Observes [NavbarPosition] and re-reads it when settings close or plugin sync completes.
  */
 @Composable
+fun rememberNavbarPosition(): NavbarPosition {
+	val userPreferences = koinInject<UserPreferences>()
+	val settingsClosedCounter by koinActivityViewModel<SettingsViewModel>().settingsClosedCounter.collectAsState()
+	val syncCompletedCounter by koinInject<PluginSyncService>().syncCompletedCounter.collectAsState()
+
+	var position by remember { mutableStateOf(userPreferences[UserPreferences.navbarPosition]) }
+	LaunchedEffect(settingsClosedCounter, syncCompletedCounter) {
+		position = userPreferences[UserPreferences.navbarPosition]
+	}
+	return position
+}
+
+@Composable
 fun NavigationLayout(
-	activeButton: MainToolbarActiveButton,
+	activeButton: NavbarActiveButton,
 	activeLibraryId: UUID? = null,
 	content: @Composable () -> Unit
 ) {
-	val userPreferences = koinInject<UserPreferences>()
-	val navbarPosition = userPreferences[UserPreferences.navbarPosition]
-	
-	when (navbarPosition) {
+	when (rememberNavbarPosition()) {
 		NavbarPosition.LEFT -> {
 			Box(modifier = Modifier.fillMaxSize()) {
 				content()
@@ -36,7 +54,7 @@ fun NavigationLayout(
 		}
 		NavbarPosition.TOP -> {
 			Column(modifier = Modifier.fillMaxSize()) {
-				MainToolbar(
+				Navbar(
 					activeButton = activeButton,
 					activeLibraryId = activeLibraryId
 				)
@@ -47,18 +65,15 @@ fun NavigationLayout(
 }
 
 /**
- * A composable that shows just the navigation (sidebar or toolbar) without wrapping content.
+ * Shows just the navigation (sidebar or toolbar) without wrapping content.
  * Used for XML-based layouts that can't be wrapped in Compose.
  */
 @Composable
 fun NavigationOverlay(
-	activeButton: MainToolbarActiveButton,
+	activeButton: NavbarActiveButton,
 	activeLibraryId: UUID? = null
 ) {
-	val userPreferences = koinInject<UserPreferences>()
-	val navbarPosition = userPreferences[UserPreferences.navbarPosition]
-	
-	when (navbarPosition) {
+	when (rememberNavbarPosition()) {
 		NavbarPosition.LEFT -> {
 			LeftSidebarNavigation(
 				activeButton = activeButton,
@@ -66,7 +81,7 @@ fun NavigationOverlay(
 			)
 		}
 		NavbarPosition.TOP -> {
-			MainToolbar(
+			Navbar(
 				activeButton = activeButton,
 				activeLibraryId = activeLibraryId
 			)

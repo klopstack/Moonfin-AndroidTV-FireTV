@@ -15,7 +15,7 @@
 		<TextView
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:text="Jellyseerr Settings"
+			android:text="Seerr Settings"
 			android:textSize="24sp"
 			android:textStyle="bold"
 			android:textColor="@color/white"
@@ -24,7 +24,7 @@
 		<TextView
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:text="Configure your Jellyseerr server connection"
+			android:text="Configure your Seerr server connection"
 			android:textSize="14sp"
 			android:textColor="@color/grey_light"
 			android:layout_marginBottom="20dp" />
@@ -41,7 +41,7 @@
 				android:layout_width="0dp"
 				android:layout_height="wrap_content"
 				android:layout_weight="1"
-				android:text="Enable Jellyseerr Integration"
+				android:text="Enable Seerr Integration"
 				android:textSize="16sp"
 				android:textColor="@color/white" />
 
@@ -203,7 +203,7 @@
 			<TextView
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
-				android:text="1. Enter your Jellyseerr server URL above\n2. Click 'Connect with Current Jellyfin Account'\n3. Connection will be established automatically using your Jellyfin credentials"
+				android:text="1. Enter your Seerr server URL above\n2. Click 'Connect with Current Jellyfin Account'\n3. Connection will be established automatically using your Jellyfin credentials"
 				android:textSize="12sp"
 				android:textColor="@color/grey_light"
 				android:lineSpacingExtra="4dp" />

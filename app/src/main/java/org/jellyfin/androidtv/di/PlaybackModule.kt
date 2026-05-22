@@ -10,6 +10,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.ui.browsing.MainActivity
@@ -19,18 +20,23 @@ import org.jellyfin.androidtv.ui.playback.PrePlaybackTrackSelector
 import org.jellyfin.androidtv.ui.playback.VideoQueueManager
 import org.jellyfin.androidtv.ui.playback.rewrite.RewriteMediaManager
 import org.jellyfin.androidtv.util.profile.createDeviceProfile
+import org.jellyfin.androidtv.util.sdk.ApiClientFactory
 import org.jellyfin.playback.core.playbackManager
 import org.jellyfin.playback.jellyfin.jellyfinPlugin
+import org.moonfin.playback.emby.embyPlugin
+import org.moonfin.server.core.model.ServerType
 import org.jellyfin.playback.media3.exoplayer.ExoPlayerOptions
 import org.jellyfin.playback.media3.exoplayer.exoPlayerPlugin
 import org.jellyfin.playback.media3.session.MediaSessionOptions
 import org.jellyfin.playback.media3.session.media3SessionPlugin
+import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.HttpClientOptions
 import org.jellyfin.sdk.api.okhttp.OkHttpFactory
 import org.koin.android.ext.koin.androidContext
 import kotlin.time.Duration
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
+import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 import org.jellyfin.androidtv.ui.playback.PlaybackManager as LegacyPlaybackManager
 
@@ -72,9 +78,10 @@ fun Scope.createPlaybackManager() = playbackManager(androidContext()) {
 
 	val userPreferences = get<UserPreferences>()
 	val exoPlayerOptions = ExoPlayerOptions(
-		preferFfmpeg = userPreferences[UserPreferences.preferExoPlayerFfmpeg],
-		enableDebugLogging = userPreferences[UserPreferences.debuggingEnabled],
-		enableLibAssRenderer = userPreferences[UserPreferences.assDirectPlay],
+		preferFfmpeg = { userPreferences[UserPreferences.preferExoPlayerFfmpeg] },
+		enableDebugLogging = { userPreferences[UserPreferences.debuggingEnabled] },
+		enableLibAssRenderer = { userPreferences[UserPreferences.assDirectPlay] },
+		assSubtitleFontScale = { userPreferences[UserPreferences.subtitlesTextSize] / 24f },
 		baseDataSourceFactory = get<HttpDataSource.Factory>(),
 	)
 	install(exoPlayerPlugin(get(), exoPlayerOptions))
@@ -89,34 +96,19 @@ fun Scope.createPlaybackManager() = playbackManager(androidContext()) {
 
 	val deviceProfileBuilder = { createDeviceProfile(androidContext(), userPreferences, get()) }
 	
-	// Create API client resolver for cross-server support
-	val apiClientFactory = get<org.jellyfin.androidtv.util.sdk.ApiClientFactory>()
-	val sessionRepository = get<org.jellyfin.androidtv.auth.repository.SessionRepository>()
-	val authenticationStore = get<org.jellyfin.androidtv.auth.store.AuthenticationStore>()
-	val apiClientResolver: (java.util.UUID?) -> org.jellyfin.sdk.api.client.ApiClient? = { serverId ->
-		serverId?.let { 
-			val currentSession = sessionRepository.currentSession.value
-			
-			val userId = if (currentSession?.serverId == it) {
-				currentSession.userId
-			} else {
-				authenticationStore.getServer(it)?.users?.entries
-					?.firstOrNull { (_, user) -> !user.accessToken.isNullOrBlank() }
-					?.key
-			}
-			
-			if (userId != null) {
-				apiClientFactory.getApiClient(it, userId) ?: apiClientFactory.getApiClientForServer(it)
-			} else {
-				apiClientFactory.getApiClientForServer(it)
-			}
-		}
+	val apiClientFactory = get<ApiClientFactory>()
+	val apiClientResolver: (UUID?) -> ApiClient? = { serverId ->
+		serverId?.let { apiClientFactory.getApiClientForServer(it) }
 	}
-	
-	install(jellyfinPlugin(get(), deviceProfileBuilder, ProcessLifecycleOwner.get().lifecycle, apiClientResolver))
 
-	// Options
+	val serverRepository = get<ServerRepository>()
+	val isEmbyActive = { serverRepository.currentServer.value?.serverType == ServerType.EMBY }
+
+	install(embyPlugin(get(), deviceProfileBuilder))
+	install(jellyfinPlugin(get(), deviceProfileBuilder, ProcessLifecycleOwner.get().lifecycle, apiClientResolver, isActive = { !isEmbyActive() }))
+
 	val userSettingPreferences = get<UserSettingPreferences>()
 	defaultRewindAmount = { userSettingPreferences[UserSettingPreferences.skipBackLength].milliseconds }
 	defaultFastForwardAmount = { userSettingPreferences[UserSettingPreferences.skipForwardLength].milliseconds }
+	unpauseRewindAmount = { userSettingPreferences[UserSettingPreferences.unpauseRewindDuration].milliseconds }
 }

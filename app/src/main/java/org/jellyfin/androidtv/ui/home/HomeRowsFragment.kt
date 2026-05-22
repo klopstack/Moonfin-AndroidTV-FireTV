@@ -3,6 +3,7 @@ package org.jellyfin.androidtv.ui.home
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
+import androidx.core.view.isVisible
 import androidx.leanback.app.RowsSupportFragment
 import androidx.leanback.widget.ClassPresenterSelector
 import androidx.leanback.widget.ListRow
@@ -16,6 +17,7 @@ import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +34,7 @@ import org.jellyfin.androidtv.auth.repository.SessionRepository
 import org.jellyfin.androidtv.auth.repository.UserRepository
 import org.jellyfin.androidtv.constant.CustomMessage
 import org.jellyfin.androidtv.constant.HomeSectionType
+import org.jellyfin.androidtv.constant.QueryType
 import org.jellyfin.androidtv.data.model.DataRefreshService
 import org.jellyfin.androidtv.data.repository.CustomMessageRepository
 import org.jellyfin.androidtv.data.repository.NotificationsRepository
@@ -51,6 +54,7 @@ import org.jellyfin.androidtv.ui.home.mediabar.MediaBarSlideshowViewModel
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.androidtv.ui.playback.AudioEventListener
 import org.jellyfin.androidtv.ui.playback.MediaManager
+import org.jellyfin.androidtv.ui.playback.PlaybackController
 import org.jellyfin.androidtv.ui.playback.ThemeMusicPlayer
 import org.jellyfin.androidtv.ui.presentation.CardPresenter
 import org.jellyfin.androidtv.ui.presentation.MutableObjectAdapter
@@ -61,6 +65,7 @@ import org.jellyfin.playback.core.PlaybackManager
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.sockets.subscribe
+import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.LibraryChangedMessage
 import org.jellyfin.sdk.model.api.UserDataChangedMessage
 import org.koin.android.ext.android.inject
@@ -110,7 +115,7 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 
 	// Store rows for refreshing
 	private var currentRows = mutableListOf<HomeFragmentRow>()
-	private var watchlistRow: HomeFragmentWatchlistRow? = null
+	private var playlistsRow: HomeFragmentPlaylistsRow? = null
 
 	// Debouncer for selection updates - only update UI after user stops navigating
 	private val selectionDebouncer by lazy { Debouncer(150.milliseconds, lifecycleScope) }
@@ -120,7 +125,11 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 		super.onCreate(savedInstanceState)
 
 		// Create a custom row presenter that keeps headers always visible
-		val rowPresenter = PositionableListRowPresenter(requireContext()).apply {
+		val zoomFactor = if (userPreferences[UserPreferences.cardFocusExpansion])
+			androidx.leanback.widget.FocusHighlight.ZOOM_FACTOR_MEDIUM
+		else
+			androidx.leanback.widget.FocusHighlight.ZOOM_FACTOR_NONE
+		val rowPresenter = PositionableListRowPresenter(requireContext(), focusZoomFactor = zoomFactor).apply {
 			// Enable select effect for rows
 			setSelectEffectEnabled(true)
 		}
@@ -142,18 +151,25 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 			val homesections = userSettingPreferences.activeHomesections
 			var includeLiveTvRows = false
 
-			// Check for live TV support
-			if (homesections.contains(HomeSectionType.LIVE_TV) && currentUser.policy?.enableLiveTvAccess == true) {
-				// This is kind of ugly, but it mirrors how web handles the live TV rows on the home screen
-				// If we can retrieve one live TV recommendation, then we should display the rows
-				val recommendedPrograms by api.liveTvApi.getRecommendedPrograms(
-					enableTotalRecordCount = false,
-					imageTypeLimit = 1,
-					isAiring = true,
-					limit = 1,
-				)
-				includeLiveTvRows = recommendedPrograms.items.isNotEmpty()
-			}
+			// Pre-fetch views and check live TV support in parallel
+			val viewsDeferred = if (homesections.contains(HomeSectionType.LATEST_MEDIA)) {
+				async { userViewsRepository.views.first() }
+			} else null
+
+			val liveTvDeferred = if (homesections.contains(HomeSectionType.LIVE_TV) && currentUser.policy?.enableLiveTvAccess == true) {
+				async {
+					val recommendedPrograms by api.liveTvApi.getRecommendedPrograms(
+						enableTotalRecordCount = false,
+						imageTypeLimit = 1,
+						isAiring = true,
+						limit = 1,
+					)
+					recommendedPrograms.items.isNotEmpty()
+				}
+			} else null
+
+			includeLiveTvRows = liveTvDeferred?.await() ?: false
+			val cachedViews = viewsDeferred?.await()
 
 			// Make sure the rows are empty
 			val rows = mutableListOf<HomeFragmentRow>()
@@ -172,7 +188,7 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 			
 			for (section in homesections) when (section) {
 				HomeSectionType.MEDIA_BAR -> { /* Now handled by separate toggle above */ }
-				HomeSectionType.LATEST_MEDIA -> rows.add(helper.loadRecentlyAdded(userViewsRepository.views.first()))
+				HomeSectionType.LATEST_MEDIA -> rows.add(helper.loadRecentlyAdded(cachedViews ?: userViewsRepository.views.first()))
 				HomeSectionType.RECENTLY_RELEASED -> rows.add(helper.loadRecentlyReleased())
 				HomeSectionType.LIBRARY_TILES_SMALL -> rows.add(HomeFragmentViewsRow(small = false))
 				HomeSectionType.LIBRARY_BUTTONS -> rows.add(HomeFragmentViewsRow(small = true))
@@ -197,10 +213,10 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 						mergedRowAdded = true
 					}
 				}
-				HomeSectionType.WATCHLIST -> {
-					val row = helper.loadWatchlist()
-					if (row is HomeFragmentWatchlistRow) {
-						this@HomeRowsFragment.watchlistRow = row
+				HomeSectionType.PLAYLISTS -> {
+					val row = helper.loadPlaylists()
+					if (row is HomeFragmentPlaylistsRow) {
+						this@HomeRowsFragment.playlistsRow = row
 						rows.add(row)
 					}
 				}
@@ -245,16 +261,17 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 				}
 			}.launchIn(lifecycleScope)
 
-		// Listen for merge continue watching preference changes and recreate rows
 		var lastMergeState = userPreferences[UserPreferences.mergeContinueWatchingNextUp]
+		var lastFocusExpansion = userPreferences[UserPreferences.cardFocusExpansion]
 		lifecycleScope.launch {
 			lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-				// Check preference every 500ms while resumed
 				while (true) {
 					delay(500.milliseconds)
 					val currentMergeState = userPreferences[UserPreferences.mergeContinueWatchingNextUp]
-					if (currentMergeState != lastMergeState) {
+					val currentFocusExpansion = userPreferences[UserPreferences.cardFocusExpansion]
+					if (currentMergeState != lastMergeState || currentFocusExpansion != lastFocusExpansion) {
 						lastMergeState = currentMergeState
+						lastFocusExpansion = currentFocusExpansion
 						// Recreate the fragment to rebuild rows with new structure
 						parentFragmentManager.beginTransaction()
 							.detach(this@HomeRowsFragment)
@@ -304,23 +321,36 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 		super.onViewCreated(view, savedInstanceState)
 		
-		// Enable hardware acceleration for smoother scrolling
-		view.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-		
-		// Configure the vertical grid view to not release focus upward
 		verticalGridView?.apply {
-			// Enable hardware acceleration on the grid view
-			setLayerType(View.LAYER_TYPE_HARDWARE, null)
-			
 			// Reduce item prefetch distance for faster initial load
 			setItemViewCacheSize(20)
 			
-			setOnKeyListener { v, keyCode, event ->
-				// Handle upward navigation from first row to toolbar
+			// Intercept DPAD_LEFT before HorizontalGridView consumes it.
+			// HorizontalGridView eats DPAD_LEFT even at position 0, so the only
+			// way to transfer focus to the sidebar is to intercept first.
+			setOnKeyInterceptListener { event ->
+				if (event.action == android.view.KeyEvent.ACTION_DOWN &&
+					event.keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT) {
+					val focusedView = findFocus()
+					val horizontalGrid = findParentHorizontalGridView(focusedView)
+					if (horizontalGrid != null && horizontalGrid.selectedPosition == 0) {
+						try {
+							val sidebar = requireActivity().findViewById<View?>(org.jellyfin.androidtv.R.id.sidebar)
+							if (sidebar != null && sidebar.isVisible) {
+								sidebar.requestFocus()
+								return@setOnKeyInterceptListener true
+							}
+						} catch (_: Throwable) { }
+					}
+				}
+				false
+			}
+			
+			// Handle upward navigation from first row to toolbar
+			setOnKeyListener { _, keyCode, event ->
 				if (event.action == android.view.KeyEvent.ACTION_DOWN &&
 					keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP &&
 					selectedPosition == 0) {
-					// Try to move focus to the toolbar when on the first row
 					try {
 						val decor = requireActivity().window.decorView
 						val toolbarActions = decor.findViewById<View?>(org.jellyfin.androidtv.R.id.toolbar_actions)
@@ -328,17 +358,23 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 							toolbarActions.requestFocus()
 							return@setOnKeyListener true
 						}
-					} catch (t: Throwable) {
-						// ignore - fall through to allow default behavior
-					}
-
-					// Let the system handle the focus (do not consume) so it can move to title if possible
-					false
-				} else {
-					false
+					} catch (_: Throwable) { }
 				}
+				false
 			}
 		}
+	}
+
+	/**
+	 * Walk up the view hierarchy from the focused view to find the containing HorizontalGridView.
+	 */
+	private fun findParentHorizontalGridView(view: View?): androidx.leanback.widget.HorizontalGridView? {
+		var current = view?.parent
+		while (current != null) {
+			if (current is androidx.leanback.widget.HorizontalGridView) return current
+			current = current.parent
+		}
+		return null
 	}
 
 	override fun onKey(v: View?, keyCode: Int, event: KeyEvent?): Boolean {
@@ -357,8 +393,9 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 		}
 
 		if (!justLoaded) {
-			// Always refresh all rows and data when returning to home to get latest from server
-			refreshRows(force = true, delayed = true) // Force refresh to get latest data
+			// Re-retrieve rows that have pending change triggers (e.g. Resume, Next Up, Latest)
+			// but don't force-refresh static rows like Views/My Media to avoid resetting selection
+			refreshRows(delayed = true)
 			
 			// Reload media bar with fresh random items when returning to home
 			mediaBarViewModel.loadInitialContent()
@@ -384,9 +421,13 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 	override fun onPause() {
 		super.onPause()
 		
-		// Stop theme music when fragment is paused (e.g., user switches to another app)
-		themeMusicPlayer.fadeOutAndStop()
+		// Stop theme music immediately when fragment is paused
+		themeMusicPlayer.stop()
 	}
+
+	override fun onPlaybackStateChange(newState: PlaybackController.PlaybackState, currentItem: BaseItemDto?) = Unit
+
+	override fun onProgress(pos: Long, duration: Long) = Unit
 
 	override fun onQueueStatusChanged(hasQueue: Boolean) {
 		if (activity == null || requireActivity().isFinishing) return
@@ -394,6 +435,8 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 		Timber.i("Updating audio queue in HomeFragment (onQueueStatusChanged)")
 		nowPlaying.update(requireContext(), adapter as MutableObjectAdapter<Row>)
 	}
+
+	override fun onQueueReplaced() = Unit
 
 	private fun refreshRows(force: Boolean = false, delayed: Boolean = true) {
 		lifecycleScope.launch(Dispatchers.IO) {
@@ -405,8 +448,8 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 				else rowAdapter?.ReRetrieveIfNeeded()
 			}
 
-			// Refresh watchlist row
-			watchlistRow?.refresh()
+			// Refresh playlists row
+			playlistsRow?.refresh()
 		}
 	}
 
@@ -487,9 +530,14 @@ class HomeRowsFragment : RowsSupportFragment(), AudioEventListener, View.OnKeyLi
 					)
 				}
 
-				// Debounce background loading - only load after user stops navigating for 200ms
 				backgroundDebouncer.debounce {
-					backgroundService.setBackground(item.baseItem, BlurContext.BROWSING)
+					val baseItem = item.baseItem
+					val adapter = (row as? ListRow)?.adapter as? ItemRowAdapter
+					if (adapter?.queryType == QueryType.Views && baseItem != null) {
+						backgroundService.setBackgroundFromLibrary(baseItem.id, BlurContext.BROWSING)
+					} else {
+						backgroundService.setBackground(baseItem, BlurContext.BROWSING)
+					}
 				}
 				
 				// Play theme music on focus if enabled (with delay)

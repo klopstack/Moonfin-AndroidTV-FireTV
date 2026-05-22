@@ -30,6 +30,7 @@ import org.jellyfin.sdk.model.api.RepeatMode as SdkRepeatMode
 class PlaySessionService(
 	private val api: ApiClient,
 	private val apiClientResolver: ((UUID?) -> ApiClient?)? = null,
+	private val isActive: () -> Boolean = { true },
 ) : PlayerService() {
 	override suspend fun onInitialize() {
 		state.playState.onEach { playState ->
@@ -102,6 +103,7 @@ class PlaySessionService(
 	}
 
 	private suspend fun sendStreamStart() {
+		if (!isActive()) return
 		val entry = manager.queue.entry.value ?: return
 		val stream = entry.mediaStream ?: return
 		val item = entry.baseItem ?: return
@@ -133,6 +135,7 @@ class PlaySessionService(
 	}
 
 	private suspend fun sendStreamUpdate() {
+		if (!isActive()) return
 		val entry = manager.queue.entry.value ?: return
 		val stream = entry.mediaStream ?: return
 		val item = entry.baseItem ?: return
@@ -164,6 +167,7 @@ class PlaySessionService(
 	}
 
 	private suspend fun sendStreamStop() {
+		if (!isActive()) return
 		val entry = manager.queue.entry.value ?: return
 		val stream = entry.mediaStream ?: return
 		val item = entry.baseItem ?: return

@@ -2,6 +2,9 @@ package org.jellyfin.androidtv.ui.jellyseerr
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -9,10 +12,12 @@ import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.data.repository.JellyseerrRepository
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverItemDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrGenreDto
+import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrMediaDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrNetworkDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrRequestDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrStudioDto
 import org.jellyfin.androidtv.data.service.jellyseerr.Seasons
+import org.jellyfin.androidtv.constant.JellyseerrFetchLimit
 import org.jellyfin.androidtv.preference.JellyseerrPreferences
 import org.jellyfin.androidtv.util.ErrorHandler
 import timber.log.Timber
@@ -30,8 +35,17 @@ sealed class JellyseerrLoadingState {
 
 class JellyseerrViewModel(
 	private val jellyseerrRepository: JellyseerrRepository,
-	private val jellyseerrPreferences: JellyseerrPreferences,
 ) : ViewModel() {
+
+	// Cache for user preferences (loaded asynchronously)
+	private var userPreferences: JellyseerrPreferences? = null
+	
+	private suspend fun getPreferences(): JellyseerrPreferences? {
+		if (userPreferences == null) {
+			userPreferences = jellyseerrRepository.getPreferences()
+		}
+		return userPreferences
+	}
 
 	companion object {
 		// Popular TV networks (from Seerr - using duotone filtered URLs)
@@ -106,8 +120,6 @@ class JellyseerrViewModel(
 	private val _studios = MutableStateFlow(POPULAR_STUDIOS)
 	val studios: StateFlow<List<JellyseerrStudioDto>> = _studios.asStateFlow()
 
-	private var blacklistedTmdbIds = setOf<Int>()
-
 	private var trendingCurrentPage = 3
 	private var trendingMoviesCurrentPage = 3
 	private var trendingTvCurrentPage = 3
@@ -119,32 +131,7 @@ class JellyseerrViewModel(
 	private var isLoadingMoreUpcomingMovies = false
 	private var isLoadingMoreUpcomingTv = false
 
-	private suspend fun fetchBlacklist() {
-		val result = ErrorHandler.catchingWarning("fetch Jellyseerr blacklist") {
-			jellyseerrRepository.getBlacklist()
-		}
-		if (result.isSuccess) {
-			val blacklist = result.getOrNull()?.getOrNull()?.results ?: emptyList()
-			blacklistedTmdbIds = blacklist.map { it.tmdbId }.toSet()
-			Timber.d("Jellyseerr: Loaded ${blacklistedTmdbIds.size} blacklisted items")
-		}
-	}
-
-	private fun List<JellyseerrDiscoverItemDto>.filterBlacklist(): List<JellyseerrDiscoverItemDto> {
-		return filter { item ->
-			// Always block if in blacklist
-			if (blacklistedTmdbIds.contains(item.id)) {
-				val title = item.title ?: item.name ?: "Unknown"
-				Timber.d("Jellyseerr Filter: Blocked '$title' (blacklisted)")
-				return@filter false
-			}
-			true
-		}
-	}
-
-	private fun List<JellyseerrDiscoverItemDto>.filterNsfw(): List<JellyseerrDiscoverItemDto> {
-		val blockNsfw = jellyseerrPreferences[JellyseerrPreferences.blockNsfw]
-		
+	private fun List<JellyseerrDiscoverItemDto>.filterNsfw(blockNsfw: Boolean): List<JellyseerrDiscoverItemDto> {
 		return if (blockNsfw) {
 			val filtered = filter { item ->
 				// Always block if marked as adult by TMDB
@@ -199,6 +186,7 @@ class JellyseerrViewModel(
 	val searchResults: StateFlow<List<JellyseerrDiscoverItemDto>> = _searchResults.asStateFlow()
 
 	val isAvailable: StateFlow<Boolean> = jellyseerrRepository.isAvailable
+	val isMoonfinMode: StateFlow<Boolean> = jellyseerrRepository.isMoonfinMode
 
 	init {
 		// Auto-initialize from saved preferences when ViewModel is created
@@ -245,86 +233,83 @@ class JellyseerrViewModel(
 		return jellyseerrRepository.regenerateApiKey()
 	}
 
+	/** Returns true if discover content has already been loaded (avoids redundant API calls on resume). */
+	fun hasContent(): Boolean {
+		return _trending.value.isNotEmpty() ||
+			_trendingMovies.value.isNotEmpty() ||
+			_trendingTv.value.isNotEmpty() ||
+			_upcomingMovies.value.isNotEmpty() ||
+			_upcomingTv.value.isNotEmpty()
+	}
+
 	fun loadTrendingContent() {
 		viewModelScope.launch {
+			if (!isAvailable.value) {
+				Timber.d("JellyseerrViewModel: Skipping loadTrendingContent - not available")
+				return@launch
+			}
 			_loadingState.emit(JellyseerrLoadingState.Loading)
 		try {
-			// Fetch blacklist first
-			fetchBlacklist()
+			// Get preferences for fetch limit and NSFW filter
+			val prefs = getPreferences()
+			val itemsPerPage = prefs?.get(JellyseerrPreferences.fetchLimit)?.limit ?: JellyseerrFetchLimit.MEDIUM.limit
+			val blockNsfw = prefs?.get(JellyseerrPreferences.blockNsfw) ?: false
 			
-			// Get fetch limit from preferences
-			val itemsPerPage = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
-			
-			// Fetch multiple pages to get more content for searching
-			// Filter out already-available content since users can watch those in the main Moonfin app
-			val allTrending = mutableListOf<JellyseerrDiscoverItemDto>()
-			val allTrendingMovies = mutableListOf<JellyseerrDiscoverItemDto>()
-			val allTrendingTv = mutableListOf<JellyseerrDiscoverItemDto>()
-			val allUpcomingMovies = mutableListOf<JellyseerrDiscoverItemDto>()
-			val allUpcomingTv = mutableListOf<JellyseerrDiscoverItemDto>()
 			var hasPermissionError = false
 			
-			// Fetch first 3 pages initially, more can be loaded via pagination
-				for (page in 1..3) {
-				val offset = (page - 1) * itemsPerPage
-				val trendingResult = jellyseerrRepository.getTrending(limit = itemsPerPage, offset = offset)
-				val trendingMoviesResult = jellyseerrRepository.getTrendingMovies(limit = itemsPerPage, offset = offset)
-				val trendingTvResult = jellyseerrRepository.getTrendingTv(limit = itemsPerPage, offset = offset)
-				val upcomingMoviesResult = jellyseerrRepository.getUpcomingMovies(limit = itemsPerPage, offset = offset)
-				val upcomingTvResult = jellyseerrRepository.getUpcomingTv(limit = itemsPerPage, offset = offset)					// Check for 403 permission errors
-					if (trendingResult.isFailure && trendingResult.exceptionOrNull()?.message?.contains("403") == true) {
-						hasPermissionError = true
-					}
-					
-					if (trendingResult.isSuccess) {
-						allTrending.addAll(trendingResult.getOrNull()?.results ?: emptyList())
-					}
-					if (trendingMoviesResult.isSuccess) {
-						allTrendingMovies.addAll(trendingMoviesResult.getOrNull()?.results ?: emptyList())
-					}
-					if (trendingTvResult.isSuccess) {
-						allTrendingTv.addAll(trendingTvResult.getOrNull()?.results ?: emptyList())
-					}
-					if (upcomingMoviesResult.isSuccess) {
-						allUpcomingMovies.addAll(upcomingMoviesResult.getOrNull()?.results ?: emptyList())
-					}
-					if (upcomingTvResult.isSuccess) {
-						allUpcomingTv.addAll(upcomingTvResult.getOrNull()?.results ?: emptyList())
-					}
-				}
+			val results = coroutineScope {
+				listOf(
+					async { jellyseerrRepository.getTrending(limit = itemsPerPage, offset = 0) },
+					async { jellyseerrRepository.getTrendingMovies(limit = itemsPerPage, offset = 0) },
+					async { jellyseerrRepository.getTrendingTv(limit = itemsPerPage, offset = 0) },
+					async { jellyseerrRepository.getUpcomingMovies(limit = itemsPerPage, offset = 0) },
+					async { jellyseerrRepository.getUpcomingTv(limit = itemsPerPage, offset = 0) },
+				).awaitAll()
+			}
+			
+			val trendingResult = results[0]
+			val trendingMoviesResult = results[1]
+			val trendingTvResult = results[2]
+			val upcomingMoviesResult = results[3]
+			val upcomingTvResult = results[4]
+			
+			if (trendingResult.isFailure && trendingResult.exceptionOrNull()?.message?.contains("403") == true) {
+				hasPermissionError = true
+			}
+
+			val allTrending = trendingResult.getOrNull()?.results ?: emptyList()
+			val allTrendingMovies = trendingMoviesResult.getOrNull()?.results ?: emptyList()
+			val allTrendingTv = trendingTvResult.getOrNull()?.results ?: emptyList()
+			val allUpcomingMovies = upcomingMoviesResult.getOrNull()?.results ?: emptyList()
+			val allUpcomingTv = upcomingTvResult.getOrNull()?.results ?: emptyList()
 
 			if (allTrending.isNotEmpty() || allTrendingMovies.isNotEmpty() || allTrendingTv.isNotEmpty()) {
-				// Filter out already-available content, blacklisted items, NSFW content, and prepare data
+				// Filter out already-available content, blacklisted items (server-side status), NSFW content
 				val trending = allTrending
 					.filterNot { it.isAvailable() }
 					.filterNot { it.isBlacklisted() }
-					.filterBlacklist()
 					.filter { (it.mediaType ?: "").lowercase() in listOf("movie", "tv") }
-					.filterNsfw()
+					.filterNsfw(blockNsfw)
 				val trendingMovies = allTrendingMovies
 					.filterNot { it.isAvailable() }
 					.filterNot { it.isBlacklisted() }
-					.filterBlacklist()
 					.filter { (it.mediaType ?: "").lowercase() == "movie" }
-					.filterNsfw()
+					.filterNsfw(blockNsfw)
 				val trendingTv = allTrendingTv
 					.filterNot { it.isAvailable() }
 					.filterNot { it.isBlacklisted() }
-					.filterBlacklist()
 					.filter { (it.mediaType ?: "").lowercase() == "tv" }
-					.filterNsfw()
+					.filterNsfw(blockNsfw)
 				val upcomingMovies = allUpcomingMovies
 					.filterNot { it.isAvailable() }
 					.filterNot { it.isBlacklisted() }
-					.filterBlacklist()
 					.filter { (it.mediaType ?: "").lowercase() == "movie" }
-					.filterNsfw()
+					.filterNsfw(blockNsfw)
 				val upcomingTv = allUpcomingTv
 					.filterNot { it.isAvailable() }
 					.filterNot { it.isBlacklisted() }
-					.filterBlacklist()
 					.filter { (it.mediaType ?: "").lowercase() == "tv" }
-					.filterNsfw()
+					.filterNsfw(blockNsfw)
 				
 				Timber.d("JellyseerrViewModel: Fetched trending: ${allTrending.size} (filtered: ${trending.size})")
 				Timber.d("JellyseerrViewModel: Fetched trending movies: ${allTrendingMovies.size} (filtered: ${trendingMovies.size})")
@@ -339,12 +324,11 @@ class JellyseerrViewModel(
 				_upcomingTv.emit(upcomingTv)
 				_loadingState.emit(JellyseerrLoadingState.Success())
 				
-				// Reset page counters
-				trendingCurrentPage = 3
-				trendingMoviesCurrentPage = 3
-				trendingTvCurrentPage = 3
-				upcomingMoviesCurrentPage = 3
-				upcomingTvCurrentPage = 3
+				trendingCurrentPage = 1
+				trendingMoviesCurrentPage = 1
+				trendingTvCurrentPage = 1
+				upcomingMoviesCurrentPage = 1
+				upcomingTvCurrentPage = 1
 				} else if (hasPermissionError) {
 					val errorMessage = "Permission Denied: Your Jellyfin account needs Jellyseerr permissions.\n\n" +
 						"To fix this:\n" +
@@ -364,8 +348,14 @@ class JellyseerrViewModel(
 			_loadingState.emit(JellyseerrLoadingState.Error(errorMessage))
 		}
 	}
-}	fun loadRequests() {
+}
+
+	fun loadRequests() {
 		viewModelScope.launch {
+			if (!isAvailable.value) {
+				Timber.d("JellyseerrViewModel: Skipping loadRequests - not available")
+				return@launch
+			}
 			loadRequestsSuspend()
 		}
 	}
@@ -391,84 +381,102 @@ class JellyseerrViewModel(
 			val result = jellyseerrRepository.getRequests(
 				filter = "all",
 				requestedBy = currentUser.id,
-				limit = 100
+				limit = 20
 			)
 				
 				if (result.isSuccess) {
 					val userRequests = result.getOrNull()?.results ?: emptyList()
 					Timber.d("JellyseerrViewModel: Fetched ${userRequests.size} requests for user ${currentUser.id}")
 					
-					// Enrich each request with full media details
-					val enrichedRequests = userRequests.mapNotNull { request ->
-						val tmdbId = request.media?.tmdbId
-						if (tmdbId == null) {
-							Timber.w("JellyseerrViewModel: Request ${request.id} has no tmdbId, skipping enrichment")
-							return@mapNotNull request
+					// Filter by status BEFORE enrichment to avoid wasted API calls
+					val filteredRequests = userRequests.filter { request ->
+						when (request.status) {
+							1 -> true // Pending
+							2 -> true // Approved/Processing
+							3 -> isWithinDays(request.updatedAt, 3) // Declined - recent only
+							4 -> true // Available
+							else -> true
 						}
-						
-						// Fetch full movie or TV details based on media type
-						val enrichedMedia = when (request.type) {
-							"movie" -> {
-								val result = jellyseerrRepository.getMovieDetails(tmdbId)
-								if (result.isSuccess) {
-									val movieDetails = result.getOrNull()
-									request.media?.copy(
-										title = movieDetails?.title,
-										posterPath = movieDetails?.posterPath,
-										backdropPath = movieDetails?.backdropPath,
-										overview = movieDetails?.overview
-									)
-								} else {
-									Timber.w("JellyseerrViewModel: Failed to fetch movie details for request ${request.id}, tmdbId: $tmdbId")
-									request.media
+					}
+					Timber.d("JellyseerrViewModel: Filtered ${userRequests.size} to ${filteredRequests.size} before enrichment")
+					
+					// Cache to avoid duplicate fetches for the same TMDB ID
+					val movieCache = mutableMapOf<Int, JellyseerrMediaDto?>()
+					val tvCache = mutableMapOf<Int, JellyseerrMediaDto?>()
+					val semaphore = kotlinx.coroutines.sync.Semaphore(5)
+					
+					val enrichedRequests = coroutineScope {
+						filteredRequests.map { request ->
+							async {
+								val tmdbId = request.media?.tmdbId
+								if (tmdbId == null) {
+									Timber.w("JellyseerrViewModel: Request ${request.id} has no tmdbId, skipping enrichment")
+									return@async request
 								}
-							}
-							"tv" -> {
-								val result = jellyseerrRepository.getTvDetails(tmdbId)
-								if (result.isSuccess) {
-									val tvDetails = result.getOrNull()
-									request.media?.copy(
-										name = tvDetails?.name ?: tvDetails?.title,
-										posterPath = tvDetails?.posterPath,
-										backdropPath = tvDetails?.backdropPath,
-										overview = tvDetails?.overview
-									)
-								} else {
-									Timber.w("JellyseerrViewModel: Failed to fetch TV details for request ${request.id}, tmdbId: $tmdbId")
-									request.media
+								
+								val enrichedMedia = when (request.type) {
+									"movie" -> {
+										movieCache.getOrPut(tmdbId) {
+											semaphore.acquire()
+											try {
+												val result = jellyseerrRepository.getMovieDetails(tmdbId)
+												if (result.isSuccess) {
+													val movieDetails = result.getOrNull()
+													request.media?.copy(
+														title = movieDetails?.title,
+														posterPath = movieDetails?.posterPath,
+														backdropPath = movieDetails?.backdropPath,
+														overview = movieDetails?.overview
+													)
+												} else {
+													Timber.w("JellyseerrViewModel: Failed to fetch movie details for tmdbId: $tmdbId")
+													request.media
+												}
+											} finally {
+												semaphore.release()
+											}
+										}
+									}
+									"tv" -> {
+										tvCache.getOrPut(tmdbId) {
+											semaphore.acquire()
+											try {
+												val result = jellyseerrRepository.getTvDetails(tmdbId)
+												if (result.isSuccess) {
+													val tvDetails = result.getOrNull()
+													request.media?.copy(
+														name = tvDetails?.name ?: tvDetails?.title,
+														posterPath = tvDetails?.posterPath,
+														backdropPath = tvDetails?.backdropPath,
+														overview = tvDetails?.overview
+													)
+												} else {
+													Timber.w("JellyseerrViewModel: Failed to fetch TV details for tmdbId: $tmdbId")
+													request.media
+												}
+											} finally {
+												semaphore.release()
+											}
+										}
+									}
+									else -> {
+										Timber.w("JellyseerrViewModel: Unknown media type: ${request.type}")
+										request.media
+									}
 								}
+								
+								request.copy(media = enrichedMedia)
 							}
-							else -> {
-								Timber.w("JellyseerrViewModel: Unknown media type: ${request.type}")
-								request.media
-							}
-						}
-						
-						request.copy(media = enrichedMedia)
+						}.awaitAll()
 					}
 					
 					enrichedRequests.forEach { request ->
 						Timber.d("JellyseerrViewModel: Request ${request.id} - Type: ${request.type}, Status: ${request.status}, Media: ${request.media?.title ?: request.media?.name}, RequestedBy: ${request.requestedBy?.username}")
 					}
 					
-					// Filter requests based on status and last modified date
-					val filteredRequests = enrichedRequests.filter { request ->
-						when (request.status) {
-							1 -> true // Pending - always show
-							2 -> true // Approved/Processing - always show  
-							3 -> { // Declined - show only if modified within 3 days
-								isWithinDays(request.updatedAt, 3)
-							}
-							4 -> { // Available - show only if modified within 3 days
-								isWithinDays(request.updatedAt, 3)
-							}
-							else -> true // Unknown status - show it
-						}
-					}
-					
 			
-			Timber.d("JellyseerrViewModel: Filtered ${enrichedRequests.size} requests to ${filteredRequests.size} after date filtering")
-			_userRequests.emit(filteredRequests)
+			Timber.d("JellyseerrViewModel: Emitting ${enrichedRequests.size} enriched requests")
+			_userRequests.emit(enrichedRequests)
 			_loadingState.emit(JellyseerrLoadingState.Success())
 		} else {
 			val error = result.exceptionOrNull()?.message ?: "Failed to load requests"
@@ -483,21 +491,28 @@ class JellyseerrViewModel(
 
 	fun loadGenres() {
 		viewModelScope.launch {
+			if (!isAvailable.value) {
+				Timber.d("JellyseerrViewModel: Skipping loadGenres - not available")
+				return@launch
+			}
 			try {
-				// Fetch movie genres
-				val movieGenresResult = jellyseerrRepository.getGenreSliderMovies()
-				if (movieGenresResult.isSuccess) {
-					val genres = movieGenresResult.getOrNull() ?: emptyList()
-					_movieGenres.emit(genres)
-					Timber.d("JellyseerrViewModel: Loaded ${genres.size} movie genres")
-				}
-
-				// Fetch TV genres
-				val tvGenresResult = jellyseerrRepository.getGenreSliderTv()
-				if (tvGenresResult.isSuccess) {
-					val genres = tvGenresResult.getOrNull() ?: emptyList()
-					_tvGenres.emit(genres)
-					Timber.d("JellyseerrViewModel: Loaded ${genres.size} TV genres")
+				coroutineScope {
+					val movieGenresDeferred = async { jellyseerrRepository.getGenreSliderMovies() }
+					val tvGenresDeferred = async { jellyseerrRepository.getGenreSliderTv() }
+					
+					val movieGenresResult = movieGenresDeferred.await()
+					val tvGenresResult = tvGenresDeferred.await()
+					
+					if (movieGenresResult.isSuccess) {
+						val genres = movieGenresResult.getOrNull() ?: emptyList()
+						_movieGenres.emit(genres)
+						Timber.d("JellyseerrViewModel: Loaded ${genres.size} movie genres")
+					}
+					if (tvGenresResult.isSuccess) {
+						val genres = tvGenresResult.getOrNull() ?: emptyList()
+						_tvGenres.emit(genres)
+						Timber.d("JellyseerrViewModel: Loaded ${genres.size} TV genres")
+					}
 				}
 			} catch (error: Exception) {
 				Timber.e(error, "Failed to load genres")
@@ -510,8 +525,10 @@ class JellyseerrViewModel(
 		viewModelScope.launch {
 			isLoadingMoreTrending = true
 			try {
+				val prefs = getPreferences()
+				val itemsPerPage = prefs?.get(JellyseerrPreferences.fetchLimit)?.limit ?: JellyseerrFetchLimit.MEDIUM.limit
+				val blockNsfw = prefs?.get(JellyseerrPreferences.blockNsfw) ?: false
 				trendingCurrentPage++
-				val itemsPerPage = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
 				val offset = (trendingCurrentPage - 1) * itemsPerPage
 				val result = jellyseerrRepository.getTrending(limit = itemsPerPage, offset = offset)
 				
@@ -520,9 +537,8 @@ class JellyseerrViewModel(
 					val filtered = newItems
 						.filterNot { it.isAvailable() }
 						.filterNot { it.isBlacklisted() }
-						.filterBlacklist()
 						.filter { (it.mediaType ?: "").lowercase() in listOf("movie", "tv") }
-						.filterNsfw()
+						.filterNsfw(blockNsfw)
 					val currentList = _trending.value.toMutableList()
 					currentList.addAll(filtered)
 					_trending.emit(currentList)
@@ -541,8 +557,10 @@ class JellyseerrViewModel(
 		viewModelScope.launch {
 			isLoadingMoreTrendingMovies = true
 			try {
+				val prefs = getPreferences()
+				val itemsPerPage = prefs?.get(JellyseerrPreferences.fetchLimit)?.limit ?: JellyseerrFetchLimit.MEDIUM.limit
+				val blockNsfw = prefs?.get(JellyseerrPreferences.blockNsfw) ?: false
 				trendingMoviesCurrentPage++
-				val itemsPerPage = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
 				val offset = (trendingMoviesCurrentPage - 1) * itemsPerPage
 				val result = jellyseerrRepository.getTrendingMovies(limit = itemsPerPage, offset = offset)
 				
@@ -551,9 +569,8 @@ class JellyseerrViewModel(
 					val filtered = newItems
 						.filterNot { it.isAvailable() }
 						.filterNot { it.isBlacklisted() }
-						.filterBlacklist()
 						.filter { (it.mediaType ?: "").lowercase() == "movie" }
-						.filterNsfw()
+						.filterNsfw(blockNsfw)
 					val currentList = _trendingMovies.value.toMutableList()
 					currentList.addAll(filtered)
 					_trendingMovies.emit(currentList)
@@ -572,8 +589,10 @@ class JellyseerrViewModel(
 		viewModelScope.launch {
 			isLoadingMoreTrendingTv = true
 			try {
+				val prefs = getPreferences()
+				val itemsPerPage = prefs?.get(JellyseerrPreferences.fetchLimit)?.limit ?: JellyseerrFetchLimit.MEDIUM.limit
+				val blockNsfw = prefs?.get(JellyseerrPreferences.blockNsfw) ?: false
 				trendingTvCurrentPage++
-				val itemsPerPage = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
 				val offset = (trendingTvCurrentPage - 1) * itemsPerPage
 				val result = jellyseerrRepository.getTrendingTv(limit = itemsPerPage, offset = offset)
 				
@@ -582,9 +601,8 @@ class JellyseerrViewModel(
 					val filtered = newItems
 						.filterNot { it.isAvailable() }
 						.filterNot { it.isBlacklisted() }
-						.filterBlacklist()
 						.filter { (it.mediaType ?: "").lowercase() == "tv" }
-						.filterNsfw()
+						.filterNsfw(blockNsfw)
 					val currentList = _trendingTv.value.toMutableList()
 					currentList.addAll(filtered)
 					_trendingTv.emit(currentList)
@@ -603,8 +621,10 @@ class JellyseerrViewModel(
 		viewModelScope.launch {
 			isLoadingMoreUpcomingMovies = true
 			try {
+				val prefs = getPreferences()
+				val itemsPerPage = prefs?.get(JellyseerrPreferences.fetchLimit)?.limit ?: JellyseerrFetchLimit.MEDIUM.limit
+				val blockNsfw = prefs?.get(JellyseerrPreferences.blockNsfw) ?: false
 				upcomingMoviesCurrentPage++
-				val itemsPerPage = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
 				val offset = (upcomingMoviesCurrentPage - 1) * itemsPerPage
 				val result = jellyseerrRepository.getUpcomingMovies(limit = itemsPerPage, offset = offset)
 				
@@ -613,9 +633,8 @@ class JellyseerrViewModel(
 					val filtered = newItems
 						.filterNot { it.isAvailable() }
 						.filterNot { it.isBlacklisted() }
-						.filterBlacklist()
 						.filter { (it.mediaType ?: "").lowercase() == "movie" }
-						.filterNsfw()
+						.filterNsfw(blockNsfw)
 					val currentList = _upcomingMovies.value.toMutableList()
 					currentList.addAll(filtered)
 					_upcomingMovies.emit(currentList)
@@ -634,8 +653,10 @@ class JellyseerrViewModel(
 		viewModelScope.launch {
 			isLoadingMoreUpcomingTv = true
 			try {
+				val prefs = getPreferences()
+				val itemsPerPage = prefs?.get(JellyseerrPreferences.fetchLimit)?.limit ?: JellyseerrFetchLimit.MEDIUM.limit
+				val blockNsfw = prefs?.get(JellyseerrPreferences.blockNsfw) ?: false
 				upcomingTvCurrentPage++
-				val itemsPerPage = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
 				val offset = (upcomingTvCurrentPage - 1) * itemsPerPage
 				val result = jellyseerrRepository.getUpcomingTv(limit = itemsPerPage, offset = offset)
 				
@@ -644,9 +665,8 @@ class JellyseerrViewModel(
 					val filtered = newItems
 						.filterNot { it.isAvailable() }
 						.filterNot { it.isBlacklisted() }
-						.filterBlacklist()
 						.filter { (it.mediaType ?: "").lowercase() == "tv" }
-						.filterNsfw()
+						.filterNsfw(blockNsfw)
 					val currentList = _upcomingTv.value.toMutableList()
 					currentList.addAll(filtered)
 					_upcomingTv.emit(currentList)
@@ -744,28 +764,31 @@ class JellyseerrViewModel(
 			else -> Seasons.List(seasons)
 		}
 		
+		// Get user preferences for profile IDs
+		val prefs = getPreferences()
+		
 		// Use advanced options if provided, otherwise fall back to preferences
 		val profileId = advancedOptions?.profileId ?: when {
-			mediaType == "movie" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKMovieProfileId]?.toIntOrNull()
-			mediaType == "movie" && !is4k -> jellyseerrPreferences[JellyseerrPreferences.hdMovieProfileId]?.toIntOrNull()
-			mediaType == "tv" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKTvProfileId]?.toIntOrNull()
-			mediaType == "tv" && !is4k -> jellyseerrPreferences[JellyseerrPreferences.hdTvProfileId]?.toIntOrNull()
+			mediaType == "movie" && is4k -> prefs?.get(JellyseerrPreferences.fourKMovieProfileId)?.toIntOrNull()
+			mediaType == "movie" && !is4k -> prefs?.get(JellyseerrPreferences.hdMovieProfileId)?.toIntOrNull()
+			mediaType == "tv" && is4k -> prefs?.get(JellyseerrPreferences.fourKTvProfileId)?.toIntOrNull()
+			mediaType == "tv" && !is4k -> prefs?.get(JellyseerrPreferences.hdTvProfileId)?.toIntOrNull()
 			else -> null
 		}
 		
 		val rootFolderId = advancedOptions?.rootFolderId ?: when {
-			mediaType == "movie" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKMovieRootFolderId]?.toIntOrNull()
-			mediaType == "movie" && !is4k -> jellyseerrPreferences[JellyseerrPreferences.hdMovieRootFolderId]?.toIntOrNull()
-			mediaType == "tv" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKTvRootFolderId]?.toIntOrNull()
-			mediaType == "tv" && !is4k -> jellyseerrPreferences[JellyseerrPreferences.hdTvRootFolderId]?.toIntOrNull()
+			mediaType == "movie" && is4k -> prefs?.get(JellyseerrPreferences.fourKMovieRootFolderId)?.toIntOrNull()
+			mediaType == "movie" && !is4k -> prefs?.get(JellyseerrPreferences.hdMovieRootFolderId)?.toIntOrNull()
+			mediaType == "tv" && is4k -> prefs?.get(JellyseerrPreferences.fourKTvRootFolderId)?.toIntOrNull()
+			mediaType == "tv" && !is4k -> prefs?.get(JellyseerrPreferences.hdTvRootFolderId)?.toIntOrNull()
 			else -> null
 		}
 		
 		val serverId = advancedOptions?.serverId ?: when {
-			mediaType == "movie" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKMovieServerId]?.toIntOrNull()
-			mediaType == "movie" && !is4k -> jellyseerrPreferences[JellyseerrPreferences.hdMovieServerId]?.toIntOrNull()
-			mediaType == "tv" && is4k -> jellyseerrPreferences[JellyseerrPreferences.fourKTvServerId]?.toIntOrNull()
-			mediaType == "tv" && !is4k -> jellyseerrPreferences[JellyseerrPreferences.hdTvServerId]?.toIntOrNull()
+			mediaType == "movie" && is4k -> prefs?.get(JellyseerrPreferences.fourKMovieServerId)?.toIntOrNull()
+			mediaType == "movie" && !is4k -> prefs?.get(JellyseerrPreferences.hdMovieServerId)?.toIntOrNull()
+			mediaType == "tv" && is4k -> prefs?.get(JellyseerrPreferences.fourKTvServerId)?.toIntOrNull()
+			mediaType == "tv" && !is4k -> prefs?.get(JellyseerrPreferences.hdTvServerId)?.toIntOrNull()
 			else -> null
 		}
 		
@@ -805,22 +828,21 @@ class JellyseerrViewModel(
 
 			_loadingState.emit(JellyseerrLoadingState.Loading)
 			try {
-				// Fetch blacklist first to ensure we have the latest blocked items
-				fetchBlacklist()
+				// Get preferences for fetch limit and NSFW filter
+				val prefs = getPreferences()
+				val searchLimit = prefs?.get(JellyseerrPreferences.fetchLimit)?.limit ?: JellyseerrFetchLimit.MEDIUM.limit
+				val blockNsfw = prefs?.get(JellyseerrPreferences.blockNsfw) ?: false
 				
-				// Use fetch limit from preferences for search results
-				val searchLimit = jellyseerrPreferences[JellyseerrPreferences.fetchLimit].limit
 				val result = jellyseerrRepository.search(query, mediaType, limit = searchLimit)
 			if (result.isSuccess) {
 				val results = result.getOrNull()?.results ?: emptyList()
 				Timber.d("Jellyseerr Search: Raw results count: ${results.size}")
 				
-				// Filter out already-available content, blacklisted items, and NSFW content from search results
+				// Filter out already-available content, blacklisted items (server-side status), and NSFW content
 				val filteredResults = results
 					.filterNot { it.isAvailable() }
 					.filterNot { it.isBlacklisted() }
-					.filterBlacklist()
-					.filterNsfw()
+					.filterNsfw(blockNsfw)
 				
 				Timber.d("Jellyseerr Search: Filtered results count: ${filteredResults.size}")
 				if (filteredResults.isNotEmpty()) {

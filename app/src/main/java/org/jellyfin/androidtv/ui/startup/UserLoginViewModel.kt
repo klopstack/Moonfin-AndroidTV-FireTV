@@ -6,9 +6,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -27,7 +30,9 @@ import org.jellyfin.androidtv.auth.model.User
 import org.jellyfin.androidtv.auth.repository.AuthenticationRepository
 import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.util.sdk.forUser
+import org.jellyfin.androidtv.util.supportsFeature
 import org.jellyfin.sdk.Jellyfin
+import org.moonfin.server.core.feature.ServerFeature
 import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.extensions.quickConnectApi
 import org.jellyfin.sdk.model.DeviceInfo
@@ -53,6 +58,10 @@ class UserLoginViewModel(
 	private var quickConnectSecret: String? = null
 	private val _quickConnectState = MutableStateFlow<QuickConnectState>(UnknownQuickConnectState)
 	val quickConnectState = _quickConnectState.asStateFlow()
+	val isQuickConnectSupported = _server
+		.map { it.supportsFeature(ServerFeature.QUICK_CONNECT) }
+		.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
 	fun authenticate(server: Server, user: User): Flow<LoginState> =
 		authenticationRepository.authenticate(server, AutomaticAuthenticateMethod(user))
 

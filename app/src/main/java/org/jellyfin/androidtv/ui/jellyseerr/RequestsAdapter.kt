@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import coil3.load
 import org.jellyfin.androidtv.R
+import android.view.View
 import org.jellyfin.androidtv.databinding.ItemJellyseerrRequestBinding
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrRequestDto
 
@@ -47,22 +48,36 @@ class RequestsAdapter :
 
 				typeText.text = item.type.uppercase()
 
-				statusText.text = when (item.status) {
-					1 -> "⏳ Pending"
-					2 -> "✓ Approved"
-					3 -> "✗ Declined"
-					4 -> "✓ Available"
-					else -> "Unknown"
+				// Media status: 1=Unknown, 2=Pending, 3=Processing/Downloading, 4=Partial, 5=Available, 6=Blacklisted
+				// Request status: 1=Pending, 2=Approved, 3=Declined, 4=Available
+				val mediaStatus = item.media?.status
+				val isDownloading = mediaStatus == 3
+				val isPartial = mediaStatus == 4
+				val isAvailable = mediaStatus == 5
+
+				// Determine status text and icon
+				val (statusTextValue, statusColor, iconRes) = when {
+					item.status == 1 -> Triple("Pending", R.color.grey_light, R.drawable.ic_pending)
+					item.status == 3 -> Triple("Declined", R.color.red, R.drawable.ic_declined)
+					isAvailable -> Triple("Available", R.color.white, R.drawable.ic_available)
+					isPartial -> Triple("Partially Available", R.color.white, R.drawable.ic_partially_available)
+					isDownloading -> Triple("Downloading", R.color.white, R.drawable.ic_indigo_spinner)
+					item.status == 2 -> Triple("Approved", R.color.white, null)
+					else -> Triple("Unknown", R.color.grey_light, null)
 				}
 
-				val statusColor = when (item.status) {
-					1 -> R.color.grey_light
-					2 -> R.color.white
-					3 -> R.color.red
-					4 -> R.color.white
-					else -> R.color.grey_light
-				}
+				statusText.text = statusTextValue
 				statusText.setTextColor(ContextCompat.getColor(root.context, statusColor))
+
+				// Handle status icon
+				if (iconRes != null) {
+					statusIcon.setImageResource(iconRes)
+					statusIcon.visibility = View.VISIBLE
+					statusIcon.clearAnimation()
+				} else {
+					statusIcon.visibility = View.GONE
+					statusIcon.clearAnimation()
+				}
 
 				val requesterName = item.requestedBy?.username ?: "Unknown"
 				requestedByText.text = "Requested by: $requesterName"

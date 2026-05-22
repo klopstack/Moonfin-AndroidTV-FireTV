@@ -24,6 +24,7 @@
     <string name="lbl_favorite_channels">Chaînes favorites</string>
     <string name="lbl_other_channels">Autres chaînes</string>
     <string name="lbl_collections">Collections</string>
+    <string name="lbl_items_in_collection">Éléments de la collection</string>
     <string name="lbl_movies">Films</string>
     <string name="lbl_tv_series">Séries TV</string>
     <string name="lbl_other">Autre</string>
@@ -113,13 +114,16 @@
     <string name="lbl_from">de</string>
     <string name="lbl_name">Nom</string>
     <string name="lbl_date_added">Date d\'ajout</string>
+    <string name="lbl_date_episode_added">Date d’ajout de l’épisode</string>
     <string name="lbl_premier_date">Date de sortie</string>
     <string name="lbl_critic_rating">Note des critiques</string>
     <string name="lbl_rating">Critique</string>
     <string name="lbl_starting_with">Commençant par ceux dont le nom débute par</string>
     <string name="lbl_display_preferences">Préférences d\'affichage</string>
     <string name="lbl__continuing">EN PRODUCTION</string>
+    <string name="lbl__continuing_title">En Production</string>
     <string name="lbl_ended">TERMINÉ</string>
+    <string name="lbl_ended_title">Terminé</string>
     <string name="lbl_filters">Filtres TV Live</string>
     <string name="msg_subtitles_loading">Chargement des sous-titres…</string>
     <string name="msg_unable_load_subs">Impossible de charger les sous-titres</string>
@@ -137,6 +141,7 @@
     <string name="lbl_songs">Chansons</string>
     <string name="lbl_album">Album</string>
     <string name="lbl_episodes">Épisodes</string>
+    <string name="lbl_season_episodes">Saison %1$d Épisodes</string>
     <string name="lbl_enable_cinema_mode">Activer le mode Cinéma</string>
     <string name="sum_enable_cinema_mode">Activer les introductions et les extraits vidéos disponibles avant le visionnage d\'un film</string>
     <string name="lbl_playlists">Listes de lecture</string>
@@ -257,18 +262,19 @@
     <string name="lbl_tv_filter_status">pour les %1$d prochaines heures</string>
     <string name="lbl_tv_channel_status">%1$d sur %2$d canaux</string>
     <string name="lbl_subtitle_track">Choisir la piste de sous-titres</string>
+    <string name="lbl_default">Par défaut</string>
+    <string name="lbl_track">Piste</string>
+    <string name="lbl_tracks">Morceaux</string>
     <string name="lbl_audio_track">Choisir la piste audio</string>
+    <string name="lbl_shuffle">Lecture aléatoire</string>
     <string name="lbl_pause">Pause</string>
     <string name="lbl_playback_control_ends">Se termine à %1$s</string>
     <string name="lbl_sign_in">Veuillez vous connecter</string>
     <string name="watch_count_overflow">99+</string>
-    <string name="pref_default_rating">Type d\'évaluation par défaut</string>
     <string name="pref_clock_display_playback">Pendant la lecture</string>
     <string name="pref_clock_display_browsing">Pendant la navigation</string>
     <string name="lbl_always">Toujours</string>
     <string name="pref_clock_display">Afficher l\'horloge</string>
-    <string name="lbl_tomatoes">Tomates</string>
-    <string name="lbl_stars">Étoiles</string>
     <string name="login_username_field_empty">Le nom d\'utilisateur ne peut pas être vide</string>
     <string name="login_server_unavailable">Impossible de se connecter au serveur</string>
     <string name="login_invalid_credentials">Nom d\'utilisateur ou mot de passe incorrect</string>
@@ -296,8 +302,6 @@
     <string name="image_size_small">Petit</string>
     <string name="image_type_banner">Bannière</string>
     <string name="image_type_thumbnail">Miniature</string>
-    <string name="enable_smart_view_description">L\'écran intelligent affiche les éléments importants au lieu d\'une grille</string>
-    <string name="enable_smart_view">Activer l\'écran intelligent</string>
     <string name="lbl_sign_out">Se déconnecter</string>
     <string name="lbl_remove">Supprimer</string>
     <string name="lbl_server">Serveur</string>
@@ -379,6 +383,7 @@
     <string name="home_section_i">Accueil %1$d</string>
     <string name="home_sections">Accueil</string>
     <string name="server_connection_failed_candidates">Impossible de se connecter au serveur : %1$s</string>
+    <string name="lbl_audio_track_missing">Aucune piste audio disponible</string>
     <string name="lbl_playback_speed">Vitesse de lecture</string>
     <string name="server_issue_ssl_handshake">La négociation SSL a échoué</string>
     <string name="server_issue_timeout">Délais de connexion dépassé</string>
@@ -422,6 +427,7 @@
     <string name="action_use_password">Utiliser un mot de passe</string>
     <string name="action_login">Se connecter</string>
     <string name="live_tv_preferences">Options TV Live</string>
+    <string name="lbl_subtitle_track_title">Piste de sous‑titres</string>
     <string name="lbl_subtitle_delay">Décalage sous-titre</string>
     <string name="server_unsupported_notification">Ce serveur utilise la version %1$s de Jellyfin qui n\'est pas prise en charge. Veuillez mettre à jour le serveur vers la version %2$s ou supérieure pour continuer à utiliser l\'application.</string>
     <string name="app_notification_uimode_invalid">Cette application est optimisée pour un usage sur une télévision. Nous vous recommandons d\'utiliser notre application mobile sur un autre appareil.</string>
@@ -491,6 +497,11 @@
         <item quantity="one">%1$s piste</item>
         <item quantity="many">%1$s pistes</item>
         <item quantity="other">%1$s piste(s)</item>
+    </plurals>
+    <plurals name="season_count">
+        <item quantity="one">%d Saison</item>
+        <item quantity="many">%d Saisons</item>
+        <item quantity="other">%d Saisons</item>
     </plurals>
     <string name="lbl_album_artists">Artistes d\'albums</string>
     <string name="disable_ui_mode_warning">Désactiver l\'avertissement du type d\'appareil</string>
@@ -592,6 +603,7 @@
     <string name="speech_error_unavailable">La reconnaissance vocale n\'est pas disponible sur votre appareil.</string>
     <string name="pref_subtitles_bold">Caractères gras</string>
     <string name="preference_enable_pgs">Sous-titres PGS en lecture directe</string>
+    <string name="lbl_restart">Relancer</string>
     <string name="lbl_exit">Quitter</string>
     <string name="pref_still_watching_behavior_title">Afficher la fenêtre contextuelle d\'inactivité</string>
     <string name="lbl_still_watching_default">3 épisodes ou 90 minutes</string>
@@ -631,4 +643,15 @@
     <string name="video_player_external">Lecteur vidéo externe</string>
     <string name="playback_video_player_external_empty">Vous n\'avez aucune application de lecture vidéo installée sur votre appareil qui peut lire les vidéos de Jellyfin.</string>
     <string name="filters">Filtres</string>
+    <string name="lbl_sort_and_filter">Trier et filtrer</string>
+    <string name="lbl_status_title">Statut</string>
+    <string name="lbl_directors">Réalisateurs</string>
+    <string name="lbl_writers">Scénaristes</string>
+    <string name="lbl_date_series_added">Date d’ajout de la série</string>
+    <string name="lbl_audio_track_title">Piste audio</string>
+    <string name="select_version_title">Sélectionner la version</string>
+    <string name="lbl_version_number">Version %1$d</string>
+    <string name="lbl_movies_count">Films (%1$d)</string>
+    <string name="lbl_series_count">Séries (%1$d)</string>
+    <string name="select_reorder_items">Pour réorganiser les éléments, appuyez sur gauche et droite du pavé directionnel</string>
 </resources>

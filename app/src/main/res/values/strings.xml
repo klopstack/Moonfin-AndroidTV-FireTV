@@ -14,6 +14,13 @@
     <string name="max_audio_channels_2">2 channels (Stereo)</string>
     <string name="max_audio_channels_6">6 channels (5.1 Surround)</string>
     <string name="max_audio_channels_8">8 channels (7.1 Surround)</string>
+    <string name="pref_max_resolution_title">Max video resolution</string>
+    <string name="pref_max_resolution_description">Videos exceeding this resolution will be transcoded. Useful for devices that cannot play 4K content.</string>
+    <string name="max_resolution_auto">Auto (device capability)</string>
+    <string name="max_resolution_480p">480p (SD)</string>
+    <string name="max_resolution_720p">720p (HD)</string>
+    <string name="max_resolution_1080p">1080p (Full HD)</string>
+    <string name="max_resolution_2160p">2160p (4K UHD)</string>
     <string name="settings_title">Preferences</string>
     <string name="pref_authentication_cat">Authentication</string>
     <string name="chapters">Chapters</string>
@@ -39,14 +46,19 @@
     <string name="lbl_favorite_channels">Favorite channels</string>
     <string name="lbl_other_channels">Other channels</string>
     <string name="lbl_collections">Collections</string>
+    <string name="lbl_items_in_collection">Items in Collection</string>
     <string name="lbl_movies">Movies</string>
     <string name="lbl_tv_series">TV series</string>
     <string name="lbl_other">Other</string>
     <string name="because_you_watched">Because you watched %1$s</string>
     <string name="lbl_play_all">Play all</string>
     <string name="lbl_shuffle_all">Shuffle all</string>
+    <string name="shuffle_no_items_found">No items found to shuffle</string>
+    <string name="shuffle_error">Failed to shuffle. Please try again.</string>
     <string name="lbl_play">Play</string>
+    <string name="lbl_shuffle">Shuffle</string>
     <string name="lbl_pause">Pause</string>
+    <string name="lbl_restart">Restart</string>
     <string name="lbl_exit">Exit</string>
     <string name="exit_confirmation_title">Exit Moonfin?</string>
     <string name="exit_confirmation_message">Are you sure you want to exit the app?</string>
@@ -60,6 +72,7 @@
     <string name="msg_recording_cancelled">Recording cancelled</string>
     <string name="msg_unable_to_cancel">Unable to cancel recording</string>
     <string name="lbl_cast_crew">Cast &amp; crew</string>
+    <string name="lbl_cast">Cast</string>
     <string name="lbl_additional_parts">Additional parts</string>
     <string name="lbl_chapters">Chapters</string>
     <string name="lbl_specials">Specials</string>
@@ -77,6 +90,9 @@
     <string name="runtime_minutes">%1$dm</string>
     <string name="lbl_ends">"Ends"</string>
     <string name="lbl_directed_by">"Directed by"</string>
+    <string name="lbl_directors">Directors</string>
+    <string name="lbl_writers">"Writers"</string>
+    <string name="lbl_studios">Studios</string>
     <string name="lbl_last_played">"Last played "</string>
     <string name="lbl_runtime">Runtime</string>
     <string name="lbl_other_options">Other options</string>
@@ -143,6 +159,8 @@
     <string name="lbl_from">from</string>
     <string name="lbl_name">Name</string>
     <string name="lbl_date_added">Date added</string>
+    <string name="lbl_date_series_added">Date series added</string>
+    <string name="lbl_date_episode_added">Date episode added</string>
     <string name="lbl_premier_date">Premier date</string>
     <string name="lbl_critic_rating">Critic rating</string>
     <string name="lbl_community_rating">Community rating</string>
@@ -150,7 +168,9 @@
     <string name="lbl_starting_with">beginning with those whose name starts with</string>
     <string name="lbl_display_preferences">Display preferences</string>
     <string name="lbl__continuing"> CONTINUING </string>
+    <string name="lbl__continuing_title">Continuing</string>
     <string name="lbl_ended"> ENDED </string>
+    <string name="lbl_ended_title">Ended</string>
     <string name="lbl_filters">Live TV filters</string>
     <string name="msg_subtitles_loading">Subtitles loading…</string>
     <string name="msg_unable_load_subs">Unable to load subtitle</string>
@@ -168,8 +188,10 @@
     <string name="lbl_songs">Songs</string>
     <string name="lbl_album">Album</string>
     <string name="lbl_episodes">Episodes</string>
+    <string name="lbl_season_episodes">Season %1$d Episodes</string>
     <string name="lbl_enable_cinema_mode">Cinema mode</string>
     <string name="sum_enable_cinema_mode">Play available intros and previews before starting a movie</string>
+    <string name="lbl_playlist">Playlist</string>
     <string name="lbl_playlists">Playlists</string>
     <string name="lbl_watch_list">Watch List</string>
     <string name="msg_items_added">" items added"</string>
@@ -181,6 +203,20 @@
     <string name="msg_removed_from_watch_list">Removed from Watch List</string>
     <string name="msg_failed_to_add_to_watch_list">Failed to add to Watch List</string>
     <string name="msg_failed_to_remove_from_watch_list">Failed to remove from Watch List</string>
+    <string name="lbl_add_to_playlist">Add to Playlist</string>
+    <string name="lbl_create_new_playlist">Create New Playlist</string>
+    <string name="lbl_playlist_name">Playlist name</string>
+    <string name="lbl_select_playlist">Select Playlist</string>
+    <string name="lbl_select_server">Select Server</string>
+    <string name="lbl_public_playlist">Public playlist</string>
+    <string name="msg_added_to_playlist">Added to playlist</string>
+    <string name="msg_failed_to_add_to_playlist">Failed to add to playlist</string>
+    <string name="msg_playlist_created">Playlist created</string>
+    <string name="msg_failed_to_create_playlist">Failed to create playlist</string>
+    <string name="msg_enter_playlist_name">Please enter a playlist name</string>
+    <string name="lbl_create">Create</string>
+    <string name="lbl_create_and_add">Create &amp; Add</string>
+    <string name="lbl_back">Back</string>
     <string name="lbl_open_artist">Open artist</string>
     <string name="lbl_open_album">Open album</string>
     <string name="lbl_shuffle_queue">Toggle shuffle</string>
@@ -202,10 +238,16 @@
     <string name="lbl_auto_crop">Auto crop</string>
     <string name="lbl_stretch">Stretch</string>
     <string name="lbl_fit">Normal</string>
+    <string name="lbl_default">Default</string>
+    <string name="lbl_track">Track</string>
+    <string name="lbl_tracks">Tracks</string>
     <string name="lbl_audio_track">Select audio track</string>
+    <string name="lbl_audio_track_title">Audio Track</string>
+    <string name="lbl_audio_track_missing">No audio tracks available</string>
     <string name="lbl_playback_speed">Playback speed</string>
     <string name="lbl_quality_profile">Quality profile</string>
     <string name="lbl_subtitle_track">Select subtitle track</string>
+    <string name="lbl_subtitle_track_title">Subtitle Track</string>
     <string name="lbl_subtitle_delay">Subtitle delay</string>
     <string name="lbl_audio_delay">Audio delay</string>
     <string name="btn_got_it">Got it</string>
@@ -266,8 +308,13 @@
     <string name="lbl_image_type">Image type</string>
     <string name="lbl_image_size">Image size</string>
     <string name="lbl_my_media">My media</string>
-    <string name="pref_theme_dark">Dark (Default)</string>
-    <string name="pref_theme_emerald">Classic emerald</string>
+    <string name="pref_focus_color_white">White (Default)</string>
+    <string name="pref_focus_color">Focus color</string>
+    <string name="pref_poster_size">Home Rows Image Size</string>
+    <string name="pref_poster_size_small">Small</string>
+    <string name="pref_poster_size_default">Default</string>
+    <string name="pref_poster_size_large">Large</string>
+    <string name="pref_poster_size_extra_large">Extra large</string>
     <string name="pref_about_title">About</string>
     <string name="pref_donate_title">Support Moonfin</string>
     <string name="pref_donate_description">Help keep this project alive</string>
@@ -281,7 +328,6 @@
     <string name="watch_now">Watch now</string>
     <string name="pref_next_up_behavior_title">Show next video info</string>
     <string name="pref_still_watching_behavior_title">Show inactivity timeout popup</string>
-    <string name="pref_app_theme">App theme</string>
     <string name="pref_device_model">Device model</string>
     <string name="grid_direction">Grid direction</string>
     <string name="grid_direction_horizontal">Horizontal</string>
@@ -317,6 +363,8 @@
     <string name="lbl_stars">Stars</string>
     <string name="lbl_tomatoes">Tomatoes</string>
     <string name="pref_default_rating">Default rating type</string>
+    <string name="pref_enabled_ratings">Enabled Ratings</string>
+    <string name="pref_enabled_ratings_description">Select which ratings to display. Multiple ratings will appear on a separate row below metadata.</string>
     <string name="pref_clock_display">Show clock</string>
     <string name="lbl_always">Always</string>
     <string name="pref_clock_display_browsing">While browsing</string>
@@ -339,11 +387,10 @@
     <string name="lbl_server">Server</string>
     <string name="lbl_remove">Remove</string>
     <string name="lbl_sign_out">Sign out</string>
-    <string name="enable_smart_view">Enable smart screen</string>
-    <string name="enable_smart_view_description">Smart screen shows relevant items instead of a grid</string>
     <string name="image_type_poster">Poster</string>
     <string name="image_type_thumbnail">Thumbnail</string>
     <string name="image_type_banner">Banner</string>
+    <string name="image_type_square">Square</string>
     <string name="image_size_smallest">Smallest</string>
     <string name="image_size_small">Small</string>
     <string name="image_size_medium">Medium</string>
@@ -358,12 +405,14 @@
     <string name="discovered_servers_empty">No servers found on local network.</string>
     <string name="connect_manually_by_address">Enter server address</string>
     <string name="login_help_title">Need help?</string>
-    <string name="login_help_description">Jellyfin requires a server to connect with. Visit our documentation at docs.jellyfin.org or scan the QR code to get started with Jellyfin.</string>
+    <string name="login_help_description">Jellyfin requires a server to connect with. Visit the documentation at docs.jellyfin.org or scan the QR code to get started with Jellyfin.</string>
     <string name="pref_watched_indicator">Show watched indicators</string>
     <string name="lbl_hide_unwatched_count">When the item is watched</string>
     <string name="lbl_hide_watched_checkmark">When there are episodes remaining</string>
     <string name="lbl_use_series_thumbnails">Prefer thumbnails</string>
     <string name="lbl_use_series_thumbnails_description">Use series thumbnails when displaying episodes</string>
+    <string name="lbl_card_focus_expansion">Card focus expansion</string>
+    <string name="lbl_card_focus_expansion_description">Enlarge card items when they receive focus</string>
     <string name="lbl_merge_continue_watching_next_up">Merge Continue Watching and Next Up</string>
     <string name="lbl_merge_continue_watching_next_up_description">Show all in-progress and next episodes in a single row</string>
     <string name="auto_sign_in">Automatic sign in</string>
@@ -372,11 +421,10 @@
     <string name="user_picker_last_user_title">Most recently used</string>
     <string name="user_picker_last_user_summary">Use the last active account</string>
     <string name="lbl_switch_user">Switch account</string>
-    <string name="pref_theme_muted_purple">Muted purple</string>
-    <string name="no_network_permissions">Jellyfin requires network permissions to function</string>
+    <string name="no_network_permissions">Moonfin requires network permissions to function</string>
     <string name="press_to_close">Press to close</string>
     <string name="saved_servers">Saved servers</string>
-    <string name="welcome_title">Welcome to Jellyfin!</string>
+    <string name="welcome_title">Welcome to Moonfin!</string>
     <string name="welcome_content">Connect to your server to get started.</string>
     <string name="no_user_warning">We couldn\'t find any accounts!\nAdd a new account by pressing the \"Add account\" button.</string>
     <string name="who_is_watching">Who\'s watching?</string>
@@ -433,8 +481,15 @@
     <string name="lbl_pin_code_mismatch">PINs do not match</string>
     <string name="lbl_forgot_pin">Forgot PIN?</string>
     <string name="select_version">Version</string>
+    <string name="select_version_title">Select Version</string>
+    <string name="lbl_version_number">Version %1$d</string>
+    <string name="lbl_movies_count">Movies (%1$d)</string>
+    <string name="lbl_series_count">Series (%1$d)</string>
+    <string name="select_reorder_items">To reorder items, press left and right on the D-pad</string>
+    <string name="duration_format_hours_minutes">%1$dh %2$dm</string>
+    <string name="duration_format_minutes">%1$dm</string>
     <string name="licenses_link">Licenses</string>
-    <string name="licenses_link_description">View the licenses of the libraries used by the Jellyfin app</string>
+    <string name="licenses_link_description">View the licenses of the libraries used by the Moonfin app</string>
     <string name="license_description">Description</string>
     <string name="license_version">Version</string>
     <string name="license_artifact">Artifact</string>
@@ -457,7 +512,7 @@
     <string name="home_section_resume_audio">Continue listening</string>
     <string name="home_section_active_recordings">Active recordings</string>
     <string name="home_section_next_up">Next up</string>
-    <string name="home_section_watchlist">Watch List</string>
+    <string name="home_section_playlists">Playlists</string>
     <string name="home_section_livetv">Live TV</string>
     <string name="home_section_resume_book">Continue reading</string>
     <string name="home_section_none">None</string>
@@ -476,7 +531,7 @@
     <string name="pref_home_favorites_button_summary">Toggle the favorites button in the top toolbar</string>
     <string name="pref_show_libraries_in_toolbar">Show library buttons in toolbar</string>
     <string name="pref_show_libraries_in_toolbar_description">Toggle library buttons in the top toolbar</string>
-    <string name="searchable_hint">Search Jellyfin</string>
+    <string name="searchable_hint">Search Moonfin</string>
     <string name="searchable_settings_description">Media</string>
     <string name="pref_subtitles_background_title">Enable background</string>
     <string name="pref_subtitles_background_summary">Show a black background behind the subtitles</string>
@@ -536,7 +591,7 @@
     <string name="input_password">Password</string>
     <string name="login_connect_to">Connecting to %1$s</string>
     <string name="login_other_options">Other options:</string>
-    <string name="login_quickconnect_step_1">1. Open the Jellyfin app on your phone or webbrowser, and sign in with your account</string>
+    <string name="login_quickconnect_step_1">1. Open the Jellyfin app on your phone or web browser, and sign in with your account</string>
     <string name="login_quickconnect_step_2">2. Open the user menu and go to the Quick Connect page</string>
     <string name="login_quickconnect_step_3">3. Enter the following code:</string>
     <string name="lbl_refresh_switching">Refresh rate switching</string>
@@ -557,7 +612,7 @@
     <string name="crash_report_toast">Oops! Something went wrong, a crash report was sent to your Jellyfin server.</string>
     <string name="server_setup_incomplete">The setup of this server has not been completed. Open Jellyfin in a web browser to finish setup before signing in.</string>
     <string name="episode_name_special">special</string>
-    <string name="app_notification_beta">App updated to %1$s\nThank you for participating in the Jellyfin beta program.</string>
+    <string name="app_notification_beta">App updated to %1$s\nThank you for participating in the Moonfin beta program.</string>
     <string name="item_deleted">%1$s deleted</string>
     <string name="item_deletion_failed">Unable to delete %1$s</string>
     <string name="pref_enable_media_management">Enable media management</string>
@@ -632,6 +687,8 @@
     <string name="segment_type_recap">Recaps</string>
     <string name="segment_type_unknown">Unknown segments</string>
     <string name="skip_forward_length">Skip forward length</string>
+    <string name="unpause_rewind_duration">Rewind on unpause</string>
+    <string name="show_description_on_pause">Show description on pause</string>
     <string name="preference_enable_trickplay">Enable trickplay in video player</string>
     <string name="pref_subtitles_background_opacity">Subtitle background opacity</string>
     <string name="pref_troubleshooting">Troubleshooting</string>
@@ -648,6 +705,7 @@
     <string name="speech_error_unknown">An unexpected error occurred during speech recognition.</string>
     <string name="still_watching_label">Are you still watching?</string>
     <string name="settings">Settings</string>
+
     <string name="settings_description">Change the app to your own liking</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
     <string name="pref_playback_next_up">Next up</string>
@@ -676,7 +734,7 @@
     <string name="playback_video_player">Video player</string>
     <string name="video_player_internal">Built-in video player</string>
     <string name="video_player_external">External app</string>
-    <string name="playback_video_player_external_empty">You don\'t have any video player apps installed on your device that can open Jellyfin videos.</string>
+    <string name="playback_video_player_external_empty">You don\'t have any video player apps installed on your device that can open videos from your server.</string>
     <string name="filters">Filters</string>
     <plurals name="seconds">
         <item quantity="one">%1$s second</item>
@@ -702,6 +760,10 @@
         <item quantity="one">%1$s item</item>
         <item quantity="other">%1$s items</item>
     </plurals>
+    <plurals name="ratings_enabled">
+        <item quantity="one">%1$s rating enabled</item>
+        <item quantity="other">%1$s ratings enabled</item>
+    </plurals>
     <plurals name="movies">
         <item quantity="one">%1$s movie</item>
         <item quantity="other">%1$s movies</item>
@@ -719,10 +781,24 @@
         <item quantity="other">%1$s albums</item>
     </plurals>
 
+    <plurals name="season_count">
+        <item quantity="one">%1$s Season</item>
+        <item quantity="other">%1$s Seasons</item>
+    </plurals>
     <!-- Media Bar Slideshow -->
-    <string name="pref_media_bar_title">Media Bar</string>
+    <string name="pref_media_bar_title">Media Bar and Media Previews</string>
     <string name="pref_media_bar_enable">Enable Media Bar slideshow on home screen</string>
     <string name="pref_media_bar_enable_summary">Display a featured content slideshow at the top of the home screen</string>
+    <string name="pref_media_bar_source_type">Content source</string>
+    <string name="pref_media_bar_source_type_summary">Where to fetch featured media bar items from</string>
+    <string name="pref_media_bar_source_local">Local (random from libraries)</string>
+    <string name="pref_media_bar_source_plugin">Plugin (synced from server)</string>
+    <string name="pref_media_bar_excluded_genres">Excluded genres</string>
+    <string name="pref_media_bar_excluded_genres_summary">Items with these genres will not appear in the media bar</string>
+    <string name="pref_media_bar_excluded_genres_none">None</string>
+    <string name="pref_media_bar_excluded_genres_loading">Loading genres…</string>
+    <string name="pref_media_bar_excluded_genres_error">Failed to load genres</string>
+    <string name="pref_media_bar_excluded_genres_empty">No genres found</string>
     <string name="pref_media_bar_content_type">Featured content type</string>
     <string name="pref_media_bar_item_count">Number of carousel items</string>
     <string name="pref_media_bar_item_count_summary">How many featured items to display in the carousel</string>
@@ -756,6 +832,12 @@
     <string name="lbl_media_bar_next">Next slide</string>
     <string name="lbl_media_bar_pause">Pause slideshow</string>
     <string name="lbl_media_bar_play">Resume slideshow</string>
+    <string name="pref_media_bar_trailer_preview">Trailer preview</string>
+    <string name="pref_media_bar_trailer_preview_summary">Play muted YouTube trailers in the media bar after 4 seconds, using SponsorBlock to skip intros. Applies to shows in the home rows as well.</string>
+    <string name="pref_episode_preview">Media Preview</string>
+    <string name="pref_episode_preview_summary">Play a muted video preview on focused movie and episode cards, skipping past intro segments</string>
+    <string name="pref_preview_audio">Preview audio</string>
+    <string name="pref_preview_audio_summary">Enable audio for media bar trailers and card video previews</string>
 
     <!-- Theme Music Settings -->
     <string name="pref_theme_music_title">Theme Music</string>
@@ -768,35 +850,51 @@
 
     <!-- Jellyseerr Settings -->
     <string name="jellyseerr">Jellyseerr</string>
+    <!-- Seerr Settings -->
+    <string name="jellyseerr">Seerr</string>
     <string name="home">Home</string>
     <string name="search">Search</string>
-    <string name="jellyseerr_settings">Jellyseerr</string>
+    <string name="jellyseerr_settings">Seerr</string>
+    <string name="jellyseerr_settings_description">Authentication, rows &amp; full configuration</string>
     <string name="jellyseerr_server_settings">Server Configuration</string>
-    <string name="jellyseerr_enabled">Enable Jellyseerr</string>
-    <string name="jellyseerr_enabled_description">Show Jellyseerr integration in the app</string>
+    <string name="jellyseerr_enabled">Enable Seerr</string>
+    <string name="jellyseerr_enabled_description">Show Seerr integration in the app</string>
     <string name="jellyseerr_server_url">Server URL</string>
-    <string name="jellyseerr_server_url_description">Jellyseerr server address (e.g., http://192.168.1.100:5055)</string>
+    <string name="jellyseerr_server_url_description">Seerr server address (e.g., http://192.168.1.100:5055)</string>
     <string name="jellyseerr_password">Password</string>
-    <string name="jellyseerr_password_description">Your Jellyfin password for Jellyseerr authentication</string>
+    <string name="jellyseerr_password_description">Your Jellyfin password for Seerr authentication</string>
     <string name="jellyseerr_test_connection">Test Connection</string>
-    <string name="jellyseerr_test_connection_description">Test the connection to your Jellyseerr server</string>
-    <string name="jellyseerr_connection_success">Successfully connected to Jellyseerr!</string>
+    <string name="jellyseerr_test_connection_description">Test the connection to your Seerr server</string>
+    <string name="jellyseerr_connection_success">Successfully connected to Seerr!</string>
     <string name="jellyseerr_fill_fields">Please enter server URL and API key</string>
-    <string name="jellyseerr_search_results">Jellyseerr</string>
+    <string name="jellyseerr_search_results">Seerr</string>
     <string name="jellyseerr_connect_jellyfin">Login with Jellyfin</string>
     <string name="jellyseerr_connect_jellyfin_description">Automatically authenticate using your current Jellyfin account for ~30 days</string>
-    <string name="jellyseerr_connection_error">Unable to connect to Jellyseerr. Please log in again from settings to restore your session.</string>
+    <string name="jellyseerr_connection_error">Unable to connect to Seerr. Please log in again from settings to restore your session.</string>
     <string name="jellyseerr_setup_title">How to Connect</string>
-    <string name="jellyseerr_setup_info">Enter your Jellyseerr server URL and Jellyfin password above. Test the connection to authenticate and save your session.</string>
-    <string name="jellyseerr_show_in_toolbar">Show Jellyseerr in Toolbar</string>
-    <string name="jellyseerr_show_in_toolbar_description">Display Jellyseerr button in the main navigation toolbar</string>
+    <string name="jellyseerr_setup_info">Enter your Seerr server URL and Jellyfin password above. Test the connection to authenticate and save your session.</string>
+    <string name="jellyseerr_show_in_toolbar">Show Seerr in Toolbar</string>
+    <string name="jellyseerr_show_in_toolbar_description">Display Seerr button in the main navigation toolbar</string>
     <string name="jellyseerr_fetch_limit_title">Items per Row (3 pages loaded per category)</string>
     <string name="jellyseerr_fetch_limit_description">Number of items to fetch per API request (3 pages are loaded at once)</string>
     <string name="jellyseerr_fetch_limit_25">25 items</string>
     <string name="jellyseerr_fetch_limit_50">50 items</string>
     <string name="jellyseerr_fetch_limit_75">75 items</string>
     <string name="jellyseerr_block_nsfw">Block Adult Content</string>
-    <string name="jellyseerr_block_nsfw_description">Hide content tagged as adult/NSFW from Jellyseerr results</string>
+    <string name="jellyseerr_block_nsfw_description">Hide content tagged as adult/NSFW from Seerr results</string>
+
+    <!-- Plugin Settings -->
+    <string name="pref_plugin_settings">Plugin</string>
+    <string name="pref_plugin_description">Settings synced via Moonfin server plugin</string>
+    <string name="pref_plugin_sync_enable">Enable Plugin Sync</string>
+    <string name="pref_plugin_sync_description">Sync settings with the Moonfin server plugin</string>
+    <string name="pref_toolbar_customization_description">Navigation bar and toolbar buttons</string>
+    <string name="pref_home_section_settings_description">Continue watching, libraries, folder view</string>
+    <string name="pref_media_bar_settings_description">Featured content carousel on home screen</string>
+    <string name="pref_theme_music_settings_description">Background music on detail screens</string>
+    <string name="pref_appearance_settings_description">Seasonal effects, background blur</string>
+    <string name="pref_ratings_title">Ratings</string>
+    <string name="pref_ratings_settings_description">External ratings and episode ratings</string>
 
     <!-- Moonfin Settings -->
     <string name="moonfin_settings">Moonfin Settings</string>
@@ -805,27 +903,54 @@
     <string name="settings_available_after_login">Settings available after login</string>
 
     <!-- Jellyseerr Authentication -->
+    <!-- Seerr Authentication -->
     <string name="jellyseerr_auth_method">Authentication Method</string>
-    <string name="jellyseerr_auth_method_description">Choose how to authenticate with Jellyseerr</string>
+    <string name="jellyseerr_auth_method_description">Choose how to authenticate with Seerr</string>
     <string name="jellyseerr_auth_jellyfin">Jellyfin SSO</string>
     <string name="jellyseerr_auth_jellyfin_description">Login with your Jellyfin account (cookie-based, 30-day expiration)</string>
     <string name="jellyseerr_auth_local">Local Account</string>
-    <string name="jellyseerr_auth_local_description">Login with Jellyseerr email/password (permanent API key)</string>
+    <string name="jellyseerr_auth_local_description">Login with Seerr email/password (permanent API key)</string>
     <string name="jellyseerr_auto_api_key">Auto-Generate API Key</string>
     <string name="jellyseerr_auto_api_key_description">After Jellyfin login, generate permanent API key (requires admin permissions)</string>
     <string name="jellyseerr_regenerate_api_key">Regenerate API Key</string>
-    <string name="jellyseerr_regenerate_api_key_description">Generate permanent API key (requires admin permissions in Jellyseerr)</string>
+    <string name="jellyseerr_regenerate_api_key_description">Generate permanent API key (requires admin permissions in Seerr)</string>
     <string name="jellyseerr_local_email">Email</string>
-    <string name="jellyseerr_local_email_description">Your Jellyseerr account email</string>
+    <string name="jellyseerr_local_email_description">Your Seerr account email</string>
     <string name="jellyseerr_local_password">Local Password</string>
-    <string name="jellyseerr_local_password_description">Your Jellyseerr account password (not Jellyfin)</string>
+    <string name="jellyseerr_local_password_description">Your Seerr account password (not Jellyfin)</string>
     <string name="jellyseerr_api_key_status">API Key Status</string>
     <string name="jellyseerr_api_key_present">Permanent API key active</string>
     <string name="jellyseerr_api_key_absent">Using cookie-based auth (expires in ~30 days)</string>
+    <string name="jellyseerr_not_logged_in">Not logged in</string>
     <string name="jellyseerr_login_local">Login with Local Account</string>
     <string name="jellyseerr_login_local_description">Authenticate using email and password to get permanent API key</string>
 
     <!-- Jellyseerr Advanced Settings -->
+    <string name="jellyseerr_login_local_description">Authenticate using email and password</string>
+    <string name="jellyseerr_login_api_key">Login with API Key</string>
+    <string name="jellyseerr_login_api_key_description">Use a permanent API key from Seerr settings</string>
+    <string name="jellyseerr_api_key_input">API Key</string>
+    <string name="jellyseerr_api_key_input_description">Get this from Seerr web UI under Settings → General</string>
+    <string name="jellyseerr_logout">Log Out</string>
+    <string name="jellyseerr_logout_description">Clear all Seerr authentication data and cookies</string>
+    <string name="jellyseerr_logout_success">Logged out of Seerr successfully</string>
+    <string name="jellyseerr_logout_confirm_title">Log Out of Seerr?</string>
+    <string name="jellyseerr_logout_confirm_message">This will clear all authentication data and cookies. You will need to log in again to use Seerr.</string>
+
+    <!-- Seerr Moonfin Proxy -->
+    <string name="jellyseerr_moonfin_proxy">Moonfin Proxy</string>
+    <string name="jellyseerr_moonfin_proxy_status">Connection managed by Moonfin server plugin</string>
+    <string name="jellyseerr_moonfin_connected">Connected as %s</string>
+    <string name="jellyseerr_moonfin_not_authenticated">Not authenticated — login required on server</string>
+    <string name="jellyseerr_moonfin_disconnect">Disconnect Moonfin Proxy</string>
+    <string name="jellyseerr_moonfin_disconnect_description">Stop using the server plugin proxy and return to direct connection mode</string>
+    <string name="jellyseerr_moonfin_reconnect">Connect via Moonfin Plugin</string>
+    <string name="jellyseerr_moonfin_reconnect_description">Reconnect Seerr through the Moonfin server plugin proxy</string>
+    <string name="jellyseerr_moonfin_reconnect_success">Connected via Moonfin plugin</string>
+    <string name="jellyseerr_moonfin_reconnect_failed">Failed to connect via Moonfin plugin</string>
+    <string name="jellyseerr_moonfin_not_enabled">Seerr not enabled on server plugin</string>
+
+    <!-- Seerr Advanced Settings -->
     <string name="jellyseerr_advanced_settings">Advanced Request Settings</string>
     <string name="jellyseerr_advanced_settings_description">Configure custom quality profiles, root folders, and servers for requests</string>
     <string name="jellyseerr_hd_movie_profile">HD Movie Profile</string>
@@ -842,8 +967,9 @@
     <string name="jellyseerr_profile_admin_required">Admin permissions required to configure quality profiles</string>
 
     <!-- Jellyseerr Row Configuration -->
+    <!-- Seerr Row Configuration -->
     <string name="jellyseerr_rows_title">Discover Rows</string>
-    <string name="jellyseerr_rows_description">Enable, disable, and reorder rows on the Jellyseerr discover screen</string>
+    <string name="jellyseerr_rows_description">Enable, disable, and reorder rows on the Seerr discover screen</string>
     <string name="jellyseerr_rows_reset">Reset to Defaults</string>
     <string name="jellyseerr_row_recent_requests">Recent Requests</string>
     <string name="jellyseerr_row_trending">Trending</string>
@@ -864,7 +990,7 @@
     <string name="pref_visual_settings">Visual Settings</string>
     <string name="pref_background_blur_amount">Background Blur Amount</string>
     <string name="pref_background_blur_amount_description">Control blur intensity for all background images across the app</string>
-    <string name="pref_browsing_background_blur_amount">Home and Jellyseerr Background Blur</string>
+    <string name="pref_browsing_background_blur_amount">Home and Seerr Background Blur</string>
     <string name="pref_browsing_background_blur_amount_description">Blur intensity for home screen and discovery backgrounds</string>
         <string name="pref_details_background_blur_amount">Media Details Background Blur</string>
     <string name="pref_details_background_blur_amount_description">Blur intensity for movie, TV show, and episode details pages</string>
@@ -873,6 +999,38 @@
     <string name="pref_blur_medium">Med</string>
     <string name="pref_blur_strong">High</string>
     <string name="pref_blur_extra_strong">Extra</string>
+
+    <!-- Additional Ratings -->
+    <string name="pref_enable_additional_ratings">Enable Additional Ratings</string>
+    <string name="pref_enable_additional_ratings_description">Fetch ratings from MDBList API (IMDB, TMDB, Metacritic, Trakt, Letterboxd, etc.)</string>
+    <string name="pref_mdblist_api_key">MDBList API Key</string>
+    <string name="pref_mdblist_api_key_description">Get a free API key from mdblist.com/preferences</string>
+    <string name="pref_additional_ratings_no_api_key">Please add your MDBList API key in Moonfin Settings</string>
+    <string name="pref_rating_source_imdb">IMDB</string>
+    <string name="pref_rating_source_rt_audience">Rotten Tomatoes Audience</string>
+    <string name="pref_rating_source_tmdb">The Movie Database</string>
+    <string name="pref_rating_source_metacritic">Metacritic</string>
+    <string name="pref_rating_source_metacritic_user">Metacritic User</string>
+    <string name="pref_rating_source_trakt">Trakt</string>
+    <string name="pref_rating_source_letterboxd">Letterboxd</string>
+    <string name="pref_rating_source_rogerebert">Roger Ebert</string>
+    <string name="pref_rating_source_myanimelist">MyAnimeList</string>
+    <string name="pref_rating_source_anilist">AniList</string>
+
+    <string name="pref_show_rating_labels">Show Rating Labels</string>
+    <string name="pref_show_rating_labels_description">Display source name below each rating value</string>
+
+    <!-- Episode Ratings -->
+    <string name="pref_episode_ratings">Episode Ratings</string>
+    <string name="pref_episode_ratings_description">Show TMDB ratings for individual TV episodes</string>
+    <string name="pref_tmdb_api_key">TMDB API Key</string>
+    <string name="pref_tmdb_api_key_description">Get a free API key from themoviedb.org</string>
+    <string name="pref_tmdb_api_key_label">API Key</string>
+    <string name="pref_tmdb_api_key_hint">Enter your TMDB API key</string>
+    <string name="lbl_clear">Clear</string>
+    <string name="msg_api_key_saved">API key saved</string>
+    <string name="msg_api_key_cleared">API key cleared</string>
+    <string name="msg_api_key_invalid">API key must be at least 16 characters</string>
 
     <!-- Toolbar Customization -->
     <string name="pref_toolbar_customization">Toolbar Customization</string>
@@ -885,6 +1043,10 @@
     <string name="pref_confirm_exit_description">Show confirmation dialog when exiting the app</string>
     <string name="pref_multi_server_libraries">Enable Cross Server Playback</string>
     <string name="pref_multi_server_libraries_description">Display libraries and content from all logged-in servers in the home screen and toolbar</string>
+    <string name="pref_enable_folder_view">Show Folder View</string>
+    <string name="pref_enable_folder_view_description">Add a Folders entry to browse media by folder structure</string>
+    <string name="lbl_folders">Folders</string>
+    <string name="msg_no_folders">No folders found</string>
     <string name="pref_show_shuffle_button">Show Shuffle Button</string>
     <string name="pref_show_shuffle_button_description">Display shuffle button in main toolbar</string>
     <string name="pref_show_genres_button">Show Genres Button</string>
@@ -1020,4 +1182,6 @@
         <item quantity="one">%1$d item</item>
         <item quantity="other">%1$d items</item>
     </plurals>
+    <string name="lbl_sort_and_filter">Sort and Filter</string>
+    <string name="lbl_status_title">Status</string>
 </resources>

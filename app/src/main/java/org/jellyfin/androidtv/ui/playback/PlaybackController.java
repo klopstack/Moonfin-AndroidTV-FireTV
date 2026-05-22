@@ -351,7 +351,8 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             } else {
                 // Prefer the media source with the same id as the item
                 for (MediaSourceInfo mediaSource : mediaSources) {
-                    if (UUIDSerializerKt.toUUIDOrNull(mediaSource.getId()).equals(item.getId())) {
+                    UUID sourceId = UUIDSerializerKt.toUUIDOrNull(mediaSource.getId());
+                    if (sourceId != null && sourceId.equals(item.getId())) {
                         return mediaSource;
                     }
                 }
@@ -579,11 +580,35 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             case PLAYING:
                 // do nothing
                 break;
+            case SEEKING:
+                if (!hasInitializedVideoManager()) {
+                    return;
+                }
+                mVideoManager.play();
+                mPlaybackState = PlaybackState.PLAYING;
+                if (mFragment != null) mFragment.setFadingEnabled(true);
+                startReportLoop();
+                break;
             case PAUSED:
                 if (!hasInitializedVideoManager()) {
                     return;
                 }
-                // just resume
+                // Apply unpause rewind if configured
+                UserSettingPreferences prefs = KoinJavaComponent.<UserSettingPreferences>get(UserSettingPreferences.class);
+                int unpauseRewindMs = prefs.get(UserSettingPreferences.Companion.getUnpauseRewindDuration());
+                if (unpauseRewindMs > 0) {
+                    long rewindPosition = Math.max(0, getCurrentPosition() - unpauseRewindMs);
+                    if (isTranscoding()) {
+                        // For transcoded content, only seek if within buffer to avoid server restart
+                        Timber.i("Attempting buffer seek for transcoded content, rewind %d ms", unpauseRewindMs);
+                        mVideoManager.seekWithinBuffer(rewindPosition);
+                    } else {
+                        // For direct play, always seek
+                        Timber.i("Rewinding %d ms on unpause, seeking to: %d", unpauseRewindMs, rewindPosition);
+                        mVideoManager.seekTo(rewindPosition);
+                    }
+                }
+                // resume playback
                 mVideoManager.play();
                 mPlaybackState = PlaybackState.PLAYING; // won't get another onPrepared call
                 mFragment.setFadingEnabled(true);
@@ -677,10 +702,15 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         internalOptions.setMediaSources(item.getMediaSources());
         
         // Extract serverId for multi-server support
+        // Only set serverId when the item is from a different server than the current session.
+        // This avoids creating a separate API client (with a different device ID) for same-server
+        // items, which can cause transcoding session mismatches on the server.
         UUID parsedServerId = UUIDUtils.parseUUID(item.getServerId());
-        if (parsedServerId != null) {
+        UUID currentServerId = sessionRepository.getValue().getCurrentSession().getValue() != null ?
+            sessionRepository.getValue().getCurrentSession().getValue().getServerId() : null;
+        if (parsedServerId != null && !parsedServerId.equals(currentServerId)) {
             internalOptions.setServerId(parsedServerId);
-            Timber.i("PlaybackController: Using server %s for playback", parsedServerId);
+            Timber.i("PlaybackController: Using cross-server API for playback: item server %s, current server %s", parsedServerId, currentServerId);
         }
         
         if (playbackRetries > 0 || (isLiveTv && !directStreamLiveTv)) internalOptions.setEnableDirectPlay(false);
@@ -696,22 +726,21 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             internalOptions.setAudioStreamIndex(mCurrentOptions.getAudioStreamIndex());
         }
         
-        // Apply pre-selected audio track (takes priority over saved language preference)
         if (preSelectedAudio != null && preSelectedAudio >= 0) {
             Timber.i("Applying pre-selected audio track: %d", preSelectedAudio);
             internalOptions.setAudioStreamIndex(preSelectedAudio);
         } else if (forcedAudioLanguage != null) {
-            // fallback to language preference
             MediaSourceInfo currentMediaSource = getCurrentMediaSource();
-            for (MediaStream stream : currentMediaSource.getMediaStreams()) {
-                if (stream.getType() == MediaStreamType.AUDIO && forcedAudioLanguage.equals(stream.getLanguage())) {
-                    internalOptions.setAudioStreamIndex(stream.getIndex());
-                    break;
+            if (currentMediaSource != null && currentMediaSource.getMediaStreams() != null) {
+                for (MediaStream stream : currentMediaSource.getMediaStreams()) {
+                    if (stream.getType() == MediaStreamType.AUDIO && forcedAudioLanguage.equals(stream.getLanguage())) {
+                        internalOptions.setAudioStreamIndex(stream.getIndex());
+                        break;
+                    }
                 }
             }
         }
         
-        // Apply pre-selected subtitle track
         if (preSelectedSubtitle != null) {
             Timber.i("Applying pre-selected subtitle track: %d", preSelectedSubtitle);
             internalOptions.setSubtitleStreamIndex(preSelectedSubtitle);
@@ -719,15 +748,22 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             internalOptions.setSubtitleStreamIndex(forcedSubtitleIndex);
         }
         
-        // Clear pre-selections after applying them (one-time use)
-        if (preSelectedAudio != null || preSelectedSubtitle != null) {
+        String preSelectedMediaSource = trackSelector.getValue().getSelectedMediaSource(itemIdString);
+        if (preSelectedMediaSource != null) {
+            Timber.i("Applying pre-selected media source: %s", preSelectedMediaSource);
+            internalOptions.setMediaSourceId(preSelectedMediaSource);
+        }
+
+        if (preSelectedAudio != null || preSelectedSubtitle != null || preSelectedMediaSource != null) {
             Timber.i("Clearing track pre-selections for next playback");
             trackSelector.getValue().clearSelections();
         }
         
-        MediaSourceInfo currentMediaSource = getCurrentMediaSource();
-        if (!isLiveTv && currentMediaSource != null) {
-            internalOptions.setMediaSourceId(currentMediaSource.getId());
+        if (internalOptions.getMediaSourceId() == null) {
+            MediaSourceInfo currentMediaSource = getCurrentMediaSource();
+            if (!isLiveTv && currentMediaSource != null) {
+                internalOptions.setMediaSourceId(currentMediaSource.getId());
+            }
         }
         DeviceProfile internalProfile = DeviceProfileKt.createDeviceProfile(
                 mFragment.getContext(),
@@ -812,7 +848,8 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             return;
         }
 
-        mCurrentOptions.setAudioStreamIndex(null); // reset audio stream index to allow auto selection on new item
+        Integer preSelectedAudioIndex = mCurrentOptions.getAudioStreamIndex();
+        mCurrentOptions.setAudioStreamIndex(null);
 
         mStartPosition = position;
         mCurrentStreamInfo = response;
@@ -831,8 +868,12 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         }
 
         // get subtitle info
+        Integer preSelectedSubtitleIndex = mCurrentOptions.getSubtitleStreamIndex();
         boolean subtitlesDefaultToNone = userPreferences.getValue().get(UserPreferences.Companion.getSubtitlesDefaultToNone());
-        if (subtitlesDefaultToNone) {
+        if (preSelectedSubtitleIndex != null) {
+            mCurrentOptions.setSubtitleStreamIndex(preSelectedSubtitleIndex);
+            Timber.i("Using pre-selected subtitle index: %s", preSelectedSubtitleIndex);
+        } else if (subtitlesDefaultToNone) {
             mCurrentOptions.setSubtitleStreamIndex(-1);
             Timber.i("default sub index set to -1 (None) - server default was %s", response.getMediaSource().getDefaultSubtitleStreamIndex());
         } else {
@@ -840,6 +881,10 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             Timber.i("default sub index set to %s remote default %s", mCurrentOptions.getSubtitleStreamIndex(), response.getMediaSource().getDefaultSubtitleStreamIndex());
         }
         setDefaultAudioIndex(response);
+        if (preSelectedAudioIndex != null) {
+            mCurrentOptions.setAudioStreamIndex(preSelectedAudioIndex);
+            Timber.i("Restoring pre-selected audio index: %s (default was %s)", preSelectedAudioIndex, mDefaultAudioIndex);
+        }
         Timber.i("default audio index set to %s remote default %s", mDefaultAudioIndex, response.getMediaSource().getDefaultAudioStreamIndex());
 
         Long mbPos = position * 10000;
@@ -914,7 +959,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
         // Otherwise, query the players
         if (mCurrentOptions.getAudioStreamIndex() != null) {
             currIndex = mCurrentOptions.getAudioStreamIndex();
-        } else if (isTranscoding() && getCurrentMediaSource().getDefaultAudioStreamIndex() != null) {
+        } else if (isTranscoding() && getCurrentMediaSource() != null && getCurrentMediaSource().getDefaultAudioStreamIndex() != null) {
             currIndex = getCurrentMediaSource().getDefaultAudioStreamIndex();
         } else if (hasInitializedVideoManager() && !isTranscoding()) {
             currIndex = mVideoManager.getExoPlayerTrack(MediaStreamType.AUDIO, getCurrentlyPlayingItem().getMediaStreams());
@@ -1219,8 +1264,6 @@ public class PlaybackController implements PlaybackControllerNotifiable {
                     Timber.e(e, "Failed to sync seek with SyncPlay");
                 }
             });
-            wasSeeking = false;
-            return; // Server will send seek command back to all clients
         }
 
         // Stop playback when the requested seek position is at the end of the video
@@ -1287,14 +1330,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
                 }
             });
         } else {
-            // use the same approach to directplay seeking as setOnProgressListener
-            // set state to SEEKING
-            // if seek succeeds call play and mirror the logic in play() for unpausing. if fails call pause()
-            // stopProgressLoop() being called at the beginning of startProgressLoop keeps this from breaking. otherwise it would start twice
-            // if seek() is called from skip()
-            
-            // Track if we were paused before seeking (to restore paused state after SyncPlay seek)
-            boolean wasPausedBeforeSeek = mPlaybackState == PlaybackState.PAUSED || isRespondingToSyncPlayCommand;
+            boolean shouldResumeAfterSeek = mPlaybackState == PlaybackState.PLAYING;
             mPlaybackState = PlaybackState.SEEKING;
             if (mVideoManager.seekTo(pos) < 0) {
                 wasSeeking = false;
@@ -1303,9 +1339,10 @@ public class PlaybackController implements PlaybackControllerNotifiable {
                 pause();
             } else {
                 wasSeeking = false;
-                // Don't automatically resume playback after seek if we're responding to SyncPlay
-                // or if we were paused before the seek
-                if (!wasPausedBeforeSeek) {
+                if (isRespondingToSyncPlayCommand) {
+                    mPlaybackState = PlaybackState.PAUSED;
+                    if (mFragment != null) mFragment.setFadingEnabled(false);
+                } else if (shouldResumeAfterSeek) {
                     mVideoManager.play();
                     mPlaybackState = PlaybackState.PLAYING;
                     if (mFragment != null) mFragment.setFadingEnabled(true);
@@ -1320,14 +1357,14 @@ public class PlaybackController implements PlaybackControllerNotifiable {
 
     private long currentSkipPos = 0;
     private final Runnable skipRunnable = () -> {
-        if (!(isPlaying() || isPaused())) return; // in case we completed since this was requested
+        if (!(isPlaying() || isPaused() || mPlaybackState == PlaybackState.SEEKING)) return; // in case we completed since this was requested
 
         seek(currentSkipPos);
         currentSkipPos = 0;
     };
 
     private void skip(int msec) {
-        if (hasInitializedVideoManager() && (isPlaying() || isPaused()) && spinnerOff && mVideoManager.getCurrentPosition() > 0) { //guard against skipping before playback has truly begun
+        if (hasInitializedVideoManager() && (isPlaying() || isPaused() || mPlaybackState == PlaybackState.SEEKING) && spinnerOff && mVideoManager.getCurrentPosition() > 0) { //guard against skipping before playback has truly begun
             mHandler.removeCallbacks(skipRunnable);
             refreshCurrentPosition();
             currentSkipPos = Utils.getSafeSeekPosition((currentSkipPos == 0 ? mCurrentPosition : currentSkipPos) + msec, getDuration());
@@ -1488,6 +1525,13 @@ public class PlaybackController implements PlaybackControllerNotifiable {
 
     @Override
     public void onPrepared() {
+        // Guard against race condition where playback is stopped before onPrepared callback
+        // This can happen during rapid playlist navigation
+        if (mCurrentStreamInfo == null) {
+            Timber.w("onPrepared called but mCurrentStreamInfo is null - playback may have been stopped");
+            return;
+        }
+
         if (mPlaybackState == PlaybackState.BUFFERING) {
             if (mFragment != null) {
                 mFragment.setFadingEnabled(true);
@@ -1521,9 +1565,11 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             // otherwise, use the server default
             if (mCurrentOptions.getAudioStreamIndex() != null) {
                 eligibleAudioTrack = mCurrentOptions.getAudioStreamIndex();
-            } else if (getCurrentMediaSource().getDefaultAudioStreamIndex() != null) {
+            } else if (getCurrentMediaSource() != null && getCurrentMediaSource().getDefaultAudioStreamIndex() != null) {
                 eligibleAudioTrack = getCurrentMediaSource().getDefaultAudioStreamIndex();
             }
+            // Clear pre-set index so switchAudioStream queries ExoPlayer's actual track
+            mCurrentOptions.setAudioStreamIndex(null);
             switchAudioStream(eligibleAudioTrack);
         }
 
@@ -1601,7 +1647,7 @@ public class PlaybackController implements PlaybackControllerNotifiable {
     }
 
     public long getCurrentPosition() {
-        // don't report the real position if seeking
+        if (currentSkipPos > 0) return currentSkipPos;
         return !isPlaying() && mSeekPosition != -1 ? mSeekPosition : mCurrentPosition;
     }
 

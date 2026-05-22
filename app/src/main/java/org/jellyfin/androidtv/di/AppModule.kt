@@ -27,6 +27,8 @@ import org.jellyfin.androidtv.data.repository.ItemMutationRepositoryImpl
 import org.jellyfin.androidtv.data.repository.JellyseerrRepository
 import org.jellyfin.androidtv.data.repository.JellyseerrRepositoryImpl
 import org.jellyfin.androidtv.data.repository.LocalWatchlistRepository
+import org.jellyfin.androidtv.data.repository.MdbListRepository
+import org.jellyfin.androidtv.data.repository.TmdbRepository
 import org.jellyfin.androidtv.data.repository.NotificationsRepository
 import org.jellyfin.androidtv.data.repository.NotificationsRepositoryImpl
 import org.jellyfin.androidtv.data.repository.UserViewsRepository
@@ -42,6 +44,7 @@ import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher
 import org.jellyfin.androidtv.ui.navigation.Destinations
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.androidtv.ui.navigation.NavigationRepositoryImpl
+import org.jellyfin.androidtv.ui.shuffle.ShuffleManager
 import org.jellyfin.androidtv.ui.playback.PlaybackControllerContainer
 import org.jellyfin.androidtv.ui.playback.nextup.NextUpViewModel
 import org.jellyfin.androidtv.ui.playback.segment.MediaSegmentRepository
@@ -57,6 +60,8 @@ import org.jellyfin.androidtv.ui.settings.compat.SettingsViewModel
 import org.jellyfin.androidtv.ui.startup.ServerAddViewModel
 import org.jellyfin.androidtv.ui.startup.StartupViewModel
 import org.jellyfin.androidtv.ui.startup.UserLoginViewModel
+import org.jellyfin.androidtv.util.EmbyCompatInterceptor
+import org.jellyfin.androidtv.util.EmbyCacheKeyInterceptor
 import org.jellyfin.androidtv.util.KeyProcessor
 import org.jellyfin.androidtv.util.MarkdownRenderer
 import org.jellyfin.androidtv.util.PlaybackHelper
@@ -80,7 +85,14 @@ val defaultDeviceInfo = named("defaultDeviceInfo")
 val appModule = module {
 	// SDK
 	single(defaultDeviceInfo) { androidDevice(get()) }
-	single { OkHttpFactory() }
+	single { EmbyCompatInterceptor() }
+	single {
+		val interceptor = get<EmbyCompatInterceptor>()
+		val base = okhttp3.OkHttpClient.Builder()
+			.addInterceptor(interceptor)
+			.build()
+		OkHttpFactory(base)
+	}
 	single { HttpClientOptions() }
 	single {
 		createJellyfin {
@@ -108,7 +120,7 @@ val appModule = module {
 		get<JellyfinSdk>().createApi(httpClientOptions = get<HttpClientOptions>())
 	}
 
-	single { SocketHandler(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), ProcessLifecycleOwner.get().lifecycle) }
+	single { SocketHandler(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), ProcessLifecycleOwner.get().lifecycle, get(), get(), get()) }
 
 	// Coil (images)
 	single {
@@ -145,6 +157,7 @@ val appModule = module {
 			}
 
 			components {
+				add(EmbyCacheKeyInterceptor())
 				add(get<NetworkFetcher.Factory>())
 
 				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) add(AnimatedImageDecoder.Factory())
@@ -157,23 +170,24 @@ val appModule = module {
 	// Non API related
 	single { DataRefreshService() }
 	single { PlaybackControllerContainer() }
-	// Scoped as a ViewModel so viewModelScope works properly, but use inject<>() to ensure singleton behavior
-	viewModel { InteractionTrackerViewModel(get(), get()) }
+	// Use single scope to ensure the same instance is used across all playback sessions
+	single { InteractionTrackerViewModel(get(), get()) }
 
 	single<UserRepository> { UserRepositoryImpl() }
-	single<UserViewsRepository> { UserViewsRepositoryImpl(get(), get()) }
+	single<UserViewsRepository> { UserViewsRepositoryImpl(get(), get(), get()) }
 	single<NotificationsRepository> { NotificationsRepositoryImpl(get(), get()) }
 	single<ItemMutationRepository> { ItemMutationRepositoryImpl(get(), get()) }
 	single<CustomMessageRepository> { CustomMessageRepositoryImpl() }
 	single<NavigationRepository> { NavigationRepositoryImpl(Destinations.home) }
-	single<SearchRepository> { SearchRepositoryImpl(get()) }
-	single<MediaSegmentRepository> { MediaSegmentRepositoryImpl(get(), get()) }
+	single { ShuffleManager(get(), get(), get(), get()) }
+	single<SearchRepository> { SearchRepositoryImpl(get(), get()) }
+	single<MediaSegmentRepository> { MediaSegmentRepositoryImpl(get(), get(), get(), get()) }
 	single<ExternalAppRepository> { ExternalAppRepository(get()) }
 	single { LocalWatchlistRepository(androidContext()) }
 	single<org.jellyfin.androidtv.data.repository.MultiServerRepository> { 
 		org.jellyfin.androidtv.data.repository.MultiServerRepositoryImpl(get(), get(), get(), get(), get(defaultDeviceInfo), get(), get()) 
 	}
-	single { org.jellyfin.androidtv.util.sdk.ApiClientFactory(get(), get(), get(defaultDeviceInfo), get<org.jellyfin.androidtv.auth.repository.SessionRepository>()) }
+	single { org.jellyfin.androidtv.util.sdk.ApiClientFactory(get(), get(), get(defaultDeviceInfo), get(), get()) }
 	single<org.jellyfin.androidtv.data.repository.ParentalControlsRepository> {
 		org.jellyfin.androidtv.data.repository.ParentalControlsRepositoryImpl(androidContext(), get(), get())
 	}
@@ -183,6 +197,8 @@ val appModule = module {
 	// Jellyseerr - User-specific preferences (auth data, API keys) - scoped per user
 	factory(named("user")) { (userId: String) -> JellyseerrPreferences(androidContext(), userId) }
 	single<JellyseerrRepository> { JellyseerrRepositoryImpl(androidContext(), get(named("global")), get()) }
+	single { MdbListRepository(get<OkHttpFactory>().createClient(get()), get()) }
+	single { TmdbRepository(get<OkHttpFactory>().createClient(get()), get(), get()) }
 
 	viewModel { StartupViewModel(get(), get(), get(), get()) }
 	viewModel { UserLoginViewModel(get(), get(), get(), get(defaultDeviceInfo)) }
@@ -190,27 +206,36 @@ val appModule = module {
 	viewModel { NextUpViewModel(get(), get(), get()) }
 	viewModel { StillWatchingViewModel(get(), get(), get(), get()) }
 	viewModel { PhotoPlayerViewModel(get()) }
-	viewModel { SearchViewModel(get(), get(), get(named("global")), get()) }
+	viewModel { SearchViewModel(get(), get(), get(named("global")), get(), get()) }
 	viewModel { DreamViewModel(get(), get(), get(), get(), get()) }
 	viewModel { SettingsViewModel() }
 	viewModel { SyncPlayViewModel() }
-	viewModel { org.jellyfin.androidtv.ui.jellyseerr.JellyseerrViewModel(get(), get(named("global"))) }
-	single { MediaBarSlideshowViewModel(get(), get(), get(), get(), androidContext(), get(), get(), get()) } // Singleton so both fragments share the same instance
+	viewModel { org.jellyfin.androidtv.ui.jellyseerr.JellyseerrViewModel(get()) }
+	viewModel { org.jellyfin.androidtv.ui.itemdetail.v2.ItemDetailsViewModel(get(), get()) }
+	viewModel { org.jellyfin.androidtv.ui.browsing.v2.LibraryBrowseViewModel(get(), get(), get(), get(), get()) }
+	viewModel { org.jellyfin.androidtv.ui.browsing.v2.GenresGridViewModel(get(), get(), get(), get()) }
+	viewModel { org.jellyfin.androidtv.ui.browsing.v2.FavoritesBrowseViewModel(get(), get()) }
+	viewModel { org.jellyfin.androidtv.ui.browsing.v2.MusicBrowseViewModel(get(), get()) }
+	viewModel { org.jellyfin.androidtv.ui.browsing.v2.LiveTvBrowseViewModel(get()) }
+	viewModel { org.jellyfin.androidtv.ui.browsing.v2.RecordingsBrowseViewModel(get()) }
+	viewModel { org.jellyfin.androidtv.ui.browsing.v2.ScheduleBrowseViewModel(get()) }
+	viewModel { org.jellyfin.androidtv.ui.browsing.v2.SeriesRecordingsBrowseViewModel(get()) }
+	single { MediaBarSlideshowViewModel(get(), get(), get(), get(), androidContext(), get(), get(), get(), get()) }
 
 	// SyncPlay
 	single { SyncPlayManager(androidContext(), get(), get()) }
 
-	single { BackgroundService(get(), get(), get(), get(), get(), get()) }
+	single { BackgroundService(get(), get(), get(), get(), get(), get(), get()) }
 	single { UpdateCheckerService(get()) }
 
 	single { MarkdownRenderer(get()) }
 	single { ItemLauncher() }
 	single { KeyProcessor() }
-	single { ReportingHelper(get(), get(), get(), get()) }
-	single<PlaybackHelper> { SdkPlaybackHelper(get(), get(), get(), get(), get(), get()) }
+	single { ReportingHelper(get(), get(), get()) }
+	single<PlaybackHelper> { SdkPlaybackHelper(get(), get(), get(), get(), get()) }
 	single { org.jellyfin.androidtv.ui.playback.ThemeMusicPlayer(androidContext()) }
 
 	factory { (context: Context) -> 
-		SearchFragmentDelegate(context, get(), get()) 
+		SearchFragmentDelegate(context, get(), get(), get()) 
 	}
 }

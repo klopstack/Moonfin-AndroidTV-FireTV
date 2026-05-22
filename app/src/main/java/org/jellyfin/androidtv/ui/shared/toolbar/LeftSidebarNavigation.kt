@@ -1,13 +1,10 @@
 package org.jellyfin.androidtv.ui.shared.toolbar
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
@@ -19,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,14 +42,19 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.LocalActivity
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,32 +64,42 @@ import org.jellyfin.androidtv.auth.repository.UserRepository
 import org.jellyfin.androidtv.data.model.AggregatedLibrary
 import org.jellyfin.androidtv.data.repository.MultiServerRepository
 import org.jellyfin.androidtv.data.repository.UserViewsRepository
+import org.jellyfin.androidtv.data.service.pluginsync.PluginSyncService
 import org.jellyfin.androidtv.preference.JellyseerrPreferences
 import org.jellyfin.androidtv.preference.UserPreferences
+import org.jellyfin.androidtv.preference.constant.ClockBehavior
 import org.jellyfin.androidtv.ui.base.Icon
 import org.jellyfin.androidtv.ui.base.Text
+import org.jellyfin.androidtv.ui.base.focusBorderColor
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher
 import org.jellyfin.androidtv.ui.navigation.ActivityDestinations
 import org.jellyfin.androidtv.ui.navigation.Destinations
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.androidtv.ui.playback.MediaManager
+import org.jellyfin.androidtv.ui.playback.ThemeMusicPlayer
 import org.jellyfin.androidtv.ui.settings.compat.SettingsViewModel
+import org.jellyfin.androidtv.ui.shuffle.ShuffleManager
 import org.jellyfin.androidtv.ui.shuffle.ShuffleOptionsDialog
-import org.jellyfin.androidtv.ui.shuffle.executeShuffle
+import org.jellyfin.androidtv.ui.syncplay.SyncPlayDialog
 import org.jellyfin.androidtv.ui.syncplay.SyncPlayViewModel
 import org.jellyfin.androidtv.util.apiclient.getUrl
 import org.jellyfin.androidtv.util.apiclient.primaryImage
+import org.jellyfin.androidtv.util.supportsFeature
+import org.jellyfin.androidtv.auth.repository.ServerRepository
+import org.moonfin.server.core.feature.ServerFeature
 import org.jellyfin.androidtv.util.sdk.ApiClientFactory
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemDto
+import org.jellyfin.sdk.model.api.CollectionType
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinActivityViewModel
+import androidx.compose.ui.res.stringResource
 import org.koin.core.qualifier.named
 import java.util.UUID
 
 @Composable
 fun LeftSidebarNavigation(
-	activeButton: MainToolbarActiveButton = MainToolbarActiveButton.None,
+	activeButton: NavbarActiveButton = NavbarActiveButton.None,
 	activeLibraryId: UUID? = null,
 ) {
 	val activity = LocalActivity.current
@@ -100,12 +113,16 @@ fun LeftSidebarNavigation(
 	val apiClientFactory = koinInject<ApiClientFactory>()
 	val settingsViewModel = koinActivityViewModel<SettingsViewModel>()
 	val settingsClosedCounter by settingsViewModel.settingsClosedCounter.collectAsState()
+	val pluginSyncService = koinInject<PluginSyncService>()
+	val syncCompletedCounter by pluginSyncService.syncCompletedCounter.collectAsState()
 	val jellyseerrPreferences = koinInject<JellyseerrPreferences>(named("global"))
-	
-	// User image - same pattern as MainToolbar
+	val serverRepository = koinInject<ServerRepository>()
+	val currentServer by serverRepository.currentServer.collectAsState()
+
+	// User image - same pattern as Navbar
 	val currentUser by remember { userRepository.currentUser.filterNotNull() }.collectAsState(null)
 	val userImageUrl = remember(currentUser) { currentUser?.primaryImage?.getUrl(api) }
-	
+
 	// User preferences
 	var showShuffleButton by remember { mutableStateOf(true) }
 	var showGenresButton by remember { mutableStateOf(true) }
@@ -115,8 +132,12 @@ fun LeftSidebarNavigation(
 	var enableMultiServer by remember { mutableStateOf(false) }
 	var syncPlayEnabled by remember { mutableStateOf(false) }
 	var jellyseerrEnabled by remember { mutableStateOf(false) }
-	
-	LaunchedEffect(settingsClosedCounter) {
+	var jellyseerrVariant by remember { mutableStateOf("jellyseerr") }
+	var jellyseerrDisplayName by remember { mutableStateOf("Jellyseerr") }
+	var enableFolderView by remember { mutableStateOf(false) }
+	var clockBehavior by remember { mutableStateOf(ClockBehavior.ALWAYS) }
+
+	LaunchedEffect(settingsClosedCounter, syncCompletedCounter) {
 		showShuffleButton = userPreferences[UserPreferences.showShuffleButton]
 		showGenresButton = userPreferences[UserPreferences.showGenresButton]
 		showFavoritesButton = userPreferences[UserPreferences.showFavoritesButton]
@@ -124,34 +145,37 @@ fun LeftSidebarNavigation(
 		enableMultiServer = userPreferences[UserPreferences.enableMultiServerLibraries]
 		shuffleContentType = userPreferences[UserPreferences.shuffleContentType]
 		syncPlayEnabled = userPreferences[UserPreferences.syncPlayEnabled]
+		enableFolderView = userPreferences[UserPreferences.enableFolderView]
+		clockBehavior = userPreferences[UserPreferences.clockBehavior]
 	}
-	
+
 	// Check Jellyseerr settings
 	LaunchedEffect(currentUser) {
-		val globalEnabled = jellyseerrPreferences[JellyseerrPreferences.enabled]
-		if (globalEnabled && currentUser != null) {
-			val userJellyseerrPrefs = JellyseerrPreferences(context = context, userId = currentUser!!.id.toString())
-			val showInToolbar = userJellyseerrPrefs[JellyseerrPreferences.showInToolbar]
-			jellyseerrEnabled = showInToolbar
+		if (currentUser != null) {
+			val userJellyseerrPrefs = JellyseerrPreferences.migrateToUserPreferences(context, currentUser!!.id.toString())
+			jellyseerrEnabled = userJellyseerrPrefs[JellyseerrPreferences.enabled]
+			jellyseerrVariant = userJellyseerrPrefs[JellyseerrPreferences.moonfinVariant]
+			val dn = userJellyseerrPrefs[JellyseerrPreferences.moonfinDisplayName]
+			jellyseerrDisplayName = if (dn.isNotBlank()) dn else if (jellyseerrVariant == "seerr") "Seerr" else "Jellyseerr"
 		} else {
 			jellyseerrEnabled = false
 		}
 	}
-	
+
 	// Load user views/libraries
 	val userViewsRepository = koinInject<UserViewsRepository>()
 	var userViews by remember { mutableStateOf<List<BaseItemDto>>(emptyList()) }
-	
+
 	LaunchedEffect(Unit) {
 		userViewsRepository.views.collect { views ->
 			userViews = views.toList()
 		}
 	}
-	
+
 	// Load aggregated libraries
 	val multiServerRepository = koinInject<MultiServerRepository>()
 	var aggregatedLibraries by remember { mutableStateOf<List<AggregatedLibrary>>(emptyList()) }
-	
+
 	LaunchedEffect(Unit) {
 		if (enableMultiServer) {
 			withContext(Dispatchers.IO) {
@@ -159,10 +183,10 @@ fun LeftSidebarNavigation(
 			}
 		}
 	}
-	
+
 	// Track if sidebar is expanded (has focus)
 	var isExpanded by remember { mutableStateOf(false) }
-	
+
 	CollapsibleSidebarContent(
 		isExpanded = isExpanded,
 		onExpandedChange = { isExpanded = it },
@@ -182,7 +206,11 @@ fun LeftSidebarNavigation(
 		showFavoritesButton = showFavoritesButton,
 		showLibrariesInToolbar = showLibrariesInToolbar,
 		jellyseerrEnabled = jellyseerrEnabled,
-		syncPlayEnabled = syncPlayEnabled
+		jellyseerrVariant = jellyseerrVariant,
+		jellyseerrDisplayName = jellyseerrDisplayName,
+		syncPlayEnabled = syncPlayEnabled && currentServer.supportsFeature(ServerFeature.SYNC_PLAY),
+		enableFolderView = enableFolderView,
+		clockBehavior = clockBehavior,
 	)
 }
 
@@ -190,7 +218,7 @@ fun LeftSidebarNavigation(
 private fun CollapsibleSidebarContent(
 	isExpanded: Boolean,
 	onExpandedChange: (Boolean) -> Unit,
-	activeButton: MainToolbarActiveButton,
+	activeButton: NavbarActiveButton,
 	activeLibraryId: UUID?,
 	userImageUrl: String?,
 	userName: String,
@@ -206,7 +234,11 @@ private fun CollapsibleSidebarContent(
 	showFavoritesButton: Boolean = true,
 	showLibrariesInToolbar: Boolean = true,
 	jellyseerrEnabled: Boolean = false,
-	syncPlayEnabled: Boolean = false
+	jellyseerrVariant: String = "jellyseerr",
+	jellyseerrDisplayName: String = "Jellyseerr",
+	syncPlayEnabled: Boolean = false,
+	enableFolderView: Boolean = false,
+	clockBehavior: ClockBehavior = ClockBehavior.ALWAYS,
 ) {
 	val context = LocalContext.current
 	val scope = rememberCoroutineScope()
@@ -216,25 +248,30 @@ private fun CollapsibleSidebarContent(
 	val syncPlayViewModel = koinActivityViewModel<SyncPlayViewModel>()
 	val apiClient = koinInject<ApiClient>()
 	val apiClientFactory = koinInject<ApiClientFactory>()
-	
+	val shuffleManager = koinInject<ShuffleManager>()
+	val themeMusicPlayer = koinInject<ThemeMusicPlayer>()
+
 	var showShuffleDialog by remember { mutableStateOf(false) }
+	val isShuffling by shuffleManager.isShuffling.collectAsState()
 	val showShuffle = shuffleContentType != "disabled" && showShuffleButton
-	
+
 	val homeIcon = ImageVector.vectorResource(R.drawable.ic_house)
 	val searchIcon = ImageVector.vectorResource(R.drawable.ic_search)
 	val shuffleIcon = ImageVector.vectorResource(R.drawable.ic_shuffle)
 	val genresIcon = ImageVector.vectorResource(R.drawable.ic_masks)
 	val favoritesIcon = ImageVector.vectorResource(R.drawable.ic_heart)
-	val jellyseerrIcon = ImageVector.vectorResource(R.drawable.ic_jellyseerr_jellyfish)
+	val jellyseerrIcon = ImageVector.vectorResource(
+		if (jellyseerrVariant == "seerr") R.drawable.ic_seer else R.drawable.ic_jellyseerr_jellyfish
+	)
 	val syncplayIcon = ImageVector.vectorResource(R.drawable.ic_syncplay)
 	val librariesIcon = ImageVector.vectorResource(R.drawable.ic_clapperboard)
 	val settingsIcon = ImageVector.vectorResource(R.drawable.ic_settings)
-	
+
 	val sidebarWidth by animateDpAsState(
 		targetValue = if (isExpanded) 280.dp else 56.dp,
 		label = "sidebarWidth"
 	)
-	
+
 	val expandedBackground = Brush.horizontalGradient(
 		colors = listOf(
 			Color.Black.copy(alpha = 0.9f),
@@ -242,29 +279,124 @@ private fun CollapsibleSidebarContent(
 			Color.Transparent
 		)
 	)
-	
+
 	val scrollState = rememberScrollState()
-	
+
 	val homeFocusRequester = remember { FocusRequester() }
-	
+
 	var librariesHasFocus by remember { mutableStateOf(false) }
-	
+	var librariesExpanded by remember { mutableStateOf(false) }
+
 	LaunchedEffect(isExpanded) {
 		if (isExpanded) {
+			themeMusicPlayer.stop()
 			scrollState.animateScrollTo(0)
 			homeFocusRequester.requestFocus()
 		}
 	}
 
+	// Get root view to check for rowsFragment (HomeFragment)
+	val rootView = LocalView.current.rootView
+	val isHomeFragment = rootView.findViewById<android.view.View?>(R.id.rowsFragment) != null
+	val isSearchFragment = activeButton == NavbarActiveButton.Search
+
+	// Show clock in top right based on clockBehavior preference
+	val showClock = clockBehavior == ClockBehavior.ALWAYS || clockBehavior == ClockBehavior.IN_MENUS
+
+	// Parent Box to contain both sidebar and clock
 	Box(
 		modifier = Modifier
 			.fillMaxHeight()
+			.fillMaxWidth()
+	) {
+		// Sidebar Box
+		Box(
+			modifier = Modifier
+			.fillMaxHeight()
 			.width(sidebarWidth)
+			.clipToBounds()
 			.then(
 				if (isExpanded) {
 					Modifier.background(expandedBackground)
 				} else {
 					Modifier
+				}
+			)
+			.then(
+				// Add key handler for HomeFragment (media bar case) and SearchFragment
+				if (isHomeFragment || isSearchFragment) {
+					Modifier.onKeyEvent { keyEvent ->
+						if (keyEvent.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN &&
+							keyEvent.key == Key.DirectionRight) {
+							when {
+								isHomeFragment -> {
+									// Navigate back to rowsFragment
+									val rowsFragment = rootView.findViewById<android.view.View?>(R.id.rowsFragment)
+									if (rowsFragment != null) {
+										rowsFragment.requestFocus()
+										true
+									} else {
+										false
+									}
+								}
+								isSearchFragment -> {
+									// For SearchFragment, find any VerticalGridView (search results) or focusable view
+									val contentView = rootView.findViewById<android.view.ViewGroup?>(android.R.id.content)
+									var focusTarget: android.view.View? = null
+
+									// Try to find a VerticalGridView (search results)
+									contentView?.let { parent ->
+										fun findVerticalGridView(view: android.view.View): android.view.View? {
+											if (view is androidx.leanback.widget.VerticalGridView) return view
+											if (view is android.view.ViewGroup) {
+												for (i in 0 until view.childCount) {
+													val result = findVerticalGridView(view.getChildAt(i))
+													if (result != null) return result
+												}
+											}
+											return null
+										}
+										focusTarget = findVerticalGridView(parent)
+									}
+
+									// If no VerticalGridView found, try any focusable view to the right
+									if (focusTarget == null) {
+										focusTarget = contentView?.focusSearch(android.view.View.FOCUS_RIGHT)
+									}
+
+									if (focusTarget != null) {
+										focusTarget.requestFocus()
+										true
+									} else {
+										false
+									}
+								}
+								else -> false
+							}
+						} else {
+							false
+						}
+					}
+				} else {
+					// Generic handler for other fragments - allow DPAD_RIGHT to exit sidebar
+					Modifier.onKeyEvent { keyEvent ->
+						if (keyEvent.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN &&
+							keyEvent.key == Key.DirectionRight) {
+							// Find the currently focused view and search for the next focusable to the right
+							val focused = rootView.findFocus()
+							val focusTarget = focused?.focusSearch(android.view.View.FOCUS_RIGHT)
+							if (focusTarget != null && focusTarget != focused) {
+								focusTarget.requestFocus()
+								true
+							} else {
+								// Fallback: collapse sidebar by clearing focus
+								onExpandedChange(false)
+								false
+							}
+						} else {
+							false
+						}
+					}
 				}
 			)
 			.onFocusChanged { focusState ->
@@ -274,9 +406,7 @@ private fun CollapsibleSidebarContent(
 		Column(
 			modifier = Modifier
 				.fillMaxHeight()
-				.verticalScroll(scrollState)
 				.padding(vertical = 16.dp, horizontal = 8.dp),
-			verticalArrangement = Arrangement.SpaceBetween
 		) {
 			Column {
 				SidebarIconItem(
@@ -286,7 +416,7 @@ private fun CollapsibleSidebarContent(
 					showLabel = isExpanded,
 					isExpanded = isExpanded,
 					onClick = {
-						if (activeButton != MainToolbarActiveButton.User) {
+						if (activeButton != NavbarActiveButton.User) {
 							mediaManager.clearAudioQueue()
 							sessionRepository.destroyCurrentSession()
 							activity?.startActivity(ActivityDestinations.startup(activity))
@@ -297,11 +427,15 @@ private fun CollapsibleSidebarContent(
 			}
 
 			Column(
-				horizontalAlignment = Alignment.Start
+				modifier = Modifier
+					.weight(1f)
+					.verticalScroll(scrollState),
+				horizontalAlignment = Alignment.Start,
+				verticalArrangement = if (isExpanded) Arrangement.Top else Arrangement.Center
 			) {
 				SidebarIconItem(
 					icon = homeIcon,
-					label = context.getString(R.string.lbl_home),
+					label = stringResource(R.string.lbl_home),
 					showLabel = isExpanded,
 					isExpanded = isExpanded,
 					focusRequester = homeFocusRequester,
@@ -314,7 +448,7 @@ private fun CollapsibleSidebarContent(
 
 				SidebarIconItem(
 					icon = searchIcon,
-					label = context.getString(R.string.lbl_search),
+					label = stringResource(R.string.lbl_search),
 					showLabel = isExpanded,
 					isExpanded = isExpanded,
 					onClick = {
@@ -327,21 +461,14 @@ private fun CollapsibleSidebarContent(
 				if (showShuffle) {
 					SidebarIconItem(
 						icon = shuffleIcon,
-						label = "Shuffle",
+						label = if (isShuffling) "..." else stringResource(R.string.lbl_shuffle),
 						showLabel = isExpanded,
 						isExpanded = isExpanded,
 						onClick = {
-							scope.launch {
-								executeShuffle(
-									libraryId = null,
-									serverId = null,
-									genreName = null,
-									contentType = shuffleContentType,
-									libraryCollectionType = null,
-									api = apiClient,
-									apiClientFactory = apiClientFactory,
-									navigationRepository = navigationRepository
-								)
+							if (!isShuffling) {
+								kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+									shuffleManager.quickShuffle(context)
+								}
 							}
 						},
 						onLongClick = { showShuffleDialog = true }
@@ -352,7 +479,7 @@ private fun CollapsibleSidebarContent(
 				if (showGenresButton) {
 					SidebarIconItem(
 						icon = genresIcon,
-						label = context.getString(R.string.lbl_genres),
+						label = stringResource(R.string.lbl_genres),
 						showLabel = isExpanded,
 						isExpanded = isExpanded,
 						onClick = {
@@ -365,7 +492,7 @@ private fun CollapsibleSidebarContent(
 				if (showFavoritesButton) {
 					SidebarIconItem(
 						icon = favoritesIcon,
-						label = context.getString(R.string.lbl_favorites),
+						label = stringResource(R.string.lbl_favorites),
 						showLabel = isExpanded,
 						isExpanded = isExpanded,
 						onClick = {
@@ -378,7 +505,7 @@ private fun CollapsibleSidebarContent(
 				if (jellyseerrEnabled) {
 					SidebarIconItem(
 						icon = jellyseerrIcon,
-						label = "Jellyseerr",
+						label = jellyseerrDisplayName,
 						showLabel = isExpanded,
 						isExpanded = isExpanded,
 						onClick = {
@@ -388,10 +515,23 @@ private fun CollapsibleSidebarContent(
 					Spacer(modifier = Modifier.height(2.dp))
 				}
 
+				if (enableFolderView) {
+					SidebarIconItem(
+						icon = ImageVector.vectorResource(R.drawable.ic_folder),
+						label = stringResource(R.string.lbl_folders),
+						showLabel = isExpanded,
+						isExpanded = isExpanded,
+						onClick = {
+							navigationRepository.navigate(Destinations.folderView)
+						}
+					)
+					Spacer(modifier = Modifier.height(2.dp))
+				}
+
 				if (syncPlayEnabled) {
 					SidebarIconItem(
 						icon = syncplayIcon,
-						label = context.getString(R.string.syncplay),
+						label = stringResource(R.string.syncplay),
 						showLabel = isExpanded,
 						isExpanded = isExpanded,
 						onClick = {
@@ -402,45 +542,70 @@ private fun CollapsibleSidebarContent(
 				}
 
 				if (showLibrariesInToolbar) {
-					SidebarIconItem(
-						icon = librariesIcon,
-						label = "Libraries",
-						showLabel = isExpanded,
-						isExpanded = isExpanded,
-						onFocusChanged = { hasFocus ->
-							librariesHasFocus = hasFocus
-						},
-						onClick = { }
-					)
-					
-					if (isExpanded && librariesHasFocus) {
-						if (enableMultiServer && aggregatedLibraries.isNotEmpty()) {
-							aggregatedLibraries.forEach { aggLib ->
-								SidebarTextItem(
-									label = aggLib.displayName,
-									onFocusChanged = { hasFocus ->
-										if (hasFocus) librariesHasFocus = true
-									},
-									onClick = {
-										scope.launch {
-											val destination = Destinations.libraryBrowser(aggLib.library, aggLib.server.id)
+					val librariesFocusRequester = remember { FocusRequester() }
+					Column(
+						modifier = Modifier.onFocusChanged { focusState ->
+							librariesHasFocus = focusState.hasFocus
+						}
+					) {
+						LaunchedEffect(librariesHasFocus) {
+							if (!librariesHasFocus && librariesExpanded) {
+								delay(100)
+								librariesExpanded = false
+							}
+						}
+
+						LaunchedEffect(isExpanded) {
+							if (!isExpanded) librariesExpanded = false
+						}
+
+						SidebarIconItem(
+							icon = librariesIcon,
+							label = stringResource(R.string.pref_libraries),
+							showLabel = isExpanded,
+							isExpanded = isExpanded,
+							onClick = {
+								librariesExpanded = !librariesExpanded
+								if (librariesExpanded) {
+									scope.launch {
+										librariesFocusRequester.requestFocus()
+									}
+								}
+							}
+						)
+
+						if (isExpanded && librariesExpanded) {
+							if (enableMultiServer && aggregatedLibraries.isNotEmpty()) {
+								aggregatedLibraries.forEachIndexed { index, aggLib ->
+									SidebarTextItem(
+										label = aggLib.displayName,
+										modifier = if (index == 0) Modifier.focusRequester(librariesFocusRequester) else Modifier,
+										onClick = {
+											scope.launch {
+												val destination = when (aggLib.library.collectionType) {
+													CollectionType.LIVETV, CollectionType.MUSIC -> {
+														itemLauncher.getUserViewDestination(aggLib.library)
+													}
+													else -> {
+														Destinations.libraryBrowser(aggLib.library, aggLib.server.id, aggLib.userId)
+													}
+												}
+												navigationRepository.navigate(destination)
+											}
+										}
+									)
+								}
+							} else {
+								userViews.forEachIndexed { index, library ->
+									SidebarTextItem(
+										label = library.name ?: "",
+										modifier = if (index == 0) Modifier.focusRequester(librariesFocusRequester) else Modifier,
+										onClick = {
+											val destination = itemLauncher.getUserViewDestination(library)
 											navigationRepository.navigate(destination)
 										}
-									}
-								)
-							}
-						} else {
-							userViews.forEach { library ->
-								SidebarTextItem(
-									label = library.name ?: "",
-									onFocusChanged = { hasFocus ->
-										if (hasFocus) librariesHasFocus = true
-									},
-									onClick = {
-										val destination = itemLauncher.getUserViewDestination(library)
-										navigationRepository.navigate(destination)
-									}
-								)
+									)
+								}
 							}
 						}
 					}
@@ -451,7 +616,7 @@ private fun CollapsibleSidebarContent(
 			Column {
 				SidebarIconItem(
 					icon = settingsIcon,
-					label = "Settings",
+					label = stringResource(R.string.settings),
 					showLabel = isExpanded,
 					isExpanded = isExpanded,
 					onClick = {
@@ -464,6 +629,24 @@ private fun CollapsibleSidebarContent(
 		}
 	}
 
+		// Clock display in top right corner of screen
+		if (showClock) {
+			Box(
+				modifier = Modifier
+					.fillMaxWidth()
+					.padding(top = 24.dp, end = 32.dp)
+					.align(Alignment.TopEnd)
+			) {
+				Box(
+					modifier = Modifier.fillMaxWidth(),
+					contentAlignment = Alignment.TopEnd
+				) {
+					ToolbarClock()
+				}
+			}
+		}
+	} // End of parent Box
+
 	if (showShuffleDialog) {
 		ShuffleOptionsDialog(
 			userViews = userViews,
@@ -474,19 +657,26 @@ private fun CollapsibleSidebarContent(
 			onDismiss = { showShuffleDialog = false },
 			onShuffle = { libraryId, serverId, genreName, contentType, libraryCollectionType ->
 				showShuffleDialog = false
-				scope.launch {
-					executeShuffle(
+				kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+					shuffleManager.shuffle(
+						context = context,
 						libraryId = libraryId,
 						serverId = serverId,
 						genreName = genreName,
 						contentType = contentType,
-						libraryCollectionType = libraryCollectionType,
-						api = apiClient,
-						apiClientFactory = apiClientFactory,
-						navigationRepository = navigationRepository
+						libraryCollectionType = libraryCollectionType
 					)
 				}
 			}
+		)
+	}
+
+	// SyncPlay dialog - hosted here instead of a separate activity-level ComposeView overlay
+	val syncPlayVisible by syncPlayViewModel.visible.collectAsState()
+	if (syncPlayVisible) {
+		SyncPlayDialog(
+			visible = true,
+			onDismissRequest = { syncPlayViewModel.hide() }
 		)
 	}
 }
@@ -505,15 +695,33 @@ private fun SidebarIconItem(
 ) {
 	val interactionSource = remember { MutableInteractionSource() }
 	val isFocused by interactionSource.collectIsFocusedAsState()
-	
+	val scope = rememberCoroutineScope()
+	var longPressJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+	var longPressTriggered by remember { mutableStateOf(false) }
+
 	LaunchedEffect(isFocused) {
 		onFocusChanged?.invoke(isFocused)
 	}
-	
-	val focusedColor = Color(0xFF00A4DC)
-	val normalColor = if (!isExpanded && imageUrl == null) Color.White.copy(alpha = 0.5f) else Color.White
-	val iconColor = normalColor
+
+	val focusedColor = focusBorderColor()
+	val iconAlpha by animateFloatAsState(
+		targetValue = if (isExpanded || imageUrl != null) 1f else 0.5f,
+		label = "iconAlpha"
+	)
+	val iconColor = Color.White.copy(alpha = iconAlpha)
 	val textColor = Color.White
+
+	// Delay label appearance until sidebar width animation has partially completed
+	var delayedShowLabel by remember { mutableStateOf(showLabel) }
+	LaunchedEffect(showLabel) {
+		if (showLabel) {
+			delay(150)
+			delayedShowLabel = true
+		} else {
+			// Instantly hide labels before width starts shrinking
+			delayedShowLabel = false
+		}
+	}
 
 	Row(
 		modifier = Modifier
@@ -527,6 +735,36 @@ private fun SidebarIconItem(
 					Modifier.padding(horizontal = 4.dp)
 				}
 			)
+			.focusable(interactionSource = interactionSource)
+			.onKeyEvent { keyEvent ->
+				if (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter) {
+					when (keyEvent.nativeKeyEvent.action) {
+						android.view.KeyEvent.ACTION_DOWN -> {
+							if (longPressJob == null && onLongClick != null) {
+								longPressTriggered = false
+								longPressJob = scope.launch {
+									delay(500L)
+									longPressTriggered = true
+									onLongClick()
+								}
+							}
+							true
+						}
+						android.view.KeyEvent.ACTION_UP -> {
+							longPressJob?.cancel()
+							longPressJob = null
+							if (!longPressTriggered) {
+								onClick()
+							}
+							longPressTriggered = false
+							true
+						}
+						else -> false
+					}
+				} else {
+					false
+				}
+			}
 			.combinedClickable(
 				interactionSource = interactionSource,
 				indication = null,
@@ -558,12 +796,8 @@ private fun SidebarIconItem(
 				)
 			}
 		}
-		
-		AnimatedVisibility(
-			visible = showLabel,
-			enter = slideInHorizontally() + fadeIn(),
-			exit = slideOutHorizontally() + fadeOut()
-		) {
+
+		if (delayedShowLabel) {
 			Row {
 				Spacer(modifier = Modifier.width(12.dp))
 				Text(
@@ -580,22 +814,32 @@ private fun SidebarIconItem(
 @Composable
 private fun SidebarTextItem(
 	label: String,
-	onFocusChanged: ((Boolean) -> Unit)? = null,
+	modifier: Modifier = Modifier,
 	onClick: () -> Unit
 ) {
 	val interactionSource = remember { MutableInteractionSource() }
 	val isFocused by interactionSource.collectIsFocusedAsState()
-	
-	LaunchedEffect(isFocused) {
-		onFocusChanged?.invoke(isFocused)
-	}
-	
-	val focusedColor = Color(0xFF00A4DC)
+
+	val focusedColor = focusBorderColor()
 	val textColor = Color.White
 
 	Row(
-		modifier = Modifier
+		modifier = modifier
 			.focusable(interactionSource = interactionSource)
+			.onKeyEvent { keyEvent ->
+				if (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter) {
+					when (keyEvent.nativeKeyEvent.action) {
+						android.view.KeyEvent.ACTION_UP -> {
+							onClick()
+							true
+						}
+						android.view.KeyEvent.ACTION_DOWN -> true
+						else -> false
+					}
+				} else {
+					false
+				}
+			}
 			.then(
 				if (isFocused) {
 					Modifier

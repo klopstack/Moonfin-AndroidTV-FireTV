@@ -289,8 +289,6 @@
     <string name="image_size_large">Suuri</string>
     <string name="image_size_medium">Keskikokoinen</string>
     <string name="image_size_small">Pieni</string>
-    <string name="enable_smart_view">Käytä älynäyttöä</string>
-    <string name="enable_smart_view_description">Älynäyttö näyttää ruudukon sijaan olennaisia kohteita</string>
     <string name="lbl_sign_out">Kirjaudu ulos</string>
     <string name="lbl_remove">Poista</string>
     <string name="lbl_server">Palvelin</string>
@@ -312,9 +310,6 @@
     <string name="pref_clock_display_playback">Toiston aikana</string>
     <string name="lbl_always">Aina</string>
     <string name="pref_clock_display">Näytä kello</string>
-    <string name="pref_default_rating">Oletusarvoinen arvio</string>
-    <string name="lbl_tomatoes">Tomaatit</string>
-    <string name="lbl_stars">Tähdet</string>
     <string name="lbl_playback_control_ends">Päättyy %1$s</string>
     <string name="lbl_sign_in">Kirjaudu sisään</string>
     <string name="just_one">Vain tämä kappale</string>

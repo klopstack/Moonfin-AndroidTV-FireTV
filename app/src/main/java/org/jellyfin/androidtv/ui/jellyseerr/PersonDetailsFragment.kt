@@ -4,10 +4,12 @@ import android.graphics.Color
 import android.graphics.Outline
 import android.os.Bundle
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
+import androidx.core.view.isVisible
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -16,24 +18,35 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import coil3.ImageLoader
 import coil3.asDrawable
 import coil3.load
 import coil3.request.ImageRequest
 import coil3.toBitmap
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.service.BackgroundService
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverItemDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrPersonDetailsDto
+import org.jellyfin.androidtv.ui.itemhandling.JellyseerrMediaBaseRowItem
 import org.jellyfin.androidtv.ui.navigation.Destinations
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
-import org.jellyfin.androidtv.ui.shared.toolbar.MainToolbarActiveButton
-import org.jellyfin.androidtv.ui.shared.toolbar.NavigationOverlay
+import org.jellyfin.androidtv.ui.presentation.CardPresenter
+import org.jellyfin.androidtv.preference.UserPreferences
+import org.jellyfin.androidtv.preference.constant.NavbarPosition
+import org.jellyfin.androidtv.ui.shared.toolbar.LeftSidebarNavigation
+import org.jellyfin.androidtv.ui.shared.toolbar.Navbar
+import org.jellyfin.androidtv.ui.shared.toolbar.NavbarActiveButton
 import org.jellyfin.androidtv.util.dp
+import org.jellyfin.androidtv.ui.settings.compat.SettingsViewModel
 import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.activityViewModel
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import timber.log.Timber
 import java.text.SimpleDateFormat
@@ -44,13 +57,18 @@ class PersonDetailsFragment : Fragment() {
 	private val imageLoader: ImageLoader by inject()
 	private val backgroundService: BackgroundService by inject()
 	private val navigationRepository: NavigationRepository by inject()
+	private val userPreferences: UserPreferences by inject()
+	private val settingsViewModel by activityViewModel<SettingsViewModel>()
 
 	private var personId: Int = -1
 	private var personName: String = ""
 	private var personDetails: JellyseerrPersonDetailsDto? = null
 	private var toolbarContainer: View? = null
+	private var topToolbarOverlayView: View? = null
 	private var personInfoContainer: LinearLayout? = null
 	private var sidebarId: Int = View.NO_ID
+	private var navbarContainerView: View? = null
+	private var mainContainerRef: FrameLayout? = null
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
@@ -71,7 +89,25 @@ class PersonDetailsFragment : Fragment() {
 		container: ViewGroup?,
 		savedInstanceState: Bundle?
 	): View {
-		val mainContainer = FrameLayout(requireContext()).apply {
+		val mainContainer = object : FrameLayout(requireContext()) {
+			override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+				if (event.action == KeyEvent.ACTION_DOWN &&
+					event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+					if (super.dispatchKeyEvent(event)) return true
+
+					val focused = findFocus()
+					if (focused != null && isAtLeftEdge(focused)) {
+						val sidebar = findViewById<View>(sidebarId)
+						if (sidebar != null && sidebar.isVisible) {
+							sidebar.requestFocus()
+							return true
+						}
+					}
+					return false
+				}
+				return super.dispatchKeyEvent(event)
+			}
+		}.apply {
 			layoutParams = ViewGroup.LayoutParams(
 				ViewGroup.LayoutParams.MATCH_PARENT,
 				ViewGroup.LayoutParams.MATCH_PARENT
@@ -94,7 +130,7 @@ class PersonDetailsFragment : Fragment() {
 				LinearLayout.LayoutParams.MATCH_PARENT,
 				LinearLayout.LayoutParams.WRAP_CONTENT
 			)
-			setPadding(300.dp(context), 24.dp(context), 24.dp(context), 24.dp(context))
+			setPadding(50.dp(context), 0, 50.dp(context), 24.dp(context))
 		}
 
 		val infoContainer = LinearLayout(requireContext()).apply {
@@ -111,37 +147,142 @@ class PersonDetailsFragment : Fragment() {
 		scrollView.addView(rootLayout)
 		mainContainer.addView(scrollView)
 
-		val sidebarContainer = FrameLayout(requireContext()).apply {
-			layoutParams = FrameLayout.LayoutParams(
-				FrameLayout.LayoutParams.WRAP_CONTENT,
-				FrameLayout.LayoutParams.MATCH_PARENT
-			).apply {
-				gravity = Gravity.START
-			}
-			elevation = 8f * resources.displayMetrics.density
+		scrollView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+			setTopToolbarVisible(scrollY < 100)
 		}
-		
-		val sidebarOverlay = ComposeView(requireContext()).apply {
-			id = View.generateViewId()
-			layoutParams = FrameLayout.LayoutParams(
-				FrameLayout.LayoutParams.WRAP_CONTENT,
-				FrameLayout.LayoutParams.MATCH_PARENT
-			)
-			setContent {
-				NavigationOverlay(
-					activeButton = MainToolbarActiveButton.Jellyseerr
-				)
-			}
-		}
-		sidebarId = sidebarOverlay.id
-		sidebarContainer.addView(sidebarOverlay)
-		mainContainer.addView(sidebarContainer)
+
+		mainContainerRef = mainContainer
+		setupNavbar()
 
 		return mainContainer
 	}
 
+	private fun setupNavbar() {
+		val container = mainContainerRef ?: return
+
+		navbarContainerView?.let { container.removeView(it) }
+		navbarContainerView = null
+		topToolbarOverlayView = null
+
+		val navbarPosition = userPreferences[UserPreferences.navbarPosition]
+		
+		when (navbarPosition) {
+			NavbarPosition.LEFT -> {
+				val sidebarContainer = FrameLayout(requireContext()).apply {
+					layoutParams = FrameLayout.LayoutParams(
+						FrameLayout.LayoutParams.WRAP_CONTENT,
+						FrameLayout.LayoutParams.MATCH_PARENT
+					).apply {
+						gravity = Gravity.START
+					}
+					elevation = 8f * resources.displayMetrics.density
+				}
+				
+				val sidebarOverlay = ComposeView(requireContext()).apply {
+					id = View.generateViewId()
+					layoutParams = FrameLayout.LayoutParams(
+						FrameLayout.LayoutParams.WRAP_CONTENT,
+						FrameLayout.LayoutParams.MATCH_PARENT
+					)
+					setContent {
+						LeftSidebarNavigation(
+							activeButton = NavbarActiveButton.Jellyseerr
+						)
+					}
+				}
+				sidebarId = sidebarOverlay.id
+				sidebarContainer.addView(sidebarOverlay)
+				navbarContainerView = sidebarContainer
+				container.addView(sidebarContainer)
+			}
+			NavbarPosition.TOP -> {
+				val topToolbarContainer = FrameLayout(requireContext()).apply {
+					layoutParams = FrameLayout.LayoutParams(
+						FrameLayout.LayoutParams.MATCH_PARENT,
+						FrameLayout.LayoutParams.WRAP_CONTENT
+					).apply {
+						gravity = Gravity.TOP
+					}
+					elevation = 8f * resources.displayMetrics.density
+				}
+				
+				val topToolbarOverlay = ComposeView(requireContext()).apply {
+					id = View.generateViewId()
+					layoutParams = FrameLayout.LayoutParams(
+						FrameLayout.LayoutParams.MATCH_PARENT,
+						FrameLayout.LayoutParams.WRAP_CONTENT
+					)
+					setContent {
+						Navbar(
+							activeButton = NavbarActiveButton.Jellyseerr
+						)
+					}
+				}
+				sidebarId = topToolbarOverlay.id
+				topToolbarOverlayView = topToolbarContainer
+				topToolbarContainer.addView(topToolbarOverlay)
+				navbarContainerView = topToolbarContainer
+				container.addView(topToolbarContainer)
+			}
+		}
+	}
+
+	private fun setTopToolbarVisible(visible: Boolean) {
+		val toolbar = topToolbarOverlayView ?: return
+		if (visible) {
+			toolbar.animate().cancel()
+			toolbar.visibility = View.VISIBLE
+			toolbar.animate()
+				.alpha(1f)
+				.translationY(0f)
+				.setDuration(200)
+				.start()
+		} else {
+			toolbar.animate().cancel()
+			toolbar.animate()
+				.alpha(0f)
+				.translationY(-toolbar.height.toFloat())
+				.setDuration(200)
+				.withEndAction { toolbar.visibility = View.GONE }
+				.start()
+		}
+	}
+
+	/**
+	 * Check if a focused view is at the left edge of its scrollable parent.
+	 */
+	private fun isAtLeftEdge(view: View): Boolean {
+		val hsv = findParentOfType<android.widget.HorizontalScrollView>(view)
+		if (hsv != null) {
+			return hsv.scrollX == 0
+		}
+		val parent = view.parent as? ViewGroup ?: return true
+		for (i in 0 until parent.childCount) {
+			val child = parent.getChildAt(i)
+			if (child.isFocusable) {
+				return child === view
+			}
+		}
+		return true
+	}
+
+	private inline fun <reified T : View> findParentOfType(view: View): T? {
+		var current = view.parent
+		while (current != null) {
+			if (current is T) return current
+			current = current.parent
+		}
+		return null
+	}
+
 	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 		super.onViewCreated(view, savedInstanceState)
+
+		settingsViewModel.settingsClosedCounter
+			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
+			.onEach { setupNavbar() }
+			.launchIn(lifecycleScope)
+
 		loadPersonData()
 	}
 
@@ -301,7 +442,6 @@ class PersonDetailsFragment : Fragment() {
 					setTypeface(typeface, android.graphics.Typeface.BOLD)
 					isFocusable = true
 					isFocusableInTouchMode = true
-					nextFocusLeftId = sidebarId
 					setPadding(8.dp(context), 8.dp(context), 8.dp(context), 8.dp(context))
 					layoutParams = LinearLayout.LayoutParams(
 						LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -385,15 +525,13 @@ class PersonDetailsFragment : Fragment() {
 		}
 		container.addView(heading)
 
-		// Create a grid layout for movies (3 columns)
 		val itemsPerRow = 5
-		val cardWidth = 150.dp(requireContext())
 		val cardSpacing = 16.dp(requireContext())
 
 		var currentRow: LinearLayout? = null
+		val posterPresenter = CardPresenter()
 		appearances.forEachIndexed { index, item ->
 			if (index % itemsPerRow == 0) {
-				// Create new row
 				currentRow = LinearLayout(requireContext()).apply {
 					orientation = LinearLayout.HORIZONTAL
 					layoutParams = LinearLayout.LayoutParams(
@@ -402,84 +540,34 @@ class PersonDetailsFragment : Fragment() {
 					).apply {
 						bottomMargin = cardSpacing
 					}
+					clipChildren = false
+					clipToPadding = false
 				}
 				container.addView(currentRow)
 			}
 
-			val card = createMovieCard(item)
-			currentRow?.addView(card)
+			val rowItem = JellyseerrMediaBaseRowItem(item)
+			val vh = posterPresenter.onCreateViewHolder(currentRow!!)
+			posterPresenter.onBindViewHolder(vh, rowItem)
+			vh.view.apply {
+				setOnClickListener {
+					val itemJson = Json.encodeToString(JellyseerrDiscoverItemDto.serializer(), item)
+					navigationRepository.navigate(Destinations.jellyseerrMediaDetails(itemJson))
+				}
+				val lp = layoutParams as? ViewGroup.MarginLayoutParams
+				if (lp != null) {
+					lp.marginEnd = 12.dp(context)
+				} else {
+					layoutParams = LinearLayout.LayoutParams(
+						LinearLayout.LayoutParams.WRAP_CONTENT,
+						LinearLayout.LayoutParams.WRAP_CONTENT
+					).apply { marginEnd = 12.dp(context) }
+				}
+			}
+			currentRow?.addView(vh.view)
 		}
 
 		return container
-	}
-
-	private fun createMovieCard(item: JellyseerrDiscoverItemDto): View {
-		val cardWidth = 150.dp(requireContext())
-		val imageHeight = 225.dp(requireContext())
-
-		val card = LinearLayout(requireContext()).apply {
-			orientation = LinearLayout.VERTICAL
-			layoutParams = LinearLayout.LayoutParams(cardWidth, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
-				marginEnd = 16.dp(context)
-			}
-			setPadding(0, 0, 0, 16.dp(context))
-			isFocusable = true
-			isFocusableInTouchMode = true
-			nextFocusLeftId = sidebarId
-
-			setOnFocusChangeListener { view, hasFocus ->
-				if (hasFocus) {
-					view.scaleX = 1.05f
-					view.scaleY = 1.05f
-				} else {
-					view.scaleX = 1.0f
-					view.scaleY = 1.0f
-				}
-			}
-
-			setOnClickListener {
-				// Navigate to the media details
-				val itemJson = Json.encodeToString(JellyseerrDiscoverItemDto.serializer(), item)
-				navigationRepository.navigate(Destinations.jellyseerrMediaDetails(itemJson))
-			}
-		}
-
-		val imageContainer = FrameLayout(requireContext()).apply {
-			layoutParams = LinearLayout.LayoutParams(cardWidth, imageHeight).apply {
-				bottomMargin = 8.dp(context)
-			}
-		}
-
-		val posterImage = ImageView(requireContext()).apply {
-			layoutParams = FrameLayout.LayoutParams(
-				FrameLayout.LayoutParams.MATCH_PARENT,
-				FrameLayout.LayoutParams.MATCH_PARENT
-			)
-			scaleType = ImageView.ScaleType.CENTER_CROP
-			setBackgroundColor(Color.parseColor("#1F2937"))
-
-			item.posterPath?.let { path ->
-				val imageUrl = "https://image.tmdb.org/t/p/w500$path"
-				load(imageUrl)
-			}
-		}
-		imageContainer.addView(posterImage)
-		card.addView(imageContainer)
-
-		val titleText = TextView(requireContext()).apply {
-			text = item.title ?: item.name ?: "Unknown"
-			textSize = 14f
-			setTextColor(Color.WHITE)
-			maxLines = 2
-			ellipsize = android.text.TextUtils.TruncateAt.END
-			layoutParams = LinearLayout.LayoutParams(
-				LinearLayout.LayoutParams.MATCH_PARENT,
-				LinearLayout.LayoutParams.WRAP_CONTENT
-			)
-		}
-		card.addView(titleText)
-
-		return card
 	}
 
 	private fun formatDate(dateString: String): String? {

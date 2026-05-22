@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.acra.ACRA
 import org.jellyfin.androidtv.util.apiclient.ioCall
+import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.auth.repository.UserRepository
 import org.jellyfin.androidtv.data.eventhandling.SocketHandler
 import org.jellyfin.androidtv.data.repository.NotificationsRepository
@@ -83,13 +84,13 @@ class JellyfinApplication : Application(), SingletonImageLoader.Factory {
 	suspend fun onSessionStart() = withContext(Dispatchers.IO) {
 		val workManager by inject<WorkManager>()
 		val socketListener by inject<SocketHandler>()
+		val serverRepository by inject<ServerRepository>()
 
-		// Update background worker
+		launch { serverRepository.loadStoredServers() }
+
 		launch {
-			// Cancel all current workers
 			workManager.cancelAllWork().await()
 
-			// Recreate periodic workers
 			workManager.enqueueUniquePeriodicWork(
 				LeanbackChannelWorker.PERIODIC_UPDATE_REQUEST_NAME,
 				ExistingPeriodicWorkPolicy.UPDATE,
@@ -98,17 +99,18 @@ class JellyfinApplication : Application(), SingletonImageLoader.Factory {
 					.build()
 			).await()
 
-			// Schedule update check worker (daily)
-			workManager.enqueueUniquePeriodicWork(
-				UpdateCheckWorker.WORK_NAME,
-				ExistingPeriodicWorkPolicy.KEEP,
-				PeriodicWorkRequestBuilder<UpdateCheckWorker>(1, TimeUnit.DAYS)
-					.setBackoffCriteria(BackoffPolicy.LINEAR, 1, TimeUnit.HOURS)
-					.build()
-			).await()
+			// Schedule update check worker (daily) — libre builds only
+			if (BuildConfig.ENABLE_OTA_UPDATES) {
+				workManager.enqueueUniquePeriodicWork(
+					UpdateCheckWorker.WORK_NAME,
+					ExistingPeriodicWorkPolicy.KEEP,
+					PeriodicWorkRequestBuilder<UpdateCheckWorker>(1, TimeUnit.DAYS)
+						.setBackoffCriteria(BackoffPolicy.LINEAR, 1, TimeUnit.HOURS)
+						.build()
+				).await()
+			}
 		}
 
-		// Update WebSockets
 		launch { socketListener.updateSession() }
 	}
 

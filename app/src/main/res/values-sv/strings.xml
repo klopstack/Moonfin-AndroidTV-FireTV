@@ -272,9 +272,6 @@
     <string name="pref_clock_display_browsing">Vid bläddring</string>
     <string name="lbl_always">Alltid</string>
     <string name="pref_clock_display">Visa klocka</string>
-    <string name="pref_default_rating">Förvald betygstyp</string>
-    <string name="lbl_tomatoes">Tomater</string>
-    <string name="lbl_stars">Stjärnor</string>
     <string name="lbl_playback_control_ends">Slutar vid %1$s</string>
     <string name="image_type_thumbnail">Miniatyr</string>
     <string name="pref_watched_indicator">Visa indikator för antal tittade</string>
@@ -290,8 +287,6 @@
     <string name="image_size_large">Stor</string>
     <string name="image_size_medium">Mellan</string>
     <string name="image_size_small">Liten</string>
-    <string name="enable_smart_view_description">Smart screen visar relevanta föremål istället för ett rutnät</string>
-    <string name="enable_smart_view">Aktivera smart screen</string>
     <string name="lbl_sign_out">Logga ut</string>
     <string name="lbl_remove">Radera</string>
     <string name="lbl_server">Server</string>

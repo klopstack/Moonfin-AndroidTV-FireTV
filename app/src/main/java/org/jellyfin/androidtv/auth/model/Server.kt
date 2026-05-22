@@ -2,24 +2,31 @@ package org.jellyfin.androidtv.auth.model
 
 import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.sdk.model.ServerVersion
+import org.moonfin.server.core.model.ServerType
 import java.time.Instant
 import java.util.UUID
 
-/**
- * Server model to use locally in place of ServerInfo model in ApiClient.
- */
 data class Server(
-	var id: UUID,
-	var name: String,
-	var address: String,
+	val id: UUID,
+	val name: String,
+	val address: String,
 	val version: String? = null,
 	val loginDisclaimer: String? = null,
 	val splashscreenEnabled: Boolean = false,
 	val setupCompleted: Boolean = true,
-	var dateLastAccessed: Instant = Instant.MIN,
+	val dateLastAccessed: Instant = Instant.MIN,
+	val serverType: ServerType = ServerType.JELLYFIN,
 ) {
 	val serverVersion = version?.let(ServerVersion::fromString)
-	val versionSupported = serverVersion != null && serverVersion >= ServerRepository.minimumServerVersion
+
+	val versionSupported: Boolean
+		get() {
+			val sv = serverVersion ?: return false
+			return when (serverType) {
+				ServerType.JELLYFIN -> sv >= ServerRepository.minimumJellyfinVersion
+				ServerType.EMBY -> sv >= ServerRepository.minimumEmbyVersion
+			}
+		}
 
 	operator fun compareTo(other: ServerVersion): Int = serverVersion?.compareTo(other) ?: -1
 

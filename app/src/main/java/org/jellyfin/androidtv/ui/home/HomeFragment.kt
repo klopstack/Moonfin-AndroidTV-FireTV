@@ -1,13 +1,16 @@
 package org.jellyfin.androidtv.ui.home
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -22,22 +25,32 @@ import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.preference.constant.NavbarPosition
+import org.jellyfin.androidtv.ui.InteractionTrackerViewModel
 import org.jellyfin.androidtv.ui.home.mediabar.MediaBarSlideshowViewModel
+import org.jellyfin.androidtv.ui.home.mediabar.TrailerPreviewState
+import org.jellyfin.androidtv.ui.home.mediabar.ExoPlayerTrailerView
 import org.jellyfin.androidtv.ui.shared.toolbar.LeftSidebarNavigation
-import org.jellyfin.androidtv.ui.shared.toolbar.MainToolbar
-import org.jellyfin.androidtv.ui.shared.toolbar.MainToolbarActiveButton
+import org.jellyfin.androidtv.ui.shared.toolbar.Navbar
+import org.jellyfin.androidtv.ui.shared.toolbar.NavbarActiveButton
 import org.koin.android.ext.android.inject
+import org.koin.compose.koinInject
+import org.koin.androidx.viewmodel.ext.android.activityViewModel
+import androidx.media3.datasource.HttpDataSource
+import org.jellyfin.androidtv.ui.settings.compat.SettingsViewModel
 
 class HomeFragment : Fragment() {
 	private val mediaBarViewModel by inject<MediaBarSlideshowViewModel>()
+	private val interactionTrackerViewModel by inject<InteractionTrackerViewModel>()
 	private val userSettingPreferences by inject<UserSettingPreferences>()
 	private val userPreferences by inject<UserPreferences>()
+	private val settingsViewModel by activityViewModel<SettingsViewModel>()
 
 	private var titleView: TextView? = null
 	private var logoView: ImageView? = null
 	private var infoRowView: SimpleInfoRowView? = null
 	private var summaryView: TextView? = null
 	private var backgroundImage: ImageView? = null
+	private var trailerWebView: ComposeView? = null
 	private var rowsFragment: HomeRowsFragment? = null
 	private var snowfallView: SnowfallView? = null
 	private var petalfallView: PetalfallView? = null
@@ -52,18 +65,24 @@ class HomeFragment : Fragment() {
 	): View {
 		val view = inflater.inflate(R.layout.fragment_home, container, false)
 
-		// Get references to views
 		titleView = view.findViewById(R.id.title)
 		logoView = view.findViewById(R.id.logo)
 		infoRowView = view.findViewById(R.id.infoRow)
 		summaryView = view.findViewById(R.id.summary)
 		backgroundImage = view.findViewById(R.id.backgroundImage)
+		trailerWebView = view.findViewById(R.id.trailerWebView)
 		snowfallView = view.findViewById(R.id.snowfallView)
 		petalfallView = view.findViewById(R.id.petalfallView)
 		leaffallView = view.findViewById(R.id.leaffallView)
 		summerView = view.findViewById(R.id.summerView)
 		halloweenView = view.findViewById(R.id.halloweenView)
 
+		setupNavbar(view)
+
+		return view
+	}
+
+	private fun setupNavbar(view: View) {
 		val navbarPosition = userPreferences[UserPreferences.navbarPosition] ?: NavbarPosition.TOP
 		
 		when (navbarPosition) {
@@ -77,7 +96,7 @@ class HomeFragment : Fragment() {
 				val sidebarView = view.findViewById<ComposeView>(R.id.sidebar)
 				sidebarView.setContent {
 					LeftSidebarNavigation(
-						activeButton = MainToolbarActiveButton.Home
+						activeButton = NavbarActiveButton.Home
 					)
 				}
 			}
@@ -90,38 +109,38 @@ class HomeFragment : Fragment() {
 				
 				val toolbarView = view.findViewById<ComposeView>(R.id.toolbar)
 				toolbarView.setContent {
-					MainToolbar(
-						activeButton = MainToolbarActiveButton.Home
+					Navbar(
+						activeButton = NavbarActiveButton.Home
 					)
 				}
 			}
 		}
-
-		return view
 	}
 
 	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 		super.onViewCreated(view, savedInstanceState)
 
-		// Setup seasonal surprise (snowfall effect)
 		setupSeasonalSurprise()
 
-		// Observe selected item state from HomeRowsFragment
+		settingsViewModel.settingsClosedCounter
+			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
+			.onEach {
+				setupSeasonalSurprise()
+				view?.let { setupNavbar(it) }
+			}
+			.launchIn(lifecycleScope)
+
 		rowsFragment = childFragmentManager.findFragmentById(R.id.rowsFragment) as? HomeRowsFragment
 
 		rowsFragment?.selectedItemStateFlow
 			?.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
 			?.onEach { state ->
-				// Update views directly - lightweight View updates (no Compose overhead)
 				titleView?.text = state.title
 				summaryView?.text = state.summary
-				
-				// Update info row with metadata - simple property assignment
 				infoRowView?.setItem(state.baseItem)
 			}
 			?.launchIn(lifecycleScope)
 
-		// Observe selected row position to hide media bar backdrop when moving to other rows
 		rowsFragment?.selectedPositionFlow
 			?.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
 			?.onEach { position ->
@@ -129,7 +148,6 @@ class HomeFragment : Fragment() {
 			}
 			?.launchIn(lifecycleScope)
 
-		// Observe media bar state changes (Loading -> Ready transition)
 		mediaBarViewModel.state
 			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
 			.onEach { state ->
@@ -137,7 +155,6 @@ class HomeFragment : Fragment() {
 			}
 			.launchIn(lifecycleScope)
 
-		// Observe media bar focus state for background
 		mediaBarViewModel.isFocused
 			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
 			.onEach { isFocused ->
@@ -145,12 +162,59 @@ class HomeFragment : Fragment() {
 			}
 			.launchIn(lifecycleScope)
 
-		// Observe playback state changes for background updates
 		mediaBarViewModel.playbackState
 			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
-			.onEach { playbackState ->
-				// Update background when current index changes
+			.onEach {
 				updateMediaBarBackground()
+			}
+			.launchIn(lifecycleScope)
+
+		trailerWebView?.setContent {
+			val trailerState by mediaBarViewModel.trailerState.collectAsState()
+			val previewAudioEnabled = remember { userSettingPreferences[UserSettingPreferences.previewAudioEnabled] }
+			val httpDataSourceFactory = koinInject<HttpDataSource.Factory>()
+
+			val activeInfo = when (val state = trailerState) {
+				is TrailerPreviewState.Buffering -> state.info
+				is TrailerPreviewState.Playing -> state.info
+				else -> null
+			}
+			val showTrailer = trailerState is TrailerPreviewState.Playing
+
+			if (activeInfo?.streamInfo != null) {
+				key(activeInfo.previewKey) {
+					ExoPlayerTrailerView(
+						streamInfo = activeInfo.streamInfo,
+						startSeconds = activeInfo.startSeconds,
+						segments = activeInfo.segments,
+						muted = !previewAudioEnabled,
+						isVisible = showTrailer,
+						onVideoEnded = { mediaBarViewModel.onTrailerEnded() },
+						onVideoReady = { mediaBarViewModel.onTrailerReady() },
+						dataSourceFactory = if (activeInfo.isLocal) httpDataSourceFactory else null,
+					)
+				}
+			}
+		}
+
+		mediaBarViewModel.trailerState
+			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
+			.onEach { trailerState ->
+				val hasTrailer = trailerState is TrailerPreviewState.Buffering ||
+					trailerState is TrailerPreviewState.Playing
+				trailerWebView?.isVisible = hasTrailer
+			}
+			.launchIn(lifecycleScope)
+
+		// Stop trailers when the in-app screensaver activates
+		interactionTrackerViewModel.visible
+			.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED)
+			.onEach { screensaverVisible ->
+				if (screensaverVisible) {
+					mediaBarViewModel.stopTrailer()
+				} else {
+					mediaBarViewModel.restartTrailerForCurrentSlide()
+				}
 			}
 			.launchIn(lifecycleScope)
 	}
@@ -160,37 +224,42 @@ class HomeFragment : Fragment() {
 		val isFocused = mediaBarViewModel.isFocused.value
 		val selectedPosition = rowsFragment?.selectedPositionFlow?.value ?: -1
 		
-		// Check if the media bar is enabled in Moonfin settings
 		val isMediaBarEnabled = userSettingPreferences[UserSettingPreferences.mediaBarEnabled]
-		
-		// Determine if we should show media bar content
-		// Show if: media bar is focused OR (we're at position 0 AND media bar is enabled) OR position is -1 (toolbar/no selection)
-		// Important: If media bar is disabled, we should NEVER show its backdrop (even if isFocused somehow becomes true)
 		val shouldShowMediaBar = isMediaBarEnabled && (isFocused || (selectedPosition == 0) || selectedPosition == -1)
 		
 		if (state is org.jellyfin.androidtv.ui.home.mediabar.MediaBarState.Ready && shouldShowMediaBar) {
 			val playbackState = mediaBarViewModel.playbackState.value
 			val currentItem = state.items.getOrNull(playbackState.currentIndex)
 			val backdropUrl = currentItem?.backdropUrl
+			val logoUrl = currentItem?.logoUrl
 			
-			// Show background if we have a backdrop URL
 			if (backdropUrl != null) {
 				backgroundImage?.isVisible = true
 				backgroundImage?.load(backdropUrl) {
-					crossfade(400) // 400ms crossfade - faster and smoother
+					crossfade(400)
 				}
 			} else {
 				backgroundImage?.isVisible = false
 			}
+
+			if (logoUrl != null) {
+				logoView?.isVisible = true
+				logoView?.load(logoUrl) {
+					crossfade(300)
+				}
+			} else {
+				logoView?.isVisible = false
+			}
 			
-			// Hide logo and title when on media bar - MediaBarSlideshowView handles its own logo display
-			logoView?.isVisible = false
 			titleView?.isVisible = false
+			infoRowView?.isVisible = false
+			summaryView?.isVisible = false
 		} else {
-			// Hide background and logo when media bar is disabled or on other rows
 			backgroundImage?.isVisible = false
 			logoView?.isVisible = false
 			titleView?.isVisible = true
+			infoRowView?.isVisible = true
+			summaryView?.isVisible = true
 		}
 	}
 
@@ -200,8 +269,7 @@ class HomeFragment : Fragment() {
 	 */
 	private fun setupSeasonalSurprise() {
 		val selection = userPreferences[UserPreferences.seasonalSurprise]
-		
-		// Stop all effects first
+
 		snowfallView?.isVisible = false
 		snowfallView?.stopSnowing()
 		petalfallView?.isVisible = false
@@ -238,6 +306,16 @@ class HomeFragment : Fragment() {
 		}
 	}
 
+	override fun onPause() {
+		super.onPause()
+		mediaBarViewModel.stopTrailer()
+	}
+
+	override fun onResume() {
+		super.onResume()
+		mediaBarViewModel.restartTrailerForCurrentSlide()
+	}
+
 	override fun onDestroyView() {
 		super.onDestroyView()
 		snowfallView?.stopSnowing()
@@ -250,6 +328,7 @@ class HomeFragment : Fragment() {
 		summaryView = null
 		infoRowView = null
 		backgroundImage = null
+		trailerWebView = null
 		rowsFragment = null
 		snowfallView = null
 		petalfallView = null

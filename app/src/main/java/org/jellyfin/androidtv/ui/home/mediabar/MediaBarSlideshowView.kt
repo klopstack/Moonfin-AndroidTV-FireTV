@@ -3,13 +3,14 @@ package org.jellyfin.androidtv.ui.home.mediabar
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +43,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,12 +57,20 @@ import coil3.toBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.data.repository.MdbListRepository
+import org.jellyfin.androidtv.data.repository.RatingIconProvider
+import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
+import org.jellyfin.androidtv.preference.constant.NavbarPosition
 import org.jellyfin.androidtv.ui.base.Text
-import org.jellyfin.androidtv.ui.shared.LogoView
 import org.jellyfin.androidtv.util.TimeUtils
 import org.jellyfin.androidtv.util.isImagePrimarilyDark
+import org.jellyfin.androidtv.util.toHtmlSpanned
+import org.jellyfin.sdk.api.client.ApiClient
+import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.androidtv.ui.settings.compat.SettingsViewModel
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinActivityViewModel
 import timber.log.Timber
 
 /**
@@ -77,10 +87,13 @@ fun MediaBarSlideshowView(
 	val playbackState by viewModel.playbackState.collectAsState()
 	val isFocused by viewModel.isFocused.collectAsState()
 	val userSettingPreferences = koinInject<UserSettingPreferences>()
+	val userPreferences = koinInject<UserPreferences>()
+	val settingsClosedCounter by koinActivityViewModel<SettingsViewModel>().settingsClosedCounter.collectAsState()
 
-	// Get overlay preferences
-	val overlayOpacity = userSettingPreferences[UserSettingPreferences.mediaBarOverlayOpacity] / 100f
-	val overlayColor = when (userSettingPreferences[UserSettingPreferences.mediaBarOverlayColor]) {
+	val isSidebarEnabled = remember(settingsClosedCounter) { userPreferences[UserPreferences.navbarPosition] == NavbarPosition.LEFT }
+
+	val overlayOpacity = remember(settingsClosedCounter) { userSettingPreferences[UserSettingPreferences.mediaBarOverlayOpacity] / 100f }
+	val overlayColor = remember(settingsClosedCounter) { when (userSettingPreferences[UserSettingPreferences.mediaBarOverlayColor]) {
 		"black" -> Color.Black
 		"dark_blue" -> Color(0xFF1A2332)
 		"purple" -> Color(0xFF4A148C)
@@ -93,7 +106,7 @@ fun MediaBarSlideshowView(
 		"slate" -> Color(0xFF475569)
 		"indigo" -> Color(0xFF1E3A8A)
 		else -> Color.Gray
-	}
+	} }
 
 	DisposableEffect(Unit) {
 		onDispose {
@@ -108,10 +121,13 @@ fun MediaBarSlideshowView(
 		}
 	}
 
+	// Get root view to find sidebar
+	val rootView = LocalView.current.rootView
+
 	Box(
 		modifier = modifier
 			.fillMaxWidth()
-			.height(235.dp) // Increased 8% from 217dp
+			.height(235.dp)
 			.onFocusChanged { focusState ->
 				viewModel.setFocused(focusState.hasFocus)
 			}
@@ -123,8 +139,19 @@ fun MediaBarSlideshowView(
 
 				when (keyEvent.key) {
 					Key.DirectionLeft, Key.MediaPrevious -> {
-						viewModel.previousSlide()
-						true
+						if (isSidebarEnabled) {
+							// Find sidebar and request focus
+							val sidebar = rootView.findViewById<android.view.View?>(R.id.sidebar)
+							if (sidebar != null && sidebar.visibility == android.view.View.VISIBLE) {
+								sidebar.requestFocus()
+								true
+							} else {
+								false
+							}
+						} else {
+							viewModel.previousSlide()
+							true
+						}
 					}
 					Key.DirectionRight, Key.MediaNext -> {
 						viewModel.nextSlide()
@@ -157,72 +184,49 @@ fun MediaBarSlideshowView(
 			is MediaBarState.Ready -> {
 				val item = currentState.items.getOrNull(playbackState.currentIndex)
 
-				// Content row: Info overlay on left, logo on right
-				Row(
+				// Info overlay at bottom
+				Box(
 					modifier = Modifier
 						.align(Alignment.BottomStart)
 						.fillMaxWidth()
 						.padding(start = 43.dp, end = 43.dp, bottom = 30.dp),
-					horizontalArrangement = Arrangement.SpaceBetween,
-					verticalAlignment = Alignment.Bottom
 				) {
-					// Media info overlay on the left
 					if (item != null) {
 						MediaInfoOverlay(
 							item = item,
 							overlayColor = overlayColor,
 							overlayOpacity = overlayOpacity,
-							modifier = Modifier.width(600.dp)
+							modifier = Modifier.fillMaxWidth()
 						)
-					}
-
-					// Logo on the right - fills remaining space
-					Box(
-						modifier = Modifier
-							.weight(1f)
-							.height(140.dp)
-							.padding(start = 24.dp),
-						contentAlignment = Alignment.Center
-					) {
-						Crossfade(
-							targetState = item?.logoUrl,
-							animationSpec = tween(300),
-							label = "mediabar_logo_transition"
-						) { logoUrl ->
-							if (logoUrl != null) {
-								LogoView(
-									url = logoUrl,
-									modifier = Modifier.fillMaxSize()
-								)
-							}
-						}
 					}
 				}
 
-				// Navigation arrows (without padding, close to edges, raised by 40%)
+				// Navigation arrows
 				if (currentState.items.size > 1) {
-					// Left arrow - closer to left edge
-					Box(
-						modifier = Modifier
-							.align(Alignment.TopStart)
-							.padding(start = 16.dp, top = 0.dp)
-							.size(48.dp)
-							.background(overlayColor.copy(alpha = overlayOpacity), CircleShape),
-						contentAlignment = Alignment.Center
-					) {
-						Icon(
-							painter = painterResource(id = R.drawable.chevron_left),
-							contentDescription = "Previous",
-							tint = Color.White.copy(alpha = 0.9f),
-							modifier = Modifier.size(24.dp)
-						)
+					// Left arrow (hidden when sidebar is enabled)
+					if (!isSidebarEnabled) {
+						Box(
+							modifier = Modifier
+								.align(Alignment.TopStart)
+								.padding(top = 5.dp, start = 5.dp)
+								.size(48.dp)
+								.background(overlayColor.copy(alpha = overlayOpacity), CircleShape),
+							contentAlignment = Alignment.Center
+						) {
+							Icon(
+								painter = painterResource(id = R.drawable.chevron_left),
+								contentDescription = "Previous",
+								tint = Color.White.copy(alpha = 0.9f),
+								modifier = Modifier.size(24.dp)
+							)
+						}
 					}
 
-					// Right arrow - closer to right edge
+					// Right arrow
 					Box(
 						modifier = Modifier
 							.align(Alignment.TopEnd)
-							.padding(end = 16.dp, top = 0.dp)
+							.padding(top = 5.dp, end = 16.dp)
 							.size(48.dp)
 							.background(overlayColor.copy(alpha = overlayOpacity), CircleShape),
 						contentAlignment = Alignment.Center
@@ -269,7 +273,6 @@ private fun MediaInfoOverlay(
 ) {
 	Box(
 		modifier = modifier
-			.width(600.dp)
 			.background(
 				brush = Brush.verticalGradient(
 					colors = listOf(
@@ -282,87 +285,43 @@ private fun MediaInfoOverlay(
 			.padding(16.dp)
 	) {
 		Column(
+			modifier = Modifier.fillMaxWidth(),
 			verticalArrangement = Arrangement.spacedBy(8.dp)
 		) {
-			// Title (only if no logo)
-			if (item.logoUrl == null) {
-				Text(
-					text = item.title,
-					fontSize = 32.sp,
-					fontWeight = FontWeight.Bold,
-					color = Color.White,
-					maxLines = 2,
-					overflow = TextOverflow.Ellipsis
-				)
-			}
-
-		// Metadata row
-		Row(
-			horizontalArrangement = Arrangement.spacedBy(16.dp),
-			verticalAlignment = Alignment.CenterVertically
-		) {
-			item.year?.let { year ->
-				Text(
-					text = year.toString(),
-					fontSize = 16.sp,
-					color = Color.White
-				)
-			}
-
-			item.rating?.let { rating ->
-				Text(
-					text = rating,
-					fontSize = 16.sp,
-					color = Color.White
-				)
-			}
-
-			item.runtime?.let { runtime ->
-				Text(
-					text = TimeUtils.formatRuntimeHoursMinutes(LocalContext.current, runtime),
-					fontSize = 16.sp,
-					color = Color.White
-				)
-			}
-
-			// Rating indicators
-			item.communityRating?.let { rating ->
-				Row(verticalAlignment = Alignment.CenterVertically) {
-					Text(
-						text = "★",
-						color = Color(0xFFFFD700),
-						fontSize = 16.sp
-					)
-					Spacer(modifier = Modifier.width(4.dp))
-					Text(
-						text = String.format("%.1f", rating),
-						fontSize = 16.sp,
-						color = Color.White
-					)
+			// Metadata + genres row
+			val context = LocalContext.current
+			val infoParts = buildList {
+				item.year?.let { add(it.toString()) }
+				item.rating?.let { add(it) }
+				if (item.itemType != BaseItemKind.SERIES) {
+					item.runtime?.let { add(TimeUtils.formatRuntimeHoursMinutes(context, it)) }
+				}
+				if (item.genres.isNotEmpty()) {
+					add(item.genres.joinToString(" • "))
 				}
 			}
-		}
+			if (infoParts.isNotEmpty()) {
+				Text(
+					text = infoParts.joinToString(" • "),
+					fontSize = 16.sp,
+					color = Color.White
+				)
+			}
 
-		// Genres
-		if (item.genres.isNotEmpty()) {
-			Text(
-				text = item.genres.joinToString(" • "),
-				fontSize = 14.sp,
-				color = Color.White
-			)
-		}
+			// Ratings row
+			MediaBarRating(item = item)
 
-		// Overview
-		item.overview?.let { overview ->
-			Text(
-				text = overview,
-				fontSize = 14.sp,
-				color = Color.White,
-				maxLines = 3,
-				overflow = TextOverflow.Ellipsis,
-				lineHeight = 20.sp
-			)
-		}
+			// Overview
+			item.overview?.let { overview ->
+				Text(
+					text = overview.toHtmlSpanned().toString(),
+					fontSize = 14.sp,
+					color = Color.White,
+					maxLines = 3,
+					overflow = TextOverflow.Ellipsis,
+					lineHeight = 20.sp
+				)
+			}
 		}
 	}
 }
@@ -425,6 +384,128 @@ private fun ErrorView(message: String) {
 			text = message,
 			fontSize = 16.sp,
 			color = Color.White.copy(alpha = 0.7f)
+		)
+	}
+}
+@Composable
+private fun MediaBarRating(item: MediaBarSlideItem) {
+	val userSettingPreferences = koinInject<UserSettingPreferences>()
+	val settingsClosedCounter by koinActivityViewModel<SettingsViewModel>().settingsClosedCounter.collectAsState()
+	val mdbListRepository = koinInject<MdbListRepository>()
+	val apiClient = koinInject<ApiClient>()
+	val baseUrl = apiClient.baseUrl
+
+	val enableAdditionalRatings = remember(settingsClosedCounter) { userSettingPreferences[UserSettingPreferences.enableAdditionalRatings] }
+
+	var apiRatings by remember(item.itemId) { mutableStateOf<Map<String, Float>?>(null) }
+
+	val needsExternalRating = enableAdditionalRatings && 
+		(item.tmdbId != null || item.imdbId != null)
+
+	var isLoading by remember(item.itemId) { mutableStateOf(needsExternalRating) }
+
+	if (needsExternalRating) {
+		LaunchedEffect(item.itemId) {
+			if (item.tmdbId == null && item.imdbId == null) {
+				isLoading = false
+				return@LaunchedEffect
+			}
+			
+			isLoading = true
+			try {
+				val fakeItem = org.jellyfin.sdk.model.api.BaseItemDto(
+					id = item.itemId,
+					name = item.title,
+					type = item.itemType,
+					providerIds = buildMap {
+						item.tmdbId?.let { put("Tmdb", it) }
+						item.imdbId?.let { put("Imdb", it) }
+					}
+				)
+				apiRatings = mdbListRepository.getRatings(fakeItem)
+			} catch (e: Exception) {
+			} finally {
+				isLoading = false
+			}
+		}
+	}
+
+	val allRatings = remember(apiRatings, item.criticRating, item.communityRating) {
+		linkedMapOf<String, Float>().apply {
+			item.communityRating?.let { put("stars", it) }
+			apiRatings?.forEach { (source, value) ->
+				if (source == "tomatoes" && item.criticRating != null) return@forEach
+				put(source, value)
+			}
+			// Fallback: if API didn't provide tomatoes but item has criticRating
+			if ("tomatoes" !in this) {
+				item.criticRating?.let { put("tomatoes", it.toFloat()) }
+			}
+		}
+	}
+
+	if (isLoading && needsExternalRating) {
+		Box(modifier = Modifier.height(21.dp))
+		return
+	}
+
+	// Show ratings in a wrapping flow row
+	@OptIn(ExperimentalLayoutApi::class)
+	FlowRow(
+		verticalArrangement = Arrangement.spacedBy(4.dp),
+		horizontalArrangement = Arrangement.spacedBy(16.dp)
+	) {
+		allRatings.forEach { (source, value) ->
+			if (!enableAdditionalRatings && source != "stars" && source != "tomatoes") return@forEach
+			SingleRating(source = source, rating = value, baseUrl = baseUrl)
+		}
+	}
+}
+
+@Composable
+private fun SingleRating(source: String, rating: Float, baseUrl: String?) {
+	Row(verticalAlignment = Alignment.CenterVertically) {
+		val displayText = when (source) {
+			"tomatoes" -> "${rating.toInt()}%"
+			"popcorn" -> "${rating.toInt()}%"
+			"stars" -> String.format("%.1f", rating)
+			"imdb", "myanimelist" -> String.format("%.1f", rating)
+			"tmdb", "metacritic", "metacriticuser", "trakt", "anilist" -> "${rating.toInt()}%"
+			"letterboxd", "rogerebert" -> String.format("%.1f", rating)
+			else -> String.format("%.1f", rating)
+		}
+
+		if (source == "stars") {
+			Text(
+				text = "★",
+				color = Color(0xFFFFD700),
+				fontSize = 16.sp
+			)
+			Spacer(modifier = Modifier.width(4.dp))
+		} else {
+			val scorePercent = rating.toInt()
+			val icon = RatingIconProvider.getIcon(baseUrl, source, scorePercent)
+			icon?.let {
+				when (it) {
+					is RatingIconProvider.RatingIcon.ServerUrl -> coil3.compose.AsyncImage(
+						model = it.url,
+						contentDescription = source,
+						modifier = Modifier.size(20.dp)
+					)
+					is RatingIconProvider.RatingIcon.LocalDrawable -> Image(
+						painter = painterResource(id = it.resId),
+						contentDescription = source,
+						modifier = Modifier.size(20.dp)
+					)
+				}
+				Spacer(modifier = Modifier.width(6.dp))
+			}
+		}
+
+		Text(
+			text = displayText,
+			fontSize = 16.sp,
+			color = Color.White
 		)
 	}
 }

@@ -254,8 +254,6 @@
     <string name="image_size_small">小</string>
     <string name="image_type_banner">橫幅</string>
     <string name="image_type_thumbnail">預覽圖</string>
-    <string name="enable_smart_view_description">智慧畫面將顯示相關項目而非網格</string>
-    <string name="enable_smart_view">開啟智能顯示</string>
     <string name="lbl_sign_out">登出</string>
     <string name="lbl_remove">移除</string>
     <string name="lbl_server">伺服器</string>
@@ -277,9 +275,6 @@
     <string name="pref_clock_display_browsing">在瀏覽時</string>
     <string name="lbl_always">永遠</string>
     <string name="pref_clock_display">顯示時間</string>
-    <string name="pref_default_rating">預設評分類型</string>
-    <string name="lbl_tomatoes">番茄</string>
-    <string name="lbl_stars">星數</string>
     <string name="watch_count_overflow">99+</string>
     <string name="lbl_playback_control_ends">在 %1$s 結束</string>
     <string name="lbl_sign_in">請登入</string>

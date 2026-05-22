@@ -56,9 +56,12 @@
             android:id="@+id/fdTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
+            android:ellipsize="marquee"
+            android:focusable="false"
+            android:marqueeRepeatLimit="marquee_forever"
+            android:scrollHorizontally="true"
+            android:singleLine="true"
             android:fontFamily="sans-serif-light"
-            android:maxLines="2"
             android:textSize="30sp"
             android:paddingStart="24dp"
             android:paddingEnd="24dp"
@@ -71,6 +74,18 @@
             android:id="@+id/fdMainInfoRow"
             android:layout_width="0dp"
             android:layout_height="20sp"
+            android:dividerPadding="4sp"
+            android:orientation="horizontal"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            app:layout_constraintBottom_toTopOf="@id/fdRatingsRow"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/guide_right_start" />
+
+        <LinearLayout
+            android:id="@+id/fdRatingsRow"
+            android:layout_width="0dp"
+            android:layout_height="40sp"
             android:dividerPadding="4sp"
             android:orientation="horizontal"
             android:paddingStart="24dp"
@@ -216,7 +231,6 @@
             app:layout_constraintEnd_toStartOf="@id/guide_right_start"
             app:layout_constraintTop_toBottomOf="@id/fdSummaryText">
 
-            <!-- Genres -->
             <!-- Genres -->
             <LinearLayout
                 android:id="@+id/fdGenresGroup"

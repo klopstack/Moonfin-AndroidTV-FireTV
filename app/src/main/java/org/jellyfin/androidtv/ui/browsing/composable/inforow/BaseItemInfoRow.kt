@@ -3,22 +3,26 @@ package org.jellyfin.androidtv.ui.browsing.composable.inforow
 import android.content.Context
 import android.util.AttributeSet
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.jellyfin.androidtv.R
-import org.jellyfin.androidtv.preference.UserPreferences
-import org.jellyfin.androidtv.preference.constant.RatingType
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.composable.getResolutionName
 import org.jellyfin.androidtv.util.TimeUtils
@@ -241,23 +245,62 @@ fun InfoRowMediaDetails(mediaSource: MediaSourceInfo) {
 }
 
 @Composable
+private fun BulletSeparatedRow(
+	content: @Composable () -> Unit,
+) {
+	SubcomposeLayout { constraints ->
+		val contentPlaceables = subcompose("content", content)
+			.map { it.measure(constraints.copy(minWidth = 0)) }
+			.filter { it.width > 0 }
+
+		val spacingPx = 4.dp.roundToPx()
+
+		val bulletPlaceables = if (contentPlaceables.size > 1) {
+			subcompose("bullets") {
+				repeat(contentPlaceables.size - 1) {
+					BasicText(
+						text = "\u2022",
+						style = TextStyle(
+							color = Color.White.copy(alpha = 0.6f),
+							fontSize = 14.sp,
+						)
+					)
+				}
+			}.map { it.measure(constraints.copy(minWidth = 0)) }
+		} else emptyList()
+
+		val height = contentPlaceables.maxOfOrNull { it.height } ?: 0
+		var totalWidth = 0
+		contentPlaceables.forEachIndexed { index, placeable ->
+			totalWidth += placeable.width
+			if (index < bulletPlaceables.size) {
+				totalWidth += spacingPx + bulletPlaceables[index].width + spacingPx
+			}
+		}
+
+		layout(totalWidth, height) {
+			var x = 0
+			contentPlaceables.forEachIndexed { index, placeable ->
+				placeable.place(x, (height - placeable.height) / 2)
+				x += placeable.width
+				if (index < bulletPlaceables.size) {
+					x += spacingPx
+					val bullet = bulletPlaceables[index]
+					bullet.place(x, (height - bullet.height) / 2)
+					x += bullet.width + spacingPx
+				}
+			}
+		}
+	}
+}
+
+@Composable
 fun BaseItemInfoRow(
 	item: BaseItemDto,
 	mediaSource: MediaSourceInfo?,
 	includeRuntime: Boolean,
 ) {
-	val userPreferences = koinInject<UserPreferences>()
-	val ratingType = userPreferences[UserPreferences.defaultRatingType]
-
-	Row(
-		horizontalArrangement = Arrangement.spacedBy(8.dp),
-		verticalAlignment = Alignment.CenterVertically,
-	) {
-		if (ratingType != RatingType.RATING_HIDDEN) {
-			item.communityRating?.let { InfoRowCommunityRating(it / 10f) }
-			item.criticRating?.let { InfoRowCriticRating(it / 100f) }
-		}
-
+	BulletSeparatedRow {
 		when (item.type) {
 			BaseItemKind.EPISODE -> {
 				InfoRowSeasonEpisode(item)
@@ -381,9 +424,6 @@ fun BaseItemInfoRow(
 	}
 }
 
-/**
- * Exposes the [BaseItemInfoRow] composable as Android view.
- */
 class BaseItemInfoRowView @JvmOverloads constructor(
 	context: Context,
 	attrs: AttributeSet? = null,
@@ -422,5 +462,30 @@ class BaseItemInfoRowView @JvmOverloads constructor(
 		val includeRuntime by _includeRuntime.collectAsState()
 
 		item?.let { BaseItemInfoRow(it, mediaSource, includeRuntime) }
+	}
+}
+
+class RatingsRowView @JvmOverloads constructor(
+	context: Context,
+	attrs: AttributeSet? = null,
+) : AbstractComposeView(context, attrs) {
+	private val _item = MutableStateFlow<BaseItemDto?>(null)
+
+	var item: BaseItemDto?
+		get() = _item.value
+		set(value) {
+			_item.value = value
+		}
+
+	init {
+		isFocusable = false
+		descendantFocusability = FOCUS_BLOCK_DESCENDANTS
+		setPadding(0, 4, 0, 0)
+	}
+
+	@Composable
+	override fun Content() {
+		val item by _item.collectAsState()
+		item?.let { InfoRowMultipleRatings(it) }
 	}
 }

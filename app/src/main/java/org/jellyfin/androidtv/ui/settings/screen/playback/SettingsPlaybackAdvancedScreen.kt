@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -19,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.constant.getQualityProfiles
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
@@ -39,6 +41,9 @@ import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.clientLogApi
 import org.jellyfin.sdk.model.ServerVersion
 import org.koin.compose.koinInject
+import org.moonfin.server.core.feature.ServerFeature
+import org.jellyfin.androidtv.util.supportsFeature
+import java.text.DecimalFormat
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
@@ -48,6 +53,9 @@ fun SettingsPlaybackAdvancedScreen() {
 	val router = LocalRouter.current
 	val userPreferences = koinInject<UserPreferences>()
 	val userSettingPreferences = koinInject<UserSettingPreferences>()
+	val serverRepository = koinInject<ServerRepository>()
+	val currentServer by serverRepository.currentServer.collectAsState()
+	val clientLogSupported = currentServer.supportsFeature(ServerFeature.CLIENT_LOG)
 
 	SettingsColumn {
 		item {
@@ -106,6 +114,52 @@ fun SettingsPlaybackAdvancedScreen() {
 			}
 		}
 
+		item {
+			var unpauseRewindDuration by rememberPreference(userSettingPreferences, UserSettingPreferences.unpauseRewindDuration)
+			val interactionSource = remember { MutableInteractionSource() }
+
+			ListControl(
+				headingContent = { Text(stringResource(R.string.unpause_rewind_duration)) },
+				interactionSource = interactionSource,
+			) {
+				Row(
+					verticalAlignment = Alignment.CenterVertically,
+				) {
+					RangeControl(
+						modifier = Modifier
+							.height(4.dp)
+							.weight(1f),
+						interactionSource = interactionSource,
+						// 0 - 10 seconds with 1 second increment
+						min = 0f,
+						max = 10_000f,
+						stepForward = 1_000f,
+						value = unpauseRewindDuration.toFloat(),
+						onValueChange = { unpauseRewindDuration = it.roundToInt() }
+					)
+
+					Spacer(Modifier.width(Tokens.Space.spaceSm))
+
+					Box(
+						modifier = Modifier.sizeIn(minWidth = 32.dp),
+						contentAlignment = Alignment.CenterEnd
+					) {
+						Text("${unpauseRewindDuration / 1000}s")
+					}
+				}
+			}
+		}
+
+		item {
+			var showDescriptionOnPause by rememberPreference(userSettingPreferences, UserSettingPreferences.showDescriptionOnPause)
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.show_description_on_pause)) },
+				trailingContent = { Checkbox(checked = showDescriptionOnPause) },
+				onClick = { showDescriptionOnPause = !showDescriptionOnPause }
+			)
+		}
+
 		item { ListSection(headingContent = { Text(stringResource(R.string.pref_video)) }) }
 
 		item {
@@ -116,6 +170,16 @@ fun SettingsPlaybackAdvancedScreen() {
 				headingContent = { Text(stringResource(R.string.pref_max_bitrate_title)) },
 				captionContent = { Text(options[maxBitrate].orEmpty()) },
 				onClick = { router.push(Routes.PLAYBACK_MAX_BITRATE) }
+			)
+		}
+
+		item {
+			var maxVideoResolution by rememberPreference(userPreferences, UserPreferences.maxVideoResolution)
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.pref_max_resolution_title)) },
+				captionContent = { Text(stringResource(maxVideoResolution.nameRes)) },
+				onClick = { router.push(Routes.PLAYBACK_MAX_RESOLUTION) }
 			)
 		}
 
@@ -156,10 +220,11 @@ fun SettingsPlaybackAdvancedScreen() {
 					Spacer(Modifier.width(Tokens.Space.spaceSm))
 
 					Box(
-						modifier = Modifier.sizeIn(minWidth = 32.dp),
+						modifier = Modifier.sizeIn(minWidth = 48.dp),
 						contentAlignment = Alignment.CenterEnd
 					) {
-						Text("${videoStartDelay / 1000}s")
+						val formatter = remember { DecimalFormat("0.##") }
+						Text("${formatter.format(videoStartDelay / 1000f)}s")
 					}
 				}
 			}
@@ -249,7 +314,7 @@ fun SettingsPlaybackAdvancedScreen() {
 
 		item { ListSection(headingContent = { Text(stringResource(R.string.pref_troubleshooting)) }) }
 
-		item {
+		if (clientLogSupported) item {
 			val api = koinInject<ApiClient>()
 			val serverVersion = koinInject<ServerVersion>()
 

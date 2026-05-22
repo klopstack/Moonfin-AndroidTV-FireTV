@@ -3,12 +3,12 @@ package org.jellyfin.androidtv.preference
 import android.content.Context
 import androidx.preference.PreferenceManager
 import org.jellyfin.androidtv.preference.UserPreferences.Companion.screensaverInAppEnabled
-import org.jellyfin.androidtv.preference.constant.AppTheme
+import org.jellyfin.androidtv.preference.constant.PosterSize
 import org.jellyfin.androidtv.preference.constant.AudioBehavior
 import org.jellyfin.androidtv.preference.constant.ClockBehavior
 import org.jellyfin.androidtv.preference.constant.MaxAudioChannels
+import org.jellyfin.androidtv.preference.constant.MaxVideoResolution
 import org.jellyfin.androidtv.preference.constant.NextUpBehavior
-import org.jellyfin.androidtv.preference.constant.RatingType
 import org.jellyfin.androidtv.preference.constant.RefreshRateSwitchingBehavior
 import org.jellyfin.androidtv.preference.constant.StillWatchingBehavior
 import org.jellyfin.androidtv.preference.constant.WatchedIndicatorBehavior
@@ -36,15 +36,30 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 ) {
 	companion object {
 		/* Display */
+		var posterSize = enumPreference("poster_size", PosterSize.DEFAULT)
+
 		/**
-		 * Select the app theme
+		 * Enable focus expansion (zoom) effect on card items.
+		 * When enabled, focused cards scale up slightly. Default is off.
 		 */
-		var appTheme = enumPreference("app_theme", AppTheme.DARK)
+		var cardFocusExpansion = booleanPreference("pref_card_focus_expansion", false)
 
 		/**
 		 * Enable background images while browsing
 		 */
 		var backdropEnabled = booleanPreference("pref_show_backdrop", true)
+
+		/* Plugin Sync */
+		/**
+		 * Enable syncing settings with the Moonfin server plugin
+		 */
+		var pluginSyncEnabled = booleanPreference("pref_plugin_sync_enabled", false)
+
+		/**
+		 * Whether plugin auto-detection has been attempted.
+		 * Prevents repeated pings on every login when the plugin is not installed.
+		 */
+		var pluginSyncAutoDetected = booleanPreference("pref_plugin_sync_auto_detected", false)
 
 		/* Toolbar Customization */
 		/**
@@ -61,6 +76,8 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		 * Show favorites button in toolbar
 		 */
 		var showFavoritesButton = booleanPreference("pref_show_favorites_button", true)
+
+		var favoritesPosterSize = enumPreference("pref_favorites_poster_size", org.jellyfin.androidtv.constant.PosterSize.MED)
 
 		/**
 		 * Show library buttons in toolbar
@@ -141,11 +158,23 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		 */
 		var enableMultiServerLibraries = booleanPreference("enable_multi_server_libraries", false)
 
+		/**
+		 * Enable folder view in navigation
+		 * When enabled, adds a "Folders" entry to browse media by folder structure
+		 */
+		var enableFolderView = booleanPreference("enable_folder_view", false)
+
 		/* Playback - General*/
 		/**
 		 * Maximum bitrate in megabit for playback.
 		 */
 		var maxBitrate = stringPreference("pref_max_bitrate", "100")
+
+		/**
+		 * Maximum video resolution for playback.
+		 * Videos exceeding this resolution will be transcoded down.
+		 */
+		var maxVideoResolution = enumPreference("pref_max_video_resolution", MaxVideoResolution.AUTO)
 
 		/**
 		 * Auto-play next item
@@ -241,11 +270,6 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		 * When to show the clock.
 		 */
 		var clockBehavior = enumPreference("pref_clock_behavior", ClockBehavior.ALWAYS)
-
-		/**
-		 * Set which ratings provider should show on MyImageCardViews
-		 */
-		var defaultRatingType = enumPreference("pref_rating_type", RatingType.RATING_TOMATOES)
 
 		/**
 		 * Set when watched indicators should show on MyImageCardViews

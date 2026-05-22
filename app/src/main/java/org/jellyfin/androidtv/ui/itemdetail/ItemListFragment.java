@@ -20,10 +20,12 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
+import androidx.core.text.HtmlCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Lifecycle;
 
 import org.jellyfin.androidtv.R;
+import org.jellyfin.androidtv.util.TextUtilsKt;
 import org.jellyfin.androidtv.data.model.DataRefreshService;
 import org.jellyfin.androidtv.data.service.BackgroundService;
 import org.jellyfin.androidtv.data.service.BlurContext;
@@ -129,6 +131,11 @@ public class ItemListFragment extends Fragment implements View.OnKeyListener {
                     // too close to bottom - scroll down
                     mScrollView.smoothScrollBy(0, y - mBottomScrollThreshold);
                 }
+                
+                BaseItemDto selectedItem = row.getItem();
+                if (selectedItem != null) {
+                    backgroundService.getValue().setBackground(selectedItem, BlurContext.DETAILS);
+                }
             }
         });
 
@@ -153,6 +160,26 @@ public class ItemListFragment extends Fragment implements View.OnKeyListener {
     @Override
     public boolean onKey(View v, int keyCode, KeyEvent event) {
         if (event.getAction() != KeyEvent.ACTION_UP) return false;
+
+        // Handle playlist item reordering with DPAD_LEFT/RIGHT
+        if (mCurrentRow != null && mBaseItem != null && mBaseItem.getType() == BaseItemKind.PLAYLIST
+                && mBaseItem.getCanDelete() != null && mBaseItem.getCanDelete()) {
+            int currentIndex = mCurrentRow.getIndex();
+            switch (keyCode) {
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                    if (currentIndex > 0) {
+                        movePlaylistItem(currentIndex, currentIndex - 1);
+                        return true;
+                    }
+                    break;
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    if (currentIndex < mItems.size() - 1) {
+                        movePlaylistItem(currentIndex, currentIndex + 1);
+                        return true;
+                    }
+                    break;
+            }
+        }
 
         if (mediaManager.getValue().isPlayingAudio()) {
             switch (keyCode) {
@@ -183,6 +210,24 @@ public class ItemListFragment extends Fragment implements View.OnKeyListener {
         }
 
         return false;
+    }
+
+    private void movePlaylistItem(int fromIndex, int toIndex) {
+        if (mBaseItem == null || mItems.isEmpty()) return;
+        
+        BaseItemDto item = mItems.get(fromIndex);
+        String playlistItemId = item.getPlaylistItemId();
+        if (playlistItemId == null) return;
+        
+        ItemListFragmentHelperKt.movePlaylistItem(this, mBaseItem.getId(), playlistItemId, toIndex, () -> {
+            mItems.remove(fromIndex);
+            mItems.add(toIndex, item);
+            
+            mItemList.moveItem(fromIndex, toIndex);
+            
+            mItemList.focusItemAt(toIndex);
+            return null;
+        });
     }
 
     @Override
@@ -333,11 +378,18 @@ public class ItemListFragment extends Fragment implements View.OnKeyListener {
         mBaseItem = item;
 
         LinearLayout mainInfoRow = requireActivity().findViewById(R.id.fdMainInfoRow);
+        LinearLayout ratingsRow = requireActivity().findViewById(R.id.fdRatingsRow);
 
         InfoLayoutHelper.addInfoRow(requireContext(), item, mainInfoRow, false);
+        InfoLayoutHelper.addRatingsRow(requireContext(), item, ratingsRow);
         addGenres(mGenreRow);
         addButtons(BUTTON_SIZE);
-        mSummary.setText(mBaseItem.getOverview());
+        String overview = mBaseItem.getOverview();
+        if (overview != null) {
+            mSummary.setText(TextUtilsKt.stripHtml(overview));
+        } else {
+            mSummary.setText("");
+        }
 
         Double aspect = imageHelper.getValue().getImageAspectRatio(item, false);
         String primaryImageUrl = imageHelper.getValue().getPrimaryImageUrl(item, null, ImageHelper.MAX_PRIMARY_IMAGE_HEIGHT);
@@ -349,11 +401,12 @@ public class ItemListFragment extends Fragment implements View.OnKeyListener {
 
     private Function1<List<BaseItemDto>, Unit> itemResponse = (List<BaseItemDto> items) -> {
         mTitle.setText(mBaseItem.getName());
-        if (mBaseItem.getName().length() > 32) {
-            // scale down the title so more will fit
-            mTitle.setTextSize(32);
-        }
+        mTitle.setSelected(true);
         if (!items.isEmpty()) {
+            boolean canReorder = mBaseItem.getType() == BaseItemKind.PLAYLIST
+                    && mBaseItem.getCanDelete() != null && mBaseItem.getCanDelete();
+            mItemList.setReorderingEnabled(canReorder);
+
             mItems = new ArrayList<>();
             int i = 0;
             for (BaseItemDto item : items) {
@@ -438,13 +491,30 @@ public class ItemListFragment extends Fragment implements View.OnKeyListener {
                 TextUnderButton shuffle = TextUnderButton.create(requireContext(), R.drawable.ic_shuffle, buttonSize, 2, getString(R.string.lbl_shuffle_all), new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        if (!mItems.isEmpty()) {
-                            //use server retrieval in order to get all items
+                        // If this is a genre, shuffle within that genre
+                        if (mBaseItem.getType() == BaseItemKind.GENRE) {
+                            java.util.UUID serverId = org.jellyfin.androidtv.util.UUIDUtils.parseUUID(mBaseItem.getServerId());
+                            org.jellyfin.androidtv.ui.shuffle.ShuffleUtilsKt.executeGenreShuffle(
+                                requireContext(),
+                                mBaseItem.getName(),
+                                mBaseItem.getParentId(),
+                                serverId,
+                                KoinJavaComponent.get(org.jellyfin.androidtv.preference.UserPreferences.class),
+                                KoinJavaComponent.get(NavigationRepository.class)
+                            );
+                        } else if (!mItems.isEmpty()) {
                             playbackHelper.getValue().retrieveAndPlay(mBaseItem.getId(), true, requireContext());
                         } else {
                             Utils.showToast(requireContext(), R.string.msg_no_playable_items);
                         }
                     }
+                });
+                shuffle.setOnLongClickListener(v -> {
+                    org.jellyfin.androidtv.ui.shuffle.ShuffleDialogLauncherKt.showShuffleDialog(
+                        requireContext(),
+                        KoinJavaComponent.get(NavigationRepository.class)
+                    );
+                    return true;
                 });
                 mButtonRow.addView(shuffle);
                 shuffle.setOnFocusChangeListener((v, hasFocus) -> {
@@ -503,7 +573,7 @@ public class ItemListFragment extends Fragment implements View.OnKeyListener {
         BaseItemDto item = mBaseItem;
 
         if (item.getBackdropImageTags() == null || item.getBackdropImageTags().isEmpty() && mItems != null && !mItems.isEmpty())
-            item = mItems.get(new Random().nextInt(mItems.size()));
+            item = mItems.get(0);
 
         backgroundService.getValue().setBackground(item, BlurContext.DETAILS);
     }

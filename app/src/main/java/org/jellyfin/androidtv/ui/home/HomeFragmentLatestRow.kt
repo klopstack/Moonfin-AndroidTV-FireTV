@@ -55,9 +55,10 @@ class HomeFragmentLatestRow(
 			CollectionType.BOOKS,
 		)
 
-		// Initial items to load for a row (pagination chunk size)
+		// Initial items to load for a row (client-side pagination chunk size)
 		private const val ITEM_CHUNK_SIZE = 15
-		// Maximum total items that can be loaded for a row
-		private const val ITEM_MAX_LIMIT = 100
+		// Maximum total items to fetch from the server
+		// (client-side pagination displays them in ITEM_CHUNK_SIZE chunks)
+		private const val ITEM_MAX_LIMIT = 50
 	}
 }

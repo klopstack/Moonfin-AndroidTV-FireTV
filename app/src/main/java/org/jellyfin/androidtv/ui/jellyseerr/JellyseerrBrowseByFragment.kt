@@ -1,5 +1,6 @@
 package org.jellyfin.androidtv.ui.jellyseerr
 
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -23,8 +24,11 @@ import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.service.BackgroundService
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverItemDto
 import org.jellyfin.androidtv.databinding.HorizontalGridBrowseBinding
+import org.jellyfin.androidtv.preference.UserPreferences
+import org.jellyfin.androidtv.ui.itemhandling.JellyseerrMediaBaseRowItem
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.androidtv.ui.navigation.Destinations
+import org.jellyfin.androidtv.ui.presentation.CardPresenter
 import org.jellyfin.androidtv.util.Utils
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -56,6 +60,13 @@ class JellyseerrBrowseByFragment : Fragment() {
 	private val viewModel: JellyseerrViewModel by viewModel()
 	private val navigationRepository: NavigationRepository by inject()
 	private val backgroundService: BackgroundService by inject()
+	private val userPreferences: UserPreferences by inject()
+
+	private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+		if (key == UserPreferences.cardFocusExpansion.key) {
+			setupGrid()
+		}
+	}
 	
 	private var filterId: Int = 0
 	private var filterName: String = ""
@@ -144,10 +155,13 @@ class JellyseerrBrowseByFragment : Fragment() {
 		setupToolbar()
 		setupGrid()
 		loadContent()
+
+		userPreferences.registerChangeListener(preferenceChangeListener)
 	}
 	
 	override fun onDestroyView() {
 		super.onDestroyView()
+		userPreferences.unregisterChangeListener(preferenceChangeListener)
 		binding = null
 		gridViewHolder = null
 		sortButton = null
@@ -262,22 +276,23 @@ class JellyseerrBrowseByFragment : Fragment() {
 	}
 	
 	private fun setupGrid() {
-		gridPresenter = VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_MEDIUM, false).apply {
+		val zoomFactor = if (userPreferences[UserPreferences.cardFocusExpansion]) FocusHighlight.ZOOM_FACTOR_MEDIUM else FocusHighlight.ZOOM_FACTOR_NONE
+		gridPresenter = VerticalGridPresenter(zoomFactor, false).apply {
 			numberOfColumns = NUM_COLUMNS
 			shadowEnabled = false
 		}
 		
-		gridAdapter = ArrayObjectAdapter(MediaCardPresenter(cardWidth = 250, cardHeight = 375))
+		gridAdapter = ArrayObjectAdapter(CardPresenter())
 		
-		gridPresenter.setOnItemViewSelectedListener(OnItemViewSelectedListener { 
+gridPresenter.setOnItemViewSelectedListener(OnItemViewSelectedListener { 
 			itemViewHolder: Presenter.ViewHolder?,
 			item: Any?,
 			rowViewHolder: RowPresenter.ViewHolder?,
 			row: Row? ->
-			if (item is JellyseerrDiscoverItemDto) {
-				onItemSelected(item)
+			val discoverItem = (item as? JellyseerrMediaBaseRowItem)?.item
+			if (discoverItem != null) {
+				onItemSelected(discoverItem)
 				
-				// Load more when near the end
 				val position = gridAdapter.indexOf(item)
 				if (position >= gridAdapter.size() - 10 && !isLoading && currentPage < totalPages) {
 					loadMoreContent()
@@ -290,8 +305,9 @@ class JellyseerrBrowseByFragment : Fragment() {
 			item: Any?,
 			rowViewHolder: RowPresenter.ViewHolder?,
 			row: Row? ->
-			if (item is JellyseerrDiscoverItemDto) {
-				onItemClicked(item)
+			val discoverItem = (item as? JellyseerrMediaBaseRowItem)?.item
+			if (discoverItem != null) {
+				onItemClicked(discoverItem)
 			}
 		})
 		
@@ -348,7 +364,6 @@ class JellyseerrBrowseByFragment : Fragment() {
 		// Clear existing views
 		infoRow.removeAllViews()
 		
-		// Add metadata items similar to MediaCardPresenter
 		val metadataItems = mutableListOf<String>()
 		
 		// Year
@@ -440,7 +455,7 @@ class JellyseerrBrowseByFragment : Fragment() {
 					items = applyFilter(items)
 					
 					gridAdapter.clear()
-					gridAdapter.addAll(0, items)
+					gridAdapter.addAll(0, items.map { JellyseerrMediaBaseRowItem(it) })
 					
 					// Update UI
 					updateCounter(if (items.isNotEmpty()) 1 else 0)
@@ -469,7 +484,7 @@ class JellyseerrBrowseByFragment : Fragment() {
 					// Apply availability filter
 					items = applyFilter(items)
 					
-					gridAdapter.addAll(gridAdapter.size(), items)
+					gridAdapter.addAll(gridAdapter.size(), items.map { JellyseerrMediaBaseRowItem(it) })
 				}
 			} catch (e: Exception) {
 				Timber.e(e, "Failed to load more content for $filterType: $filterName")

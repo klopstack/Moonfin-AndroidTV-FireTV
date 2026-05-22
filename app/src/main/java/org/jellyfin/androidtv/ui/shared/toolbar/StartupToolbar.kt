@@ -22,6 +22,7 @@ fun StartupToolbar(
 ) {
 	val focusRequester = remember { FocusRequester() }
 	Toolbar(
+		start = {},
 		end = {
 			ToolbarButtons {
 				IconButton(
@@ -44,6 +45,8 @@ fun StartupToolbar(
 				Spacer(Modifier.width(8.dp))
 
 				ToolbarClock()
+
+				Spacer(Modifier.width(12.dp))
 			}
 		}
 	)

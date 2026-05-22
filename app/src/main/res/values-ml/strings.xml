@@ -68,8 +68,6 @@
     <string name="image_size_medium">ഇടത്തരം</string>
     <string name="image_size_small">ചെറുത്</string>
     <string name="image_type_banner">ബാനർ</string>
-    <string name="enable_smart_view_description">സ്മാർട്ട് സ്ക്രീൻ ഒരു ഗ്രിഡിന് പകരം പ്രസക്തമായ ഇനങ്ങൾ കാണിക്കുന്നു</string>
-    <string name="enable_smart_view">സ്മാർട്ട് സ്ക്രീൻ പ്രവർത്തനക്ഷമമാക്കുക</string>
     <string name="lbl_sign_out">സൈൻ ഔട്ട്</string>
     <string name="lbl_remove">നീക്കംചെയ്യുക</string>
     <string name="lbl_server">സെർവർ</string>
@@ -86,8 +84,6 @@
     <string name="pref_clock_display_browsing">ബ്രൗസുചെയ്യുമ്പോൾ</string>
     <string name="lbl_always">എല്ലായ്പ്പോഴും</string>
     <string name="pref_clock_display">ക്ലോക്ക് കാണിക്കുക</string>
-    <string name="pref_default_rating">സ്ഥിരസ്ഥിതി റേറ്റിംഗ് തരം</string>
-    <string name="lbl_stars">നക്ഷത്രങ്ങൾ</string>
     <string name="watch_count_overflow">99+</string>
     <string name="lbl_sign_in">സൈൻ ഇൻ ചെയ്യുക</string>
     <string name="just_one">ഇത് മാത്രം</string>

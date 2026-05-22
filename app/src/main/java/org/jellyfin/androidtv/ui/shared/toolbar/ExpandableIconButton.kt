@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
@@ -58,17 +59,6 @@ fun ExpandableIconButton(
 		label = "ButtonScale"
 	)
 	
-	// Animate padding to make buttons more compact when not focused
-	val horizontalPadding by animateDpAsState(
-		targetValue = if (isFocused) 12.dp else 6.dp,
-		animationSpec = tween(durationMillis = 200),
-		label = "ButtonPadding"
-	)
-	val verticalPadding by animateDpAsState(
-		targetValue = if (isFocused) 8.dp else 6.dp,
-		animationSpec = tween(durationMillis = 200),
-		label = "ButtonVerticalPadding"
-	)
 	
 	// Bring button into view when focused
 	LaunchedEffect(isFocused) {
@@ -79,15 +69,22 @@ fun ExpandableIconButton(
 		}
 	}
 
+	val contentPadding = if (isFocused) {
+		PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+	} else {
+		PaddingValues(horizontal = 5.dp, vertical = 10.dp)
+	}
+
 	Button(
 		onClick = onClick,
 		onLongClick = onLongClick,
 		colors = colors,
+		contentPadding = contentPadding,
 		modifier = modifier
+			.then(if (!isFocused) Modifier.requiredWidthIn(max = 36.dp) else Modifier)
 			.bringIntoViewRequester(bringIntoViewRequester)
 			.scale(scale),
 		interactionSource = interactionSource,
-		contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = verticalPadding),
 	) {
 		Row(
 			horizontalArrangement = Arrangement.Center,

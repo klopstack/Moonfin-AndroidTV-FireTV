@@ -160,7 +160,6 @@
     <string name="lbl_show_backdrop">Паказаць фоны</string>
     <string name="pref_show_backdrop_description">Змяніць фонавы малюнак для выбраных элементаў</string>
     <string name="lbl_next_episode">Наступны эпізод</string>
-    <string name="enable_smart_view">Уключыць разумны экран</string>
     <string name="login_server_unavailable">Немагчыма падлучыцца да сервера</string>
     <string name="lbl_sign_out">Выйсці</string>
     <plurals name="albums">
@@ -181,10 +180,8 @@
     <string name="lbl_next_item">Наступны элемент</string>
     <string name="lbl_auto_crop">Аўтаматычнае кадраванне</string>
     <string name="lbl_quality_profile">Профіль якасці</string>
-    <string name="lbl_stars">Зоркі</string>
     <string name="login_username_field_empty">Імя карыстальніка не можа быць пустым</string>
     <string name="lbl_remove_server">Выдаліць сервер</string>
-    <string name="lbl_tomatoes">Памідоры</string>
     <string name="licenses_link">Ліцэнзіі</string>
     <string name="licenses_link_description">Праглядзіце ліцэнзіі бібліятэк, якія выкарыстоўваюцца Jellyfin</string>
     <string name="enable_playback_module_description">Гэта эксперыментальная функцыя. Падтрымка не аказваецца.</string>
@@ -212,7 +209,6 @@
     <string name="lbl_album_name">Назва альбома</string>
     <string name="bitrate_mbit">%1$,.0f Mbit/s</string>
     <string name="watch_count_overflow">99+</string>
-    <string name="pref_default_rating">Тып рэйтынгу па змаўчанні</string>
     <string name="pref_clock_display_playback">Падчас прайгравання</string>
     <string name="server_connecting">Падлучэнне да %1$s</string>
     <string name="server_connection_failed">Немагчыма падлучыцца да сервера</string>
@@ -221,7 +217,6 @@
     <string name="lbl_user_last_used">Апошні раз выкарыстоўваўся %1$s у %2$s</string>
     <string name="lbl_user_server">%1$s у %2$s</string>
     <string name="lbl_remove">Выдаліць</string>
-    <string name="enable_smart_view_description">Разумны экран паказвае адпаведныя элементы замест сеткі</string>
     <string name="lbl_on_any_channel">На любым канале</string>
     <string name="clear_image_cache">Ачысціць кэш малюнкаў</string>
     <string name="license_version">Версія</string>

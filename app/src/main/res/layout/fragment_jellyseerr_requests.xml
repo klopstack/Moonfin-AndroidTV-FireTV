@@ -34,7 +34,7 @@
 			<TextView
 				android:layout_width="match_parent"
 				android:layout_height="wrap_content"
-				android:text="Jellyseerr Not Connected"
+				android:text="Seerr Not Connected"
 				android:textSize="16sp"
 				android:textStyle="bold"
 				android:textColor="@color/white" />
@@ -61,7 +61,8 @@
 			<ProgressBar
 				android:layout_width="64dp"
 				android:layout_height="64dp"
-				android:layout_marginBottom="16dp" />
+				android:layout_marginBottom="16dp"
+				android:indeterminateTint="#7C3AED" />
 
 			<TextView
 				android:layout_width="match_parent"

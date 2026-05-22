@@ -1,11 +1,14 @@
 package org.jellyfin.androidtv.ui.jellyseerr
 
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.widget.Toast
+import androidx.core.view.isVisible
 import androidx.leanback.app.RowsSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
+import androidx.leanback.widget.FocusHighlight
 import androidx.leanback.widget.HeaderItem
 import androidx.leanback.widget.ListRow
 import androidx.leanback.widget.OnItemViewClickedListener
@@ -23,8 +26,11 @@ import org.jellyfin.androidtv.constant.JellyseerrRowType
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverItemDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrMediaInfoDto
 import org.jellyfin.androidtv.preference.JellyseerrPreferences
+import org.jellyfin.androidtv.preference.UserPreferences
+import org.jellyfin.androidtv.ui.itemhandling.JellyseerrMediaBaseRowItem
 import org.jellyfin.androidtv.ui.navigation.Destinations
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
+import org.jellyfin.androidtv.ui.presentation.CardPresenter
 import org.jellyfin.androidtv.ui.presentation.PositionableListRowPresenter
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
@@ -35,8 +41,15 @@ import kotlinx.serialization.json.Json
 class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 	private val viewModel: JellyseerrViewModel by viewModel()
 	private val navigationRepository: NavigationRepository by inject()
+	private val userPreferences: UserPreferences by inject()
 	private val jellyseerrPreferences: JellyseerrPreferences by inject(named("global"))
 	private var hasSetupRows = false
+
+	private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+		if (key == UserPreferences.cardFocusExpansion.key) {
+			setupRows()
+		}
+	}
 	
 	// Flow to track selected item for display in parent fragment
 	private val _selectedItemStateFlow = MutableStateFlow<JellyseerrDiscoverItemDto?>(null)
@@ -78,7 +91,7 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 		
 		setupRows()
 		setupObservers()
-		loadContent()
+		userPreferences.registerChangeListener(preferenceChangeListener)
 	}
 	
 	override fun onSaveInstanceState(outState: Bundle) {
@@ -92,12 +105,31 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 		super.onViewCreated(view, savedInstanceState)
 		
-		// Configure vertical grid view for up navigation to toolbar
 		verticalGridView?.apply {
+			// Intercept DPAD_LEFT before HorizontalGridView consumes it.
+			// HorizontalGridView eats DPAD_LEFT even at position 0, so the only
+			// way to transfer focus to the sidebar is to intercept first.
+			setOnKeyInterceptListener { event ->
+				if (event.action == KeyEvent.ACTION_DOWN &&
+					event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+					val focusedView = findFocus()
+					val horizontalGrid = findParentHorizontalGridView(focusedView)
+					if (horizontalGrid != null && horizontalGrid.selectedPosition == 0) {
+						try {
+							val sidebar = activity?.findViewById<View>(R.id.sidebar_overlay)
+							if (sidebar != null && sidebar.isVisible) {
+								sidebar.requestFocus()
+								return@setOnKeyInterceptListener true
+							}
+						} catch (_: Throwable) { }
+					}
+				}
+				false
+			}
+
 			setOnKeyListener { _, keyCode, event ->
 				if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_UP) {
 					if (selectedPosition == 0) {
-						// Navigate to toolbar in parent fragment
 						val toolbarContainer = activity?.findViewById<View>(R.id.toolbar_actions)
 						if (toolbarContainer != null) {
 							toolbarContainer.requestFocus()
@@ -110,11 +142,17 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 		}
 	}
 
+	override fun onDestroyView() {
+		userPreferences.unregisterChangeListener(preferenceChangeListener)
+		super.onDestroyView()
+	}
+
 	override fun onResume() {
 		super.onResume()
 		
 		// Refresh content from Jellyseerr server when returning to screen
-		if (!isReturningFromDetail) {
+		// Skip if data is already loaded (e.g. returning from settings)
+		if (!isReturningFromDetail && !viewModel.hasContent()) {
 			loadContent()
 		}
 		
@@ -175,11 +213,11 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 		hasSetupRows = true
 
 		onItemViewClickedListener = OnItemViewClickedListener { _, item, _, _ ->
-			if (item is JellyseerrDiscoverItemDto) {
-				// Mark that we're navigating to detail screen (for focus restoration on back)
+			val discoverItem = (item as? JellyseerrMediaBaseRowItem)?.item
+			if (discoverItem != null) {
 				isReturningFromDetail = true
 				Timber.d("JellyseerrDiscoverRowsFragment: Item clicked - capturing position: row=$lastFocusedPosition, col=$lastFocusedSubPosition, currentSelectedPosition=${selectedPosition}")
-				onContentSelected(item)
+				onContentSelected(discoverItem)
 			} else if (item is org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrGenreDto) {
 				// Genre card clicked - navigate to browse by genre
 				// Determine media type based on row type
@@ -203,8 +241,9 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 		}
 		
 		onItemViewSelectedListener = OnItemViewSelectedListener { itemViewHolder, item, rowViewHolder, row ->
-			if (item is JellyseerrDiscoverItemDto) {
-				_selectedItemStateFlow.value = item
+			val discoverItem = (item as? JellyseerrMediaBaseRowItem)?.item
+			if (discoverItem != null) {
+				_selectedItemStateFlow.value = discoverItem
 			}
 			
 			Timber.d("JellyseerrDiscoverRowsFragment: onItemViewSelectedListener - selectedPosition=$selectedPosition, isRestoringPosition=$isRestoringPosition, isReturningFromDetail=$isReturningFromDetail")
@@ -219,7 +258,7 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 				Timber.d("JellyseerrDiscoverRowsFragment: Updated lastFocusedPosition to $newPosition")
 				
 				// Store the sub-position within the row (horizontal position)
-				if (row is ListRow && item is JellyseerrDiscoverItemDto) {
+				if (row is ListRow && item is JellyseerrMediaBaseRowItem) {
 					// Get the position of this item within its row
 					val rowAdapter = row.adapter as? ArrayObjectAdapter
 					if (rowAdapter != null) {
@@ -278,7 +317,11 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 		}
 
 		// Create rows adapter
-		val rowPresenter = PositionableListRowPresenter(requireContext()).apply {
+		val zoomFactor = if (userPreferences[UserPreferences.cardFocusExpansion])
+			FocusHighlight.ZOOM_FACTOR_MEDIUM
+		else
+			FocusHighlight.ZOOM_FACTOR_NONE
+		val rowPresenter = PositionableListRowPresenter(requireContext(), focusZoomFactor = zoomFactor).apply {
 			setSelectEffectEnabled(true)
 		}
 		val rowsAdapter = ArrayObjectAdapter(rowPresenter)
@@ -297,15 +340,15 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 			indexToRowType[index] = rowType
 			
 			val (headerTitle, presenter) = when (rowType) {
-				JellyseerrRowType.RECENT_REQUESTS -> getString(R.string.jellyseerr_row_recent_requests) to MediaCardPresenter()
-				JellyseerrRowType.TRENDING -> getString(R.string.jellyseerr_row_trending) to MediaCardPresenter()
-				JellyseerrRowType.POPULAR_MOVIES -> getString(R.string.jellyseerr_row_popular_movies) to MediaCardPresenter()
+				JellyseerrRowType.RECENT_REQUESTS -> getString(R.string.jellyseerr_row_recent_requests) to CardPresenter()
+				JellyseerrRowType.TRENDING -> getString(R.string.jellyseerr_row_trending) to CardPresenter()
+				JellyseerrRowType.POPULAR_MOVIES -> getString(R.string.jellyseerr_row_popular_movies) to CardPresenter()
 				JellyseerrRowType.MOVIE_GENRES -> getString(R.string.jellyseerr_row_movie_genres) to GenreCardPresenter()
-				JellyseerrRowType.UPCOMING_MOVIES -> getString(R.string.jellyseerr_row_upcoming_movies) to MediaCardPresenter()
+				JellyseerrRowType.UPCOMING_MOVIES -> getString(R.string.jellyseerr_row_upcoming_movies) to CardPresenter()
 				JellyseerrRowType.STUDIOS -> getString(R.string.jellyseerr_row_studios) to NetworkStudioCardPresenter()
-				JellyseerrRowType.POPULAR_SERIES -> getString(R.string.jellyseerr_row_popular_series) to MediaCardPresenter()
+				JellyseerrRowType.POPULAR_SERIES -> getString(R.string.jellyseerr_row_popular_series) to CardPresenter()
 				JellyseerrRowType.SERIES_GENRES -> getString(R.string.jellyseerr_row_series_genres) to GenreCardPresenter()
-				JellyseerrRowType.UPCOMING_SERIES -> getString(R.string.jellyseerr_row_upcoming_series) to MediaCardPresenter()
+				JellyseerrRowType.UPCOMING_SERIES -> getString(R.string.jellyseerr_row_upcoming_series) to CardPresenter()
 				JellyseerrRowType.NETWORKS -> getString(R.string.jellyseerr_row_networks) to NetworkStudioCardPresenter()
 			}
 			
@@ -320,6 +363,18 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 	}
 
 	private fun setupObservers() {
+		// Observe availability — when Moonfin proxy finishes configuring after
+		// the session is published, isAvailable flips to true. If loadContent()
+		// already ran while it was still false (race condition), retry here.
+		lifecycleScope.launch {
+			viewModel.isAvailable.collect { available ->
+				if (available && !viewModel.hasContent()) {
+					Timber.d("JellyseerrDiscoverRowsFragment: isAvailable became true, loading content")
+					loadContent()
+				}
+			}
+		}
+
 		// Observe loading state for errors
 		lifecycleScope.launch {
 			viewModel.loadingState.collect { state ->
@@ -448,15 +503,14 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 				if (rowAdapter is ArrayObjectAdapter) {
 					Timber.d("JellyseerrDiscoverRowsFragment: Setting row $index - showing ${items.size} items")
 					
-					// If view is available, defer update to avoid modifying RecyclerView during layout
-					// Otherwise, set items directly (needed for initial load before view is created)
+					val wrappedItems = items.map { JellyseerrMediaBaseRowItem(it) }
 					val currentView = view
 					if (currentView != null) {
 						currentView.post {
-							rowAdapter.setItems(items, null)
+							rowAdapter.setItems(wrappedItems, null)
 						}
 					} else {
-						rowAdapter.setItems(items, null)
+						rowAdapter.setItems(wrappedItems, null)
 					}
 				}
 			}
@@ -524,6 +578,18 @@ class JellyseerrDiscoverRowsFragment : RowsSupportFragment() {
 		Timber.d("JellyseerrDiscoverRowsFragment: Loading more upcoming TV via API")
 		viewModel.loadNextUpcomingTvPage()
 		isLoadingUpcomingTv = false
+	}
+
+	/**
+	 * Walk up the view hierarchy from the focused view to find the containing HorizontalGridView.
+	 */
+	private fun findParentHorizontalGridView(view: View?): androidx.leanback.widget.HorizontalGridView? {
+		var current = view?.parent
+		while (current != null) {
+			if (current is androidx.leanback.widget.HorizontalGridView) return current
+			current = current.parent
+		}
+		return null
 	}
 
 	private fun loadContent() {

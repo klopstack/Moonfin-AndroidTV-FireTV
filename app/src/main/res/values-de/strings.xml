@@ -24,6 +24,7 @@
     <string name="lbl_favorite_channels">Favorisierte Kanäle</string>
     <string name="lbl_other_channels">Andere Kanäle</string>
     <string name="lbl_collections">Sammlungen</string>
+    <string name="lbl_items_in_collection">Einträge in der Sammlung</string>
     <string name="lbl_movies">Filme</string>
     <string name="lbl_tv_series">Fernsehserien</string>
     <string name="lbl_other">Sonstiges</string>
@@ -113,13 +114,16 @@
     <string name="lbl_from">von</string>
     <string name="lbl_name">Name</string>
     <string name="lbl_date_added">Hinzugefügt am</string>
+    <string name="lbl_date_episode_added">Datum hinzugefügt (Episode)</string>
     <string name="lbl_premier_date">Premiere</string>
     <string name="lbl_critic_rating">Kritikerbewertung</string>
     <string name="lbl_rating">Bewertung</string>
     <string name="lbl_starting_with">beginnend mit jenen, deren Namen beginnt mit</string>
     <string name="lbl_display_preferences">Anzeigeeinstellungen</string>
     <string name="lbl__continuing">FORTGESETZT</string>
+    <string name="lbl__continuing_title">Fortgesetzt</string>
     <string name="lbl_ended">BEENDET</string>
+    <string name="lbl_ended_title">Beendet</string>
     <string name="lbl_filters">Fernseh-Filter</string>
     <string name="msg_subtitles_loading">Lade Untertitel…</string>
     <string name="msg_unable_load_subs">Untertitel konnten nicht geladen werden</string>
@@ -137,6 +141,7 @@
     <string name="lbl_songs">Lieder</string>
     <string name="lbl_album">Album</string>
     <string name="lbl_episodes">Episoden</string>
+    <string name="lbl_season_episodes">Staffel %1$d Episoden</string>
     <string name="lbl_enable_cinema_mode">Kino-Modus</string>
     <string name="sum_enable_cinema_mode">Spiele verfügbare Intros und Vorschauen vor dem Film ab</string>
     <string name="lbl_playlists">Wiedergabelisten</string>
@@ -257,14 +262,15 @@
     <string name="lbl_tv_filter_status">für die nächsten %1$d Stunden</string>
     <string name="lbl_tv_channel_status">%1$d von %2$d Kanälen</string>
     <string name="lbl_subtitle_track">Untertitelspur auswählen</string>
+    <string name="lbl_default">Standard</string>
+    <string name="lbl_track">Titel</string>
+    <string name="lbl_tracks">Titel</string>
     <string name="lbl_audio_track">Audiospur auswählen</string>
+    <string name="lbl_shuffle">Zufallswiedergabe</string>
     <string name="lbl_pause">Pause</string>
     <string name="lbl_playback_control_ends">Endet um %1$s</string>
     <string name="lbl_sign_in">Bitte anmelden</string>
     <string name="watch_count_overflow">99+</string>
-    <string name="pref_default_rating">Art der Standardbewertung</string>
-    <string name="lbl_tomatoes">Tomaten</string>
-    <string name="lbl_stars">Sterne</string>
     <string name="pref_clock_display_playback">Während der Wiedergabe</string>
     <string name="pref_clock_display_browsing">Während dem Durchstöbern</string>
     <string name="lbl_always">Immer</string>
@@ -289,8 +295,6 @@
     <string name="image_size_small">Klein</string>
     <string name="image_type_banner">Banner</string>
     <string name="image_type_thumbnail">Vorschaubild</string>
-    <string name="enable_smart_view_description">Der Smart Screen zeigt relevante Einträge anstelle eines Rasters an</string>
-    <string name="enable_smart_view">Smart Screen aktivieren</string>
     <string name="lbl_sign_out">Abmelden</string>
     <string name="lbl_remove">Entfernen</string>
     <string name="lbl_server">Server</string>
@@ -402,6 +406,7 @@
     <string name="server_issue_missing_version">Serverversion konnte nicht bestimmt werden</string>
     <string name="server_issue_invalid_product">Serversoftware ist nicht kompatibel</string>
     <string name="server_issue_unable_to_connect">Keine Verbindung möglich</string>
+    <string name="lbl_audio_track_missing">Keine Audiospuren verfügbar</string>
     <string name="lbl_playback_speed">Wiedergabegeschwindigkeit</string>
     <string name="pref_direct_stream_live_on">Transkodierung ist deaktiviert</string>
     <string name="server_connection_failed_candidates">Verbindung zum Server nicht möglich, folgende Adressen ausprobiert: %1$s</string>
@@ -412,7 +417,7 @@
     <string name="pref_refresh_rate_scale_on_tv">Skalierung durch TV</string>
     <string name="login_quickconnect_step_3">3. Gib den folgenden Code ein:</string>
     <string name="login_quickconnect_step_2">2. Öffne das Benutzermenü und gehe auf die Quick Connect-Seite</string>
-    <string name="login_quickconnect_step_1">1. Öffne die Jellyfin-App auf deinem Telefon oder Webbrowser und melde dich mit deinem Konto an</string>
+    <string name="login_quickconnect_step_1">1. Öffne die Jellyfin-App auf deinem Telefon oder Web browser und melde dich mit deinem Konto an</string>
     <string name="login_other_options">Andere Optionen:</string>
     <string name="login_connect_to">Mit %1$s verbinden</string>
     <string name="input_password">Passwort</string>
@@ -421,6 +426,7 @@
     <string name="action_use_password">Passwort verwenden</string>
     <string name="action_login">Anmelden</string>
     <string name="state_disabled">Deaktiviert</string>
+    <string name="lbl_subtitle_track_title">Untertitelspur</string>
     <string name="lbl_subtitle_delay">Untertitelverzögerung</string>
     <string name="live_tv_preferences">Fernseh-Optionen</string>
     <string name="pref_telemetry_category">Absturzbericht</string>
@@ -430,7 +436,7 @@
     <string name="image_size_smallest">Kleinste</string>
     <string name="image_type_poster">Poster</string>
     <string name="episode_name_special">Extra</string>
-    <string name="server_setup_incomplete">Das Setup von diesem Server wurde nicht abgeschlossen. Öffne Jellyfin in einem Webbrowser, um das Setup abzuschließen, bevor du dich anmeldest.</string>
+    <string name="server_setup_incomplete">Das Setup von diesem Server wurde nicht abgeschlossen. Öffne Jellyfin in einem Web browser, um das Setup abzuschließen, bevor du dich anmeldest.</string>
     <string name="crash_report_toast">Ups! Etwas ist schiefgegangen, ein Absturzbericht wurde an deinen Jellyfin-Server gesendet.</string>
     <string name="pref_crash_reports_enabled">Absturzberichte werden an den zuletzt von dir verwendeten Server gesendet</string>
     <string name="pref_crash_report_logs_disabled">Logs werden in Absturzberichten nicht eingeschlossen</string>
@@ -484,6 +490,10 @@
     <plurals name="episodes">
         <item quantity="one">%1$s Episode</item>
         <item quantity="other">%1$s Episoden</item>
+    </plurals>
+    <plurals name="season_count">
+        <item quantity="one">%1$s Staffel</item>
+        <item quantity="other">%1$s Staffeln</item>
     </plurals>
     <string name="not_set">Nicht gesetzt</string>
     <string name="lbl_album_artists">Albuminterpret</string>
@@ -582,6 +592,7 @@
     <string name="speech_error_no_permission">Keine Berechtigung zur Verwendung des Mikrofons. Bitte aktivieren Sie dies in den Systemeinstellungen.</string>
     <string name="pref_subtitles_bold">fetter Text</string>
     <string name="preference_enable_pgs">PGS Untertitel direkt abspielen</string>
+    <string name="lbl_restart">Neustart</string>
     <string name="lbl_exit">Verlassen</string>
     <string name="pref_still_watching_behavior_title">Popup für Inaktivitäts-Timeout anzeigen</string>
     <string name="lbl_still_watching_default">3 Folgen oder 90 Minuten</string>
@@ -621,4 +632,15 @@
     <string name="video_player_internal">Eingebauter Videoplayer</string>
     <string name="video_player_external">Externe App</string>
     <string name="filters">Filter</string>
+    <string name="lbl_sort_and_filter">Sortieren und filtern</string>
+    <string name="lbl_status_title">Status</string>
+    <string name="lbl_directors">Regisseure</string>
+    <string name="lbl_writers">Drehbuchautoren</string>
+    <string name="lbl_date_series_added">Datum hinzugefügt (Serie)</string>
+    <string name="lbl_audio_track_title">Audiospur</string>
+    <string name="select_version_title">Version auswählen</string>
+    <string name="lbl_version_number">Version %1$d</string>
+    <string name="lbl_movies_count">Filme (%1$d)</string>
+    <string name="lbl_series_count">Serien (%1$d)</string>
+    <string name="select_reorder_items">Um Elemente neu anzuordnen, drücken Sie links und rechts auf dem Steuerkreuz</string>
 </resources>

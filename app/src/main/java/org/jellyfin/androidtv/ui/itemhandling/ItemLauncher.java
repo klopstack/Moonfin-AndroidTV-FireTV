@@ -8,8 +8,6 @@ import org.jellyfin.androidtv.auth.repository.SessionRepository;
 import org.jellyfin.androidtv.constant.LiveTvOption;
 import org.jellyfin.androidtv.constant.QueryType;
 import org.jellyfin.androidtv.data.model.ChapterItemInfo;
-import org.jellyfin.androidtv.preference.LibraryPreferences;
-import org.jellyfin.androidtv.preference.PreferencesRepository;
 import org.jellyfin.androidtv.ui.navigation.Destination;
 import org.jellyfin.androidtv.ui.navigation.Destinations;
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository;
@@ -41,7 +39,6 @@ public class ItemLauncher {
     private final Lazy<NavigationRepository> navigationRepository = KoinJavaComponent.<NavigationRepository>inject(NavigationRepository.class);
     private final Lazy<SessionRepository> sessionRepository = KoinJavaComponent.<SessionRepository>inject(SessionRepository.class);
     private final Lazy<ApiClient> api = KoinJavaComponent.<ApiClient>inject(ApiClient.class);
-    private final Lazy<PreferencesRepository> preferencesRepository = KoinJavaComponent.<PreferencesRepository>inject(org.jellyfin.androidtv.preference.PreferencesRepository .class);
     private final Lazy<MediaManager> mediaManager = KoinJavaComponent.<MediaManager>inject(MediaManager.class);
     private final Lazy<PlaybackLauncher> playbackLauncher = KoinJavaComponent.<PlaybackLauncher>inject(PlaybackLauncher.class);
     private final Lazy<PlaybackHelper> playbackHelper = KoinJavaComponent.<PlaybackHelper>inject(PlaybackHelper.class);
@@ -61,14 +58,11 @@ public class ItemLauncher {
         switch (collectionType) {
             case MOVIES:
             case TVSHOWS:
-                LibraryPreferences displayPreferences = preferencesRepository.getValue().getLibraryPreferences(baseItem.getDisplayPreferencesId(), api.getValue());
-                boolean enableSmartScreen = displayPreferences.get(LibraryPreferences.Companion.getEnableSmartScreen());
-
-                if (!enableSmartScreen) return Destinations.INSTANCE.libraryBrowser(baseItem);
-                else return Destinations.INSTANCE.librarySmartScreen(baseItem);
+                return Destinations.INSTANCE.libraryBrowser(baseItem);
             case MUSIC:
+                return Destinations.INSTANCE.musicBrowser(baseItem, null, null);
             case LIVETV:
-                return Destinations.INSTANCE.librarySmartScreen(baseItem);
+                return Destinations.INSTANCE.liveTvBrowser(baseItem);
             default:
                 return Destinations.INSTANCE.libraryBrowser(baseItem);
         }
@@ -76,20 +70,14 @@ public class ItemLauncher {
 
     public void launch(final BaseRowItem rowItem, MutableObjectAdapter<Object> adapter, final Context context) {
         UUID serverId = null;
-        Timber.d("ItemLauncher: rowItem type is %s", rowItem.getClass().getSimpleName());
+        UUID userId = null;
         if (rowItem instanceof AggregatedItemBaseRowItem) {
             serverId = ((AggregatedItemBaseRowItem) rowItem).getServer().getId();
-            Timber.d("ItemLauncher: Item is from server %s", serverId);
+            userId = ((AggregatedItemBaseRowItem) rowItem).getUserId();
         } else {
             BaseItemDto item = rowItem.getBaseItem();
             if (item != null && item.getServerId() != null) {
-                Timber.d("ItemLauncher: Item has serverId=%s from BaseItemDto", item.getServerId());
                 serverId = UUIDUtils.parseUUID(item.getServerId());
-                if (serverId != null) {
-                    Timber.d("ItemLauncher: Parsed serverId to %s", serverId);
-                }
-            } else {
-                Timber.d("ItemLauncher: Item has no serverId, using default server");
             }
         }
         
@@ -117,13 +105,9 @@ public class ItemLauncher {
                         return;
                     case SERIES:
                     case MUSIC_ARTIST:
-                        // Pass serverId for aggregated items
-                        navigationRepository.getValue().navigate(Destinations.INSTANCE.itemDetails(baseItem.getId(), serverId));
-                        return;
-
                     case MUSIC_ALBUM:
                     case PLAYLIST:
-                        navigationRepository.getValue().navigate(Destinations.INSTANCE.itemList(baseItem.getId()));
+                        navigationRepository.getValue().navigate(Destinations.INSTANCE.itemDetails(baseItem.getId(), serverId));
                         return;
 
                     case AUDIO:
@@ -152,11 +136,11 @@ public class ItemLauncher {
 
                         return;
                     case SEASON:
-                        navigationRepository.getValue().navigate(Destinations.INSTANCE.folderBrowser(baseItem));
+                        navigationRepository.getValue().navigate(Destinations.INSTANCE.folderBrowser(baseItem, serverId, userId));
                         return;
 
                     case BOX_SET:
-                        navigationRepository.getValue().navigate(Destinations.INSTANCE.collectionBrowser(baseItem));
+                        navigationRepository.getValue().navigate(Destinations.INSTANCE.itemDetails(baseItem.getId(), serverId));
                         return;
 
                     case PHOTO:
@@ -170,6 +154,33 @@ public class ItemLauncher {
                         }
                         return;
 
+                    case VIDEO:
+                        // Check if this video is in a photos/home videos context (same folder as photos)
+                        if (adapter instanceof ItemRowAdapter) {
+                            ItemRowAdapter itemRowAdapter = (ItemRowAdapter) adapter;
+                            boolean hasPhotosInAdapter = false;
+                            for (int i = 0; i < adapter.size(); i++) {
+                                Object obj = adapter.get(i);
+                                if (obj instanceof BaseRowItem) {
+                                    BaseItemDto item = ((BaseRowItem) obj).getBaseItem();
+                                    if (item != null && item.getType() == BaseItemKind.PHOTO) {
+                                        hasPhotosInAdapter = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (hasPhotosInAdapter) {
+                                navigationRepository.getValue().navigate(Destinations.INSTANCE.photoPlayer(
+                                        baseItem.getId(),
+                                        false,
+                                        itemRowAdapter.getSortBy(),
+                                        itemRowAdapter.getSortOrder()
+                                ));
+                                return;
+                            }
+                        }
+                        break;
+
                 }
 
                 // or generic handling
@@ -181,11 +192,11 @@ public class ItemLauncher {
                         baseItem = JavaCompat.copyWithDisplayPreferencesId(baseItem, baseItem.getId().toString());
                     }
 
-                    // Pass serverId for aggregated items so the browser can use the correct server
+                    // Pass serverId and userId for aggregated items so the browser can use the correct server
                     if (serverId != null) {
-                        navigationRepository.getValue().navigate(Destinations.INSTANCE.libraryBrowser(baseItem, serverId));
+                        navigationRepository.getValue().navigate(Destinations.INSTANCE.libraryBrowser(baseItem, serverId, userId));
                     } else {
-                        navigationRepository.getValue().navigate(Destinations.INSTANCE.libraryBrowser(baseItem, null));
+                        navigationRepository.getValue().navigate(Destinations.INSTANCE.libraryBrowser(baseItem, null, null));
                     }
                 } else {
                     switch (rowItem.getSelectAction()) {
@@ -290,7 +301,7 @@ public class ItemLauncher {
                 switch (rowItem.getSelectAction()) {
 
                     case ShowDetails:
-                        navigationRepository.getValue().navigate(Destinations.INSTANCE.itemDetails(rowItem.getBaseItem().getId()));
+                        navigationRepository.getValue().navigate(Destinations.INSTANCE.itemDetails(rowItem.getBaseItem().getId(), serverId));
                         break;
                     case Play:
                         //Just play it directly but need to retrieve as base item

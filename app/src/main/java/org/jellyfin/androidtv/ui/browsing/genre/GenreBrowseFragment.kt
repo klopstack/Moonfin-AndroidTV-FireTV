@@ -1,5 +1,6 @@
 package org.jellyfin.androidtv.ui.browsing.genre
 
+import android.content.SharedPreferences
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
@@ -23,16 +24,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.repository.ItemRepository
+import org.jellyfin.androidtv.data.repository.MultiServerRepository
 import org.jellyfin.androidtv.data.service.BackgroundService
 import org.jellyfin.androidtv.databinding.HorizontalGridBrowseBinding
 import org.jellyfin.androidtv.databinding.PopupEmptyBinding
+import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.ui.AlphaPickerView
 import org.jellyfin.androidtv.ui.itemhandling.BaseItemDtoBaseRowItem
 import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher
+import org.jellyfin.androidtv.ui.navigation.Destinations
+import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.androidtv.ui.presentation.CardPresenter
 import org.jellyfin.androidtv.util.Utils
-import org.jellyfin.androidtv.util.apiclient.ioCallContent
+import org.jellyfin.androidtv.util.sdk.ApiClientFactory
+import org.jellyfin.androidtv.util.sdk.compat.copyWithServerId
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.model.api.BaseItemDto
@@ -60,6 +66,10 @@ class GenreBrowseFragment : Fragment() {
 	private val apiClient by inject<ApiClient>()
 	private val backgroundService by inject<BackgroundService>()
 	private val itemLauncher by inject<ItemLauncher>()
+	private val multiServerRepository by inject<MultiServerRepository>()
+	private val userPreferences by inject<UserPreferences>()
+	private val apiClientFactory by inject<ApiClientFactory>()
+	private val navigationRepository by inject<NavigationRepository>()
 
 	private var binding: HorizontalGridBrowseBinding? = null
 	
@@ -70,6 +80,7 @@ class GenreBrowseFragment : Fragment() {
 	private var genreName: String = ""
 	private var parentId: UUID? = null
 	private var includeType: String? = null
+	private var serverId: UUID? = null
 
 	private var currentPage = 0
 	private var totalItems = 0
@@ -78,6 +89,12 @@ class GenreBrowseFragment : Fragment() {
 
 	private var currentSortOption: GenreItemSortOption = SORT_OPTIONS[1]
 	private var sortButton: ImageButton? = null
+
+	private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+		if (key == UserPreferences.cardFocusExpansion.key) {
+			setupGrid()
+		}
+	}
 	
 	private var startLetter: String? = null
 	private var letterButton: ImageButton? = null
@@ -87,6 +104,7 @@ class GenreBrowseFragment : Fragment() {
 		const val ARG_GENRE_NAME = "genre_name"
 		const val ARG_PARENT_ID = "parent_id"
 		const val ARG_INCLUDE_TYPE = "include_type"
+		const val ARG_SERVER_ID = "server_id"
 		private const val NUM_COLUMNS = 7
 
 		val SORT_OPTIONS = listOf(
@@ -106,6 +124,7 @@ class GenreBrowseFragment : Fragment() {
 			genreName = it.getString(ARG_GENRE_NAME) ?: ""
 			it.getString(ARG_PARENT_ID)?.let { id -> parentId = UUID.fromString(id) }
 			includeType = it.getString(ARG_INCLUDE_TYPE)
+			it.getString(ARG_SERVER_ID)?.let { id -> serverId = UUID.fromString(id) }
 		}
 	}
 
@@ -131,6 +150,8 @@ class GenreBrowseFragment : Fragment() {
 		if (isFirstLoad) {
 			loadContent()
 		}
+
+		userPreferences.registerChangeListener(preferenceChangeListener)
 	}
 
 	private fun setupHeader() {
@@ -202,7 +223,8 @@ class GenreBrowseFragment : Fragment() {
 	}
 
 	private fun setupGrid() {
-		gridPresenter = VerticalGridPresenter(FocusHighlight.ZOOM_FACTOR_MEDIUM, false).apply {
+		val zoomFactor = if (userPreferences[UserPreferences.cardFocusExpansion]) FocusHighlight.ZOOM_FACTOR_MEDIUM else FocusHighlight.ZOOM_FACTOR_NONE
+		gridPresenter = VerticalGridPresenter(zoomFactor, false).apply {
 			numberOfColumns = NUM_COLUMNS
 			shadowEnabled = false
 		}
@@ -381,39 +403,12 @@ class GenreBrowseFragment : Fragment() {
 					else -> setOf(BaseItemKind.MOVIE, BaseItemKind.SERIES)
 				}
 
-				val response = withContext(Dispatchers.IO) {
-					apiClient.ioCallContent {
-						itemsApi.getItems(
-							parentId = parentId,
-							genres = setOf(genreName),
-							includeItemTypes = includeTypes,
-							recursive = true,
-							sortBy = setOf(currentSortOption.sortBy),
-							sortOrder = setOf(currentSortOption.sortOrder),
-							startIndex = currentPage * pageSize,
-							limit = pageSize,
-							fields = ItemRepository.itemFields,
-							enableTotalRecordCount = true,
-							nameStartsWith = startLetter,
-						)
-					}
-				}
-
-				totalItems = response.totalRecordCount ?: 0
-
-				val rowItems = response.items.map { item ->
-					BaseItemDtoBaseRowItem(item)
-				}
-				gridAdapter.addAll(gridAdapter.size(), rowItems)
-
-				currentPage++
+				val enableMultiServer = userPreferences[UserPreferences.enableMultiServerLibraries]
 				
-				updateCounter(if (gridAdapter.size() > 0) 1 else 0)
-				updateStatusText()
-
-				if (gridAdapter.size() == 0) {
-					binding?.statusText?.text = getString(R.string.lbl_no_items)
-					binding?.statusText?.visibility = View.VISIBLE
+				if (enableMultiServer && serverId == null) {
+					loadMultiServerContent(includeTypes)
+				} else {
+					loadSingleServerContent(includeTypes)
 				}
 
 			} catch (e: Exception) {
@@ -425,6 +420,116 @@ class GenreBrowseFragment : Fragment() {
 			}
 		}
 	}
+	
+	private suspend fun loadSingleServerContent(includeTypes: Set<BaseItemKind>) {
+		val targetApi = if (serverId != null) {
+			apiClientFactory.getApiClientForServer(serverId!!) ?: apiClient
+		} else {
+			apiClient
+		}
+		
+		val response = withContext(Dispatchers.IO) {
+			targetApi.itemsApi.getItems(
+				parentId = parentId,
+				genres = setOf(genreName),
+				includeItemTypes = includeTypes,
+				recursive = true,
+				sortBy = setOf(currentSortOption.sortBy),
+				sortOrder = setOf(currentSortOption.sortOrder),
+				startIndex = currentPage * pageSize,
+				limit = pageSize,
+				fields = ItemRepository.itemFields,
+				enableTotalRecordCount = true,
+				nameStartsWith = startLetter,
+			).content
+		}
+
+		totalItems = response.totalRecordCount ?: 0
+
+		val rowItems = response.items.map { item ->
+			val annotatedItem = if (serverId != null) item.copyWithServerId(serverId.toString()) else item
+			BaseItemDtoBaseRowItem(annotatedItem)
+		}
+		gridAdapter.addAll(gridAdapter.size(), rowItems)
+
+		currentPage++
+		
+		updateCounter(if (gridAdapter.size() > 0) 1 else 0)
+		updateStatusText()
+
+		if (gridAdapter.size() == 0) {
+			binding?.statusText?.text = getString(R.string.lbl_no_items)
+			binding?.statusText?.visibility = View.VISIBLE
+		}
+	}
+	
+	private suspend fun loadMultiServerContent(includeTypes: Set<BaseItemKind>) {
+		val sessions = multiServerRepository.getLoggedInServers()
+		
+		if (sessions.isEmpty()) {
+			loadSingleServerContent(includeTypes)
+			return
+		}
+		
+		// Load from all servers in parallel
+		val allItems = withContext(Dispatchers.IO) {
+			sessions.flatMap { session ->
+				try {
+					val response = session.apiClient.itemsApi.getItems(
+						genres = setOf(genreName),
+						includeItemTypes = includeTypes,
+						recursive = true,
+						sortBy = setOf(currentSortOption.sortBy),
+						sortOrder = setOf(currentSortOption.sortOrder),
+						limit = pageSize,
+						fields = ItemRepository.itemFields,
+						enableTotalRecordCount = true,
+						nameStartsWith = startLetter,
+					).content
+					
+					response.items.map { it.copyWithServerId(session.server.id.toString()) }
+				} catch (e: Exception) {
+					Timber.e(e, "Failed to load genre items from server ${session.server.name}")
+					emptyList()
+				}
+			}
+		}
+		
+		// Sort combined results
+		val sortedItems = when (currentSortOption.sortOrder) {
+			SortOrder.ASCENDING -> when (currentSortOption.sortBy) {
+				ItemSortBy.SORT_NAME -> allItems.sortedBy { it.name?.lowercase() }
+				ItemSortBy.COMMUNITY_RATING -> allItems.sortedBy { it.communityRating ?: 0f }
+				ItemSortBy.DATE_CREATED -> allItems.sortedBy { it.dateCreated }
+				ItemSortBy.PREMIERE_DATE -> allItems.sortedBy { it.premiereDate }
+				ItemSortBy.CRITIC_RATING -> allItems.sortedBy { it.criticRating ?: 0f }
+				else -> allItems
+			}
+			else -> when (currentSortOption.sortBy) {
+				ItemSortBy.SORT_NAME -> allItems.sortedByDescending { it.name?.lowercase() }
+				ItemSortBy.COMMUNITY_RATING -> allItems.sortedByDescending { it.communityRating ?: 0f }
+				ItemSortBy.DATE_CREATED -> allItems.sortedByDescending { it.dateCreated }
+				ItemSortBy.PREMIERE_DATE -> allItems.sortedByDescending { it.premiereDate }
+				ItemSortBy.CRITIC_RATING -> allItems.sortedByDescending { it.criticRating ?: 0f }
+				else -> allItems
+			}
+		}
+		
+		totalItems = sortedItems.size
+		
+		val rowItems = sortedItems.map { item ->
+			BaseItemDtoBaseRowItem(item)
+		}
+		gridAdapter.addAll(gridAdapter.size(), rowItems)
+		
+		updateCounter(if (gridAdapter.size() > 0) 1 else 0)
+		updateStatusText()
+
+		if (gridAdapter.size() == 0) {
+			binding?.statusText?.text = getString(R.string.lbl_no_items)
+			binding?.statusText?.visibility = View.VISIBLE
+		}
+	}
 
 	private fun updateCounter(position: Int) {
 		binding?.counter?.text = "$position | $totalItems"
@@ -432,6 +537,7 @@ class GenreBrowseFragment : Fragment() {
 
 	override fun onDestroyView() {
 		super.onDestroyView()
+		userPreferences.unregisterChangeListener(preferenceChangeListener)
 		jumplistPopup?.dismiss()
 		binding = null
 		gridViewHolder = null

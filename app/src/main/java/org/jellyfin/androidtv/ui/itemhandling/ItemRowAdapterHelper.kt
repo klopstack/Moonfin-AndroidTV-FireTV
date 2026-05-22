@@ -6,6 +6,8 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jellyfin.androidtv.R
@@ -15,8 +17,6 @@ import org.jellyfin.androidtv.data.querying.GetSpecialsRequest
 import org.jellyfin.androidtv.data.querying.GetTrailersRequest
 import org.jellyfin.androidtv.data.repository.ParentalControlsRepository
 import org.jellyfin.androidtv.data.repository.UserViewsRepository
-import org.jellyfin.androidtv.preference.LibraryPreferences
-import org.jellyfin.androidtv.preference.PreferencesRepository
 import org.jellyfin.androidtv.ui.GridButton
 import org.jellyfin.androidtv.ui.browsing.BrowseGridFragment.SortOption
 import org.jellyfin.androidtv.util.sdk.compat.copyWithServerId
@@ -28,7 +28,6 @@ import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.liveTvApi
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
-import org.jellyfin.sdk.api.client.extensions.userViewsApi
 import org.jellyfin.sdk.api.client.extensions.videosApi
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -52,7 +51,6 @@ import timber.log.Timber
 import kotlin.math.min
 
 private val parentalControlsRepositoryLazy: Lazy<ParentalControlsRepository> = inject(ParentalControlsRepository::class.java)
-private val preferencesRepositoryLazy: Lazy<PreferencesRepository> = inject(PreferencesRepository::class.java)
 
 fun <T : Any> ItemRowAdapter.setItems(
 	items: Collection<T>,
@@ -205,27 +203,50 @@ fun ItemRowAdapter.retrieveMergedContinueWatchingItems(
 ) {
 	ProcessLifecycleOwner.get().lifecycleScope.launch {
 		runCatching {
-			// Fetch both resume and next up items concurrently
-			val resumeDeferred = async(Dispatchers.IO) {
-				api.itemsApi.getResumeItems(resumeQuery).content.items
-			}
-			val nextUpDeferred = async(Dispatchers.IO) {
-				api.tvShowsApi.getNextUp(nextUpQuery).content.items
+			// Use coroutineScope to properly contain async failures so they are
+			// caught by runCatching instead of propagating to the parent launch job.
+			val (resumeItems, nextUpItems) = coroutineScope {
+				val resumeDeferred = async(Dispatchers.IO) {
+					api.itemsApi.getResumeItems(resumeQuery).content.items
+				}
+				val nextUpDeferred = async(Dispatchers.IO) {
+					api.tvShowsApi.getNextUp(nextUpQuery).content.items
+				}
+				resumeDeferred.await() to nextUpDeferred.await()
 			}
 
-			val resumeItems = resumeDeferred.await()
-			val nextUpItems = nextUpDeferred.await()
+			// Create a set of resume item IDs for quick lookup
+			val resumeItemIds = resumeItems.mapTo(HashSet()) { it.id }
+			
+			// Track series IDs from resume items to get their lastPlayedDate for next up matching
+			val seriesLastPlayedMap = mutableMapOf<java.util.UUID, java.time.LocalDateTime>()
+			resumeItems.forEach { item ->
+				val seriesId = item.seriesId
+				val lastPlayed = item.userData?.lastPlayedDate
+				if (seriesId != null && lastPlayed != null) {
+					val existing = seriesLastPlayedMap[seriesId]
+					if (existing == null || lastPlayed > existing) {
+						seriesLastPlayedMap[seriesId] = lastPlayed
+					}
+				}
+			}
 
-			// Combine both lists, remove duplicates, and sort by last played date (most recent first)
-			// This matches Plex's "On Deck" behavior - chronological order by access time
 			val combinedItems = buildList {
 				addAll(resumeItems)
-				addAll(nextUpItems)
-			}.distinctBy { it.id } // Remove duplicates by ID
-				.sortedByDescending { item ->
-					// Handle null lastPlayedDate by using a very old date for sorting
-					item.userData?.lastPlayedDate ?: java.time.LocalDateTime.MIN
+				nextUpItems.filter { it.id !in resumeItemIds }.forEach { add(it) }
+			}.sortedWith { a, b ->
+				val aLastPlayed = a.userData?.lastPlayedDate
+					?: a.seriesId?.let { seriesLastPlayedMap[it] }
+				val bLastPlayed = b.userData?.lastPlayedDate
+					?: b.seriesId?.let { seriesLastPlayedMap[it] }
+
+				when {
+					aLastPlayed != null && bLastPlayed != null -> bLastPlayed.compareTo(aLastPlayed)
+					aLastPlayed != null -> -1
+					bLastPlayed != null -> 1
+					else -> 0
 				}
+			}
 
 			setItems(
 				items = combinedItems,
@@ -254,9 +275,16 @@ fun ItemRowAdapter.retrieveLatestMedia(api: ApiClient, query: GetLatestMediaRequ
 				api.userLibraryApi.getLatestMedia(query).content
 			}
 
-			setItems(
-				items = response,
-				transform = { item, _ ->
+			if (response.isEmpty()) {
+				removeRow()
+				return@runCatching
+			}
+
+			// Transform all items
+			val parentalControlsRepository = parentalControlsRepositoryLazy.value
+			val allRowItems = response
+				.filter { item -> !parentalControlsRepository.isEnabled() || !parentalControlsRepository.shouldFilterItem(item) }
+				.mapNotNull { item ->
 					BaseItemDtoBaseRowItem(
 						item = item,
 						preferParentThumb = preferParentThumb,
@@ -265,13 +293,50 @@ fun ItemRowAdapter.retrieveLatestMedia(api: ApiClient, query: GetLatestMediaRequ
 						preferSeriesPoster = cardPresenter?.imageType == org.jellyfin.androidtv.constant.ImageType.POSTER
 					)
 				}
-			)
 
-			if (response.isEmpty()) removeRow()
+			if (allRowItems.isEmpty()) {
+				removeRow()
+				return@runCatching
+			}
+
+			// Cache all items for client-side pagination
+			cachedLatestItems = allRowItems
+			totalItems = allRowItems.size
+
+			// Load only the first chunk (or all if no chunkSize set)
+			val effectiveChunk = if (chunkSize > 0) chunkSize else allRowItems.size
+			val firstChunkEnd = min(effectiveChunk, allRowItems.size)
+			val firstChunk = allRowItems.subList(0, firstChunkEnd)
+			replaceAll(firstChunk.toList())
+			itemsLoaded = firstChunk.size
+
+			Timber.d("LatestMedia: loaded first chunk ${firstChunk.size}/${allRowItems.size} (chunkSize=$chunkSize)")
 		}.fold(
 			onSuccess = { notifyRetrieveFinished() },
 			onFailure = { error -> notifyRetrieveFinished(error as? Exception) }
 		)
+	}
+}
+
+fun ItemRowAdapter.retrieveNextLatestMedia() {
+	val cached = cachedLatestItems
+	if (cached == null || cached.isEmpty() || itemsLoaded >= cached.size) {
+		notifyRetrieveFinished()
+		return
+	}
+
+	// Use Dispatchers.Main (not .immediate) to post to the handler queue,
+	// ensuring items are added after the current RecyclerView layout/scroll pass completes
+	ProcessLifecycleOwner.get().lifecycleScope.launch(Dispatchers.Main) {
+		val chunk = if (chunkSize > 0) chunkSize else 15
+		val endIndex = min(itemsLoaded + chunk, cached.size)
+		val nextChunk = cached.subList(itemsLoaded, endIndex)
+
+		nextChunk.forEach { add(it) }
+		itemsLoaded = endIndex
+
+		Timber.d("LatestMedia: loaded next chunk, now at $itemsLoaded/${cached.size}")
+		notifyRetrieveFinished()
 	}
 }
 
@@ -324,17 +389,8 @@ fun ItemRowAdapter.retrieveAdditionalParts(api: ApiClient, query: GetAdditionalP
 fun ItemRowAdapter.retrieveUserViews(api: ApiClient, userViewsRepository: UserViewsRepository) {
 	ProcessLifecycleOwner.get().lifecycleScope.launch {
 			runCatching {
-				val preferencesRepository = preferencesRepositoryLazy.value
-				val response = withContext(Dispatchers.IO) {
-					api.userViewsApi.getUserViews().content
-				}
-
-				val filteredItems = response.items
-					.filter { userViewsRepository.isSupported(it.collectionType) }
-					.filter { view ->
-					val displayPreferencesId = view.displayPreferencesId ?: return@filter true
-					val prefs = preferencesRepository.getLibraryPreferences(displayPreferencesId, api)
-					!prefs[LibraryPreferences.hidden]
+				val filteredItems = withContext(Dispatchers.IO) {
+					userViewsRepository.views.first()
 				}
 
 			setItems(
@@ -681,7 +737,7 @@ fun ItemRowAdapter.retrieveItems(
 				).content
 			}
 
-			val filteredItems = if (query.excludeItemTypes?.contains(BaseItemKind.BOX_SET) == true) {
+			var filteredItems = if (query.excludeItemTypes?.contains(BaseItemKind.BOX_SET) == true) {
 				response.items.filter { it.type != BaseItemKind.BOX_SET }.also { filtered ->
 					if (filtered.size != response.items.size) {
 						Timber.d("ItemRowAdapter: Filtered out ${response.items.size - filtered.size} BoxSet items (${response.items.size} -> ${filtered.size})")
@@ -689,6 +745,15 @@ fun ItemRowAdapter.retrieveItems(
 				}
 			} else {
 				response.items
+			}
+
+			// Filter playlists to only show user-created ones (canDelete == true)
+			if (query.includeItemTypes?.contains(BaseItemKind.PLAYLIST) == true) {
+				filteredItems = filteredItems.filter { it.canDelete == true }.also { filtered ->
+					if (filtered.size != response.items.size) {
+						Timber.d("ItemRowAdapter: Filtered playlists to user-created only (${response.items.size} -> ${filtered.size})")
+					}
+				}
 			}
 
 			totalItems = response.totalRecordCount

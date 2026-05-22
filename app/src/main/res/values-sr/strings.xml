@@ -69,9 +69,6 @@
     <string name="lbl_sd">СД</string>
     <string name="lbl_upcoming">Предстојећи</string>
     <string name="pref_authentication_cat">Аутентикација</string>
-    <string name="pref_default_rating">Подразумевани тип оцене</string>
-    <string name="lbl_tomatoes">Парадајзи</string>
-    <string name="lbl_stars">Звездице</string>
     <string name="watch_count_overflow">99+</string>
     <string name="lbl_playback_control_ends">Завршава се у %1$s</string>
     <string name="lbl_sign_in">Молимо, пријавите се</string>
@@ -298,8 +295,6 @@
     <string name="image_size_small">Мале</string>
     <string name="image_type_banner">Банер</string>
     <string name="image_type_thumbnail">Сличица</string>
-    <string name="enable_smart_view_description">Паметни екран приказује релевантне ставке уместо мреже</string>
-    <string name="enable_smart_view">Омогућите паметни екран</string>
     <string name="lbl_sign_out">Одјава</string>
     <string name="lbl_remove">Уклони</string>
     <string name="lbl_server">Сервер</string>

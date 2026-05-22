@@ -248,7 +248,6 @@
     <string name="lbl_playback_control_ends">Приключва в %1$s</string>
     <string name="lbl_unknown_key">Непознат(a) (%1s)</string>
     <string name="pref_clock_display">Покажи часовника</string>
-    <string name="enable_smart_view">Активирайте умен екран</string>
     <string name="lbl_new_only">Само ново</string>
     <string name="lbl_exit">Изход</string>
     <string name="lbl_my_media">Моята медия</string>
@@ -259,8 +258,6 @@
     <string name="bitrate_mbit">%1$,.0f Mbit/s</string>
     <string name="bitrate_kbit">%1$,.0f Kbit/s</string>
     <string name="subtitle_error">Не можа да избере субтитри</string>
-    <string name="lbl_stars">Звезди</string>
-    <string name="lbl_tomatoes">Домати</string>
     <string name="login_server_unavailable">Не можа да се свърже със сървъра</string>
     <string name="lbl_manage_servers">Управление на сървърите</string>
     <string name="lbl_sign_out_content">Изисква вписване следващия път</string>

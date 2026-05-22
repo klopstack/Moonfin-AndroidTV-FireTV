@@ -4,6 +4,8 @@ import org.jellyfin.androidtv.constant.GridDirection
 import org.jellyfin.androidtv.constant.ImageType
 import org.jellyfin.androidtv.constant.PosterSize
 import org.jellyfin.androidtv.preference.store.DisplayPreferencesStore
+import org.jellyfin.androidtv.ui.browsing.v2.PlayedStatusFilter
+import org.jellyfin.androidtv.ui.browsing.v2.SeriesStatusFilter
 import org.jellyfin.preference.booleanPreference
 import org.jellyfin.preference.enumPreference
 import org.jellyfin.sdk.api.client.ApiClient
@@ -21,11 +23,11 @@ class LibraryPreferences(
 		val posterSize = enumPreference("PosterSize", PosterSize.MED)
 		val imageType = enumPreference("ImageType", ImageType.POSTER)
 		val gridDirection = enumPreference("GridDirection", GridDirection.HORIZONTAL)
-		val enableSmartScreen = booleanPreference("SmartScreen", false)
-		val hidden = booleanPreference("Hidden", false)
 
 		// Filters
 		val filterFavoritesOnly = booleanPreference("FilterFavoritesOnly", false)
+		val filterPlayedStatus = enumPreference("filterPlayedStatus", PlayedStatusFilter.ALL)
+		val filterSeriesStatus = enumPreference("filterSeriesStatus", SeriesStatusFilter.ALL)
 		val filterUnwatchedOnly = booleanPreference("FilterUnwatchedOnly", false)
 
 		// Item sorting

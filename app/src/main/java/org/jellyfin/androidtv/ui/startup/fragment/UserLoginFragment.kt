@@ -55,7 +55,7 @@ class UserLoginFragment : Fragment() {
 	): View {
 		_binding = FragmentUserLoginBinding.inflate(inflater, container, false)
 
-		binding.cancel.setOnClickListener { parentFragmentManager.popBackStack() }
+		binding.backButton.setOnClickListener { parentFragmentManager.popBackStack() }
 		binding.useCredentials.setOnClickListener { setLoginMethod<UserLoginCredentialsFragment>() }
 		binding.useQuickconnect.setOnClickListener { setLoginMethod<UserLoginQuickConnectFragment>() }
 
@@ -68,14 +68,17 @@ class UserLoginFragment : Fragment() {
 		userLoginViewModel.clearLoginState()
 
 		// Open initial fragment
-		if (skipQuickConnect) setLoginMethod<UserLoginCredentialsFragment>()
-		else setLoginMethod<UserLoginQuickConnectFragment>()
+		when {
+			skipQuickConnect -> setLoginMethod<UserLoginCredentialsFragment>()
+			!userLoginViewModel.isQuickConnectSupported.value -> setLoginMethod<UserLoginCredentialsFragment>()
+			else -> setLoginMethod<UserLoginQuickConnectFragment>()
+		}
 
 		lifecycleScope.launch {
 			viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
 				// Update "connecting to ..." text and background
 				userLoginViewModel.server.onEach { server ->
-					val name = server?.name ?: "Jellyfin"
+					val name = server?.name ?: getString(R.string.app_name)
 					binding.subtitle.text = getString(R.string.login_connect_to, name)
 
 					if (server != null) backgroundService.setBackground(server)
@@ -87,7 +90,11 @@ class UserLoginFragment : Fragment() {
 					binding.useQuickconnect.isEnabled = state != UnavailableQuickConnectState
 					if (state == UnavailableQuickConnectState) setLoginMethod<UserLoginCredentialsFragment>()
 				}.launchIn(this)
-			}
+					// Hide QuickConnect for non-Jellyfin servers
+					userLoginViewModel.isQuickConnectSupported.onEach { supported ->
+						binding.useQuickconnect.isVisible = supported
+						if (!supported) setLoginMethod<UserLoginCredentialsFragment>()
+					}.launchIn(this)			}
 		}
 	}
 

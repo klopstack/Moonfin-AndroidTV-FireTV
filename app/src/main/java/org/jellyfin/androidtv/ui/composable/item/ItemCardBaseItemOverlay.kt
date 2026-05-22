@@ -1,5 +1,6 @@
 package org.jellyfin.androidtv.ui.composable.item
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,16 +9,25 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import org.jellyfin.androidtv.ui.settings.compat.SettingsViewModel
+import org.koin.compose.viewmodel.koinActivityViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.constant.WatchedIndicatorBehavior
 import org.jellyfin.androidtv.ui.base.Badge
@@ -31,11 +41,16 @@ import org.jellyfin.playback.core.model.PlayState
 import org.jellyfin.playback.jellyfin.queue.baseItem
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import org.koin.compose.koinInject
 
 @Composable
 @Stable
-fun ItemCardBaseItemOverlay(item: BaseItemDto) = Box(
+fun ItemCardBaseItemOverlay(
+	item: BaseItemDto,
+	showServerBadge: Boolean = false,
+	footer: (@Composable () -> Unit)? = null,
+) = Box(
 	modifier = Modifier
 		.fillMaxSize()
 		.padding(Tokens.Space.spaceXs)
@@ -45,15 +60,70 @@ fun ItemCardBaseItemOverlay(item: BaseItemDto) = Box(
 		modifier = Modifier.align(Alignment.TopStart),
 	)
 
+	if (showServerBadge) {
+		ServerBadge(
+			item = item,
+			modifier = Modifier.align(Alignment.TopCenter),
+		)
+	}
+
 	WatchIndicator(
 		item = item,
 		modifier = Modifier.align(Alignment.TopEnd)
 	)
 
-	ProgressIndicator(
-		item = item,
-		modifier = Modifier.align(Alignment.BottomCenter)
-	)
+	Column(
+		modifier = Modifier.align(Alignment.BottomCenter),
+		verticalArrangement = Arrangement.spacedBy(Tokens.Space.spaceXs)
+	) {
+		ProgressIndicator(
+			item = item,
+		)
+
+		if (footer != null) footer()
+	}
+}
+
+/**
+ * Shows the server name as a small badge on the card when multi-server mode is enabled
+ * and the item originates from a non-primary server.
+ */
+@Composable
+@Stable
+private fun ServerBadge(
+	item: BaseItemDto,
+	modifier: Modifier = Modifier,
+) {
+	val userPreferences = koinInject<UserPreferences>()
+	val settingsClosedCounter by koinActivityViewModel<SettingsViewModel>().settingsClosedCounter.collectAsState()
+	val enableMultiServer = remember(settingsClosedCounter) { userPreferences[UserPreferences.enableMultiServerLibraries] }
+	if (!enableMultiServer) return
+
+	val serverIdStr = item.serverId ?: return
+	val serverUuid = remember(serverIdStr) { serverIdStr.toUUIDOrNull() } ?: return
+
+	val serverRepository = koinInject<ServerRepository>()
+	val storedServers by serverRepository.storedServers.collectAsState()
+	val serverName = remember(storedServers, serverUuid) {
+		storedServers.find { it.id == serverUuid }?.name
+	} ?: return
+
+	Box(
+		modifier = modifier
+			.background(
+				color = Color.Black.copy(alpha = 0.7f),
+				shape = RoundedCornerShape(4.dp),
+			)
+			.padding(horizontal = 4.dp, vertical = 2.dp),
+	) {
+		Text(
+			text = serverName,
+			color = Color.White,
+			fontSize = 9.sp,
+			maxLines = 1,
+			overflow = TextOverflow.Ellipsis,
+		)
+	}
 }
 
 @Composable
@@ -99,7 +169,8 @@ private fun WatchIndicator(
 	modifier: Modifier = Modifier,
 ) {
 	val userPreferences = koinInject<UserPreferences>()
-	val watchedIndicatorBehavior = userPreferences[UserPreferences.watchedIndicatorBehavior]
+	val settingsClosedCounter by koinActivityViewModel<SettingsViewModel>().settingsClosedCounter.collectAsState()
+	val watchedIndicatorBehavior = remember(settingsClosedCounter) { userPreferences[UserPreferences.watchedIndicatorBehavior] }
 
 	if (watchedIndicatorBehavior == WatchedIndicatorBehavior.NEVER) return
 	if (watchedIndicatorBehavior == WatchedIndicatorBehavior.EPISODES_ONLY && item.type != BaseItemKind.EPISODE) return
@@ -109,7 +180,8 @@ private fun WatchIndicator(
 
 	if (isPlayed) {
 		Badge(
-			modifier = modifier,
+			modifier = modifier
+				.size(24.dp),
 		) {
 			Icon(
 				imageVector = ImageVector.vectorResource(R.drawable.ic_watch),
@@ -121,7 +193,8 @@ private fun WatchIndicator(
 		if (watchedIndicatorBehavior == WatchedIndicatorBehavior.HIDE_UNWATCHED) return
 
 		Badge(
-			modifier = modifier,
+			modifier = modifier
+				.sizeIn(minWidth = 24.dp, minHeight = 24.dp),
 		) {
 			Text(
 				text = unplayedItems.toString(),

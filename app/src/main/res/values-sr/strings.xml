@@ -367,7 +367,7 @@
     <string name="no_user_warning">Не можемо пронаћи корисника! 
 \nДодајте новог корисника притиском на дугме \"Додај корисника\".</string>
     <string name="welcome_content">Повежите се са вашим сервером да бисте започели.</string>
-    <string name="welcome_title">Добродошли у Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Сачувани сервери</string>
     <string name="press_to_close">Притисните да затворите</string>
     <string name="no_network_permissions">Jellyfin захтева дозволе за мрежу да би функционисао</string>

@@ -19,7 +19,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 
 @Immutable
 data class RangeControlColors(
@@ -32,9 +32,9 @@ object RangeControlDefaults {
 	@ReadOnlyComposable
 	@Composable
 	fun colors(
-		backgroundColor: Color = JellyfinTheme.colorScheme.rangeControlBackground,
-		fillColor: Color = JellyfinTheme.colorScheme.rangeControlFill,
-		knobColor: Color = JellyfinTheme.colorScheme.rangeControlKnob,
+		backgroundColor: Color = StonecrusherTheme.colorScheme.rangeControlBackground,
+		fillColor: Color = StonecrusherTheme.colorScheme.rangeControlFill,
+		knobColor: Color = StonecrusherTheme.colorScheme.rangeControlKnob,
 	) = RangeControlColors(
 		backgroundColor = backgroundColor,
 		fillColor = fillColor,

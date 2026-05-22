@@ -331,7 +331,7 @@
     <string name="no_user_warning">Nebyly nalezeny žádné účty!
 \nNový účet přidejte stisknutím tlačítka „Přidat účet“.</string>
     <string name="welcome_content">Začněte připojením ke svému serveru.</string>
-    <string name="welcome_title">Vítejte v Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Uložené servery</string>
     <string name="pref_next_up_behavior_title">Zobrazit informace o dalším videu</string>
     <string name="enable_playback_module_description">Toto je experimentální funkce. Není poskytována žádná podpora.</string>

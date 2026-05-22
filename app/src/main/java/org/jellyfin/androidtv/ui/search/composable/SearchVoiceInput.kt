@@ -23,7 +23,7 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.ui.base.Icon
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.button.IconButton
 import org.jellyfin.androidtv.ui.base.button.IconButtonDefaults
 import org.jellyfin.androidtv.util.speech.SpeechRecognizerStatus
@@ -82,16 +82,16 @@ fun SearchVoiceInput(
 				modifier = Modifier
 					.matchParentSize()
 					.scale(scale)
-					.background(JellyfinTheme.colorScheme.recording.copy(alpha = 0.2f), shape = IconButtonDefaults.Shape)
+					.background(StonecrusherTheme.colorScheme.recording.copy(alpha = 0.2f), shape = IconButtonDefaults.Shape)
 			)
 		}
 
 		val colors = IconButtonDefaults.colors().let {
 			if (recognizer.status is SpeechRecognizerStatus.Listening) it.copy(
-				containerColor = JellyfinTheme.colorScheme.recording,
-				contentColor = JellyfinTheme.colorScheme.onRecording,
-				focusedContainerColor = JellyfinTheme.colorScheme.recording,
-				focusedContentColor = JellyfinTheme.colorScheme.onRecording,
+				containerColor = StonecrusherTheme.colorScheme.recording,
+				contentColor = StonecrusherTheme.colorScheme.onRecording,
+				focusedContainerColor = StonecrusherTheme.colorScheme.recording,
+				focusedContentColor = StonecrusherTheme.colorScheme.onRecording,
 			) else it
 		}
 

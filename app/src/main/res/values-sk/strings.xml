@@ -331,7 +331,7 @@
     <string name="no_user_warning">Nemohli sme nájsť žiadne účty!
 \nPridajte nový účet stlačením tlačidla \"Pridať účet\".</string>
     <string name="welcome_content">Začnite pripojením sa k vašemu serveru.</string>
-    <string name="welcome_title">Vitajte v Jellyfine!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Uložené servery</string>
     <string name="pref_next_up_behavior_title">Zobraziť informácie nasledujúceho videa</string>
     <string name="alphabetical">Abecedne</string>

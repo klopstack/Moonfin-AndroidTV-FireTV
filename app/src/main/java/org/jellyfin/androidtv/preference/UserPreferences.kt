@@ -6,7 +6,6 @@ import org.jellyfin.androidtv.preference.UserPreferences.Companion.screensaverIn
 import org.jellyfin.androidtv.preference.constant.PosterSize
 import org.jellyfin.androidtv.preference.constant.AudioBehavior
 import org.jellyfin.androidtv.preference.constant.ClockBehavior
-import org.jellyfin.androidtv.preference.constant.MaxAudioChannels
 import org.jellyfin.androidtv.preference.constant.MaxVideoResolution
 import org.jellyfin.androidtv.preference.constant.NextUpBehavior
 import org.jellyfin.androidtv.preference.constant.RefreshRateSwitchingBehavior
@@ -143,6 +142,11 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var confirmExit = booleanPreference("confirm_exit", true)
 
 		/**
+		 * Automatically submit the PIN entry dialog when the 4th digit is entered
+		 */
+		var pinAutoSubmitOnFourthDigit = booleanPreference("pref_pin_auto_submit", false)
+
+		/**
 		 * Enable automatic update notifications on app launch
 		 */
 		var updateNotificationsEnabled = booleanPreference("update_notifications_enabled", true)
@@ -238,11 +242,6 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		 * Preferred behavior for audio streaming.
 		 */
 		var audioNightMode = enumPreference("audio_night_mode", false)
-
-		/**
-		 * Maximum number of audio channels for playback.
-		 */
-		var maxAudioChannels = enumPreference("max_audio_channels", MaxAudioChannels.AUTO)
 
 		/**
 		 * Enable AC3

@@ -51,7 +51,7 @@ import org.jellyfin.androidtv.data.repository.UserViewsRepository
 import org.jellyfin.androidtv.util.sdk.ApiClientFactory
 import org.jellyfin.androidtv.ui.NowPlayingComposable
 import org.jellyfin.androidtv.ui.base.Icon
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.base.button.Button
@@ -266,13 +266,13 @@ private fun Navbar(
 	val focusContentColor = if (focusColor.luminance() > 0.4f) Color(0xFF444444) else Color(0xFFDDDDDD)
 
 	val activeButtonColors = ButtonDefaults.colors(
-		containerColor = JellyfinTheme.colorScheme.buttonActive,
-		contentColor = JellyfinTheme.colorScheme.onButtonActive,
+		containerColor = StonecrusherTheme.colorScheme.buttonActive,
+		contentColor = StonecrusherTheme.colorScheme.onButtonActive,
 	)
 
 	val toolbarButtonColors = ButtonDefaults.colors(
 		containerColor = Color.Transparent,
-		contentColor = JellyfinTheme.colorScheme.onButton,
+		contentColor = StonecrusherTheme.colorScheme.onButton,
 		focusedContainerColor = focusColor,
 		focusedContentColor = focusContentColor,
 	)
@@ -326,7 +326,7 @@ private fun Navbar(
 					colors = if (userImageVisible) {
 						ButtonDefaults.colors(
 							containerColor = Color.Transparent,
-							contentColor = JellyfinTheme.colorScheme.onButton,
+							contentColor = StonecrusherTheme.colorScheme.onButton,
 							focusedContainerColor = focusColor,
 							focusedContentColor = focusContentColor,
 						)
@@ -540,7 +540,7 @@ fun setupNavbarComposeView(
 	activeLibraryId: UUID? = null,
 ) {
 	composeView.setContent {
-		JellyfinTheme {
+		StonecrusherTheme {
 			Navbar(
 				activeButton = activeButton,
 				activeLibraryId = activeLibraryId,

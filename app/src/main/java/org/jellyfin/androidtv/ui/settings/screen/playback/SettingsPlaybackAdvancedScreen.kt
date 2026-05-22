@@ -263,6 +263,18 @@ fun SettingsPlaybackAdvancedScreen() {
 		item { ListSection(headingContent = { Text(stringResource(R.string.pref_live_tv_cat)) }) }
 
 		item {
+			var liveTvDirectPlayEnabled by rememberPreference(userPreferences, UserPreferences.liveTvDirectPlayEnabled)
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.lbl_direct_stream_live)) },
+				trailingContent = { Checkbox(checked = liveTvDirectPlayEnabled) },
+				onClick = { liveTvDirectPlayEnabled = !liveTvDirectPlayEnabled }
+			)
+		}
+
+		item { ListSection(headingContent = { Text(stringResource(R.string.pref_audio)) }) }
+
+		item {
 			var audioBehaviour by rememberPreference(userPreferences, UserPreferences.audioBehaviour)
 
 			ListButton(
@@ -279,26 +291,6 @@ fun SettingsPlaybackAdvancedScreen() {
 				headingContent = { Text(stringResource(R.string.pref_audio_night_mode)) },
 				trailingContent = { Checkbox(checked = audioNightMode) },
 				onClick = { audioNightMode = !audioNightMode }
-			)
-		}
-
-		item {
-			var maxAudioChannels by rememberPreference(userPreferences, UserPreferences.maxAudioChannels)
-
-			ListButton(
-				headingContent = { Text(stringResource(R.string.pref_max_audio_channels_title)) },
-				captionContent = { Text(stringResource(maxAudioChannels.nameRes)) },
-				onClick = { router.push(Routes.PLAYBACK_MAX_AUDIO_CHANNELS) }
-			)
-		}
-
-		item {
-			var liveTvDirectPlayEnabled by rememberPreference(userPreferences, UserPreferences.liveTvDirectPlayEnabled)
-
-			ListButton(
-				headingContent = { Text(stringResource(R.string.lbl_direct_stream_live)) },
-				trailingContent = { Checkbox(checked = liveTvDirectPlayEnabled) },
-				onClick = { liveTvDirectPlayEnabled = !liveTvDirectPlayEnabled }
 			)
 		}
 

@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.composable.modifier.overscan
 import org.jellyfin.androidtv.ui.composable.rememberCurrentTime
@@ -39,7 +39,7 @@ import org.jellyfin.androidtv.ui.composable.rememberCurrentTime
 @Composable
 fun Logo(modifier: Modifier = Modifier) {
 	Image(
-		painter = painterResource(R.drawable.ic_moonfin),
+		painter = painterResource(R.drawable.ic_stonecrusher_rock),
 		contentDescription = stringResource(R.string.app_name),
 		modifier = modifier,
 	)
@@ -145,8 +145,8 @@ fun ToolbarButtons(
 		horizontalArrangement = Arrangement.spacedBy(0.dp),
 		verticalAlignment = Alignment.CenterVertically,
 	) {
-		JellyfinTheme(
-			colorScheme = JellyfinTheme.colorScheme.copy(
+		StonecrusherTheme(
+			colorScheme = StonecrusherTheme.colorScheme.copy(
 				button = Color.Transparent
 			)
 		) {

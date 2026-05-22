@@ -26,6 +26,8 @@ import org.jellyfin.androidtv.auth.model.UnknownQuickConnectState
 import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.databinding.FragmentUserLoginQuickConnectBinding
 import org.jellyfin.androidtv.ui.startup.UserLoginViewModel
+import org.jellyfin.androidtv.util.QrCodeEncoder
+import org.jellyfin.androidtv.util.buildQuickConnectAuthorizeUrl
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
 
 class UserLoginQuickConnectFragment : Fragment() {
@@ -57,11 +59,15 @@ class UserLoginQuickConnectFragment : Fragment() {
 						is PendingQuickConnectState -> {
 							binding.quickConnectCode.text = state.code.formatCode()
 							binding.loading.isVisible = false
+							updateQuickConnectQr(state.code)
 						}
 
 						UnavailableQuickConnectState,
 						UnknownQuickConnectState,
-						ConnectedQuickConnectState -> binding.loading.isVisible = true
+						ConnectedQuickConnectState -> {
+							binding.loading.isVisible = true
+							hideQuickConnectQr()
+						}
 					}
 				}.launchIn(this)
 
@@ -94,6 +100,30 @@ class UserLoginQuickConnectFragment : Fragment() {
 		super.onDestroyView()
 
 		_binding = null
+	}
+
+	private fun updateQuickConnectQr(code: String) {
+		val server = userLoginViewModel.server.value
+		if (server == null) {
+			hideQuickConnectQr()
+			return
+		}
+
+		val url = buildQuickConnectAuthorizeUrl(server.address, code)
+		@Suppress("MagicNumber")
+		val sizePx = (200 * resources.displayMetrics.density).toInt()
+		val bitmap = QrCodeEncoder.encode(url, sizePx)
+		if (bitmap != null) {
+			binding.quickConnectQr.setImageBitmap(bitmap)
+			binding.quickConnectQr.isVisible = true
+		} else {
+			hideQuickConnectQr()
+		}
+	}
+
+	private fun hideQuickConnectQr() {
+		binding.quickConnectQr.isVisible = false
+		binding.quickConnectQr.setImageDrawable(null)
 	}
 
 	/**

@@ -15,15 +15,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.ui.base.Icon
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 
 @Composable
 fun Checkbox(
 	checked: Boolean,
 	modifier: Modifier = Modifier,
-	shape: Shape = JellyfinTheme.shapes.extraSmall,
-	containerColor: Color = JellyfinTheme.colorScheme.button,
-	contentColor: Color = JellyfinTheme.colorScheme.onButton,
+	shape: Shape = StonecrusherTheme.shapes.extraSmall,
+	containerColor: Color = StonecrusherTheme.colorScheme.button,
+	contentColor: Color = StonecrusherTheme.colorScheme.onButton,
 	onCheckedChange: ((Boolean) -> Unit)? = null
 ) {
 	Box(

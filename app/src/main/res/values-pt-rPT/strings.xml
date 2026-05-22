@@ -346,7 +346,7 @@
     <string name="no_user_warning">Não encontrámos nenhuma conta!
 \nAdiciona uma nova conta premindo o botão \"Adicionar conta\".</string>
     <string name="welcome_content">Conecte-se ao seu servidor para começar.</string>
-    <string name="welcome_title">Bem-vindo ao Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Servidores guardados</string>
     <string name="press_to_close">Pressione para fechar</string>
     <string name="pref_next_up_behavior_title">Mostrar as informações do próximo vídeo</string>

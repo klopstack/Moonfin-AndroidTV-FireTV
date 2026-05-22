@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import org.jellyfin.androidtv.R
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.base.button.ButtonBase
@@ -94,7 +94,7 @@ fun NowPlayingComposable(
 							.padding(3.dp)
 					) {
 						val image = item.itemImages[ImageType.PRIMARY] ?: item.albumPrimaryImage ?: item.parentImages[ImageType.PRIMARY]
-						val progressFillColor = JellyfinTheme.colorScheme.rangeControlFill
+						val progressFillColor = StonecrusherTheme.colorScheme.rangeControlFill
 
 						AsyncImage(
 							url = image?.getUrl(api),

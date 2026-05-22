@@ -18,11 +18,11 @@ import org.jellyfin.design.Tokens
 fun Badge(
 	modifier: Modifier = Modifier,
 	shape: Shape = CircleShape,
-	containerColor: Color = JellyfinTheme.colorScheme.badge,
-	contentColor: Color = JellyfinTheme.colorScheme.onBadge,
+	containerColor: Color = StonecrusherTheme.colorScheme.badge,
+	contentColor: Color = StonecrusherTheme.colorScheme.onBadge,
 	content: @Composable BoxScope.() -> Unit,
 ) {
-	ProvideTextStyle(JellyfinTheme.typography.badge.copy(color = contentColor)) {
+	ProvideTextStyle(StonecrusherTheme.typography.badge.copy(color = contentColor)) {
 		Box(
 			modifier = modifier
 				.defaultMinSize(minWidth = 24.dp, minHeight = 24.dp)

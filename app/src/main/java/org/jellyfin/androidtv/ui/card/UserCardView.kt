@@ -37,7 +37,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.unit.dp
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.LocalTextStyle
 import org.jellyfin.androidtv.ui.base.ProfilePicture
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
@@ -62,8 +62,8 @@ fun UserCard(
 	// to the input text
 	val focusColor = focusBorderColor()
 	val color = when {
-		focused -> focusColor to JellyfinTheme.colorScheme.onInputFocused
-		else -> JellyfinTheme.colorScheme.button to JellyfinTheme.colorScheme.onInput
+		focused -> focusColor to StonecrusherTheme.colorScheme.onInputFocused
+		else -> StonecrusherTheme.colorScheme.button to StonecrusherTheme.colorScheme.onInput
 	}
 	val scale by animateFloatAsState(if (focused) 1.1f else 1f, label = "UserCardFocusScale")
 

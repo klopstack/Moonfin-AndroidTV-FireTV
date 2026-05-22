@@ -291,7 +291,7 @@
     <string name="add_user">اضافه کردن حساب</string>
     <string name="who_is_watching">چه کسی در حال تماشا می‌باشد؟</string>
     <string name="welcome_content">برای شروع باید به سرور متصل شوید.</string>
-    <string name="welcome_title">به Jellyfin خوش آمدید!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">سرور های ذخیره شده</string>
     <string name="press_to_close">برای بستن فشار دهید</string>
     <string name="no_network_permissions">Jellyfin برای عملکرد کامل نیازمند دسترسی شبکه است</string>

@@ -14,7 +14,7 @@ import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.data.repository.MultiServerRepository
 import org.jellyfin.androidtv.data.repository.ServerUserSession
 import org.jellyfin.androidtv.preference.UserPreferences
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.playlistsApi
 import org.koin.compose.koinInject
@@ -32,7 +32,7 @@ fun showAddToPlaylistDialog(
 	dialog.setContentView(
 		androidx.compose.ui.platform.ComposeView(context).apply {
 			setContent {
-				JellyfinTheme {
+				StonecrusherTheme {
 					val api = koinInject<ApiClient>()
 					val userPreferences = koinInject<UserPreferences>()
 					val multiServerRepository = koinInject<MultiServerRepository>()

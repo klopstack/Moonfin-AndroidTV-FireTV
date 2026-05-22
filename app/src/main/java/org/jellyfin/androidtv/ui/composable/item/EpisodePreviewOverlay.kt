@@ -40,7 +40,7 @@ import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.playback.segment.MediaSegmentRepository
 import org.jellyfin.androidtv.util.UUIDUtils
 import org.jellyfin.androidtv.util.sdk.ApiClientFactory
@@ -270,7 +270,7 @@ fun EpisodePreviewOverlay(
 			modifier = modifier
 				.fillMaxSize()
 				.alpha(previewAlpha)
-				.clip(JellyfinTheme.shapes.medium)
+				.clip(StonecrusherTheme.shapes.medium)
 				.background(Color.Black)
 		) {
 			AndroidView(

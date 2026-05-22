@@ -30,7 +30,7 @@
                     android:layout_width="40dp"
                     android:layout_height="40dp"
                     android:contentDescription="@string/app_name"
-                    android:src="@drawable/ic_moonfin" />
+                    android:src="@drawable/ic_stonecrusher_rock" />
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -61,7 +61,7 @@
 
                 <TextView
                     android:id="@+id/stored_servers_title"
-                    style="@style/Widget.Jellyfin.Row.Header"
+                    style="@style/Widget.Stonecrusher.Row.Header"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
@@ -82,7 +82,7 @@
 
                 <TextView
                     android:id="@+id/welcome_title"
-                    style="@style/Widget.Jellyfin.Row.Header"
+                    style="@style/Widget.Stonecrusher.Row.Header"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
@@ -123,7 +123,7 @@
 
                     <TextView
                         android:id="@+id/discovery_title"
-                        style="@style/Widget.Jellyfin.Row.Header"
+                        style="@style/Widget.Stonecrusher.Row.Header"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"

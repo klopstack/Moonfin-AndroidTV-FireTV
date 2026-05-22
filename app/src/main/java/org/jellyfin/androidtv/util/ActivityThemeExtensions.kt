@@ -22,7 +22,7 @@ class ThemeViewModel : ViewModel() {
  * [FragmentActivity.onResume]. It recreates the activity when the theme changed after it was set.
  * Do not call during resume if the activity may not be recreated (like in the video player).
  *
- * The XML theme is always [R.style.Theme_Jellyfin] (dark). The focus color preference is per-user
+ * The XML theme is always [R.style.Theme_Stonecrusher] (dark). The focus color preference is per-user
  * and applied via Compose.
  */
 fun FragmentActivity.applyTheme() {
@@ -40,7 +40,7 @@ fun FragmentActivity.applyTheme() {
 		} else {
 			Timber.i("Applying theme (focus color: $theme)")
 			viewModel.theme = theme
-			setTheme(R.style.Theme_Jellyfin)
+			setTheme(R.style.Theme_Stonecrusher)
 		}
 	}
 }

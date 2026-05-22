@@ -57,7 +57,7 @@ class CreatePlaylistDialogFragment : DialogFragment() {
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
-		setStyle(STYLE_NO_FRAME, R.style.Theme_Jellyfin_Dialog)
+		setStyle(STYLE_NO_FRAME, R.style.Theme_Stonecrusher_Dialog)
 	}
 
 	override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {

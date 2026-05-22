@@ -55,7 +55,7 @@ import org.jellyfin.androidtv.data.service.BlurContext
 import org.jellyfin.androidtv.ui.background.AppBackground
 import org.jellyfin.androidtv.ui.base.CircularProgressIndicator
 import org.jellyfin.androidtv.ui.base.Icon
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.itemhandling.BaseItemDtoBaseRowItem
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher
@@ -94,7 +94,7 @@ class LiveTvBrowseFragment : Fragment() {
 				FrameLayout.LayoutParams.MATCH_PARENT,
 				FrameLayout.LayoutParams.MATCH_PARENT,
 			)
-			setContent { JellyfinTheme { LiveTvBrowseContent() } }
+			setContent { StonecrusherTheme { LiveTvBrowseContent() } }
 		}
 		mainContainer.addView(contentView)
 

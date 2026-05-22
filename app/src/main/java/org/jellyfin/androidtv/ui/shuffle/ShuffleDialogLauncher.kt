@@ -13,7 +13,7 @@ import org.jellyfin.androidtv.data.model.AggregatedLibrary
 import org.jellyfin.androidtv.data.repository.MultiServerRepository
 import org.jellyfin.androidtv.data.repository.UserViewsRepository
 import org.jellyfin.androidtv.preference.UserPreferences
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.model.api.BaseItemDto
@@ -32,7 +32,7 @@ fun showShuffleDialog(
 	dialog.setContentView(
 		androidx.compose.ui.platform.ComposeView(context).apply {
 			setContent {
-				JellyfinTheme {
+				StonecrusherTheme {
 					val api = koinInject<ApiClient>()
 					val shuffleManager = koinInject<ShuffleManager>()
 					val userPreferences = koinInject<UserPreferences>()

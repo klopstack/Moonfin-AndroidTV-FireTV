@@ -352,7 +352,7 @@
     <string name="action_use_password">Kasuta parooli</string>
     <string name="pref_crash_report_logs_disabled">Logisid krahhiaruannetesse ei kaasata</string>
     <string name="lbl_special">Eriepisoodid</string>
-    <string name="welcome_title">Jellyfin tervitab!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="watch_count_overflow">99+</string>
     <string name="pref_clock_display">Kuva kell</string>
     <string name="lbl_user_last_used">Viimati kasutatud %1$s kell %2$s</string>

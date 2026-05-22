@@ -1,7 +1,16 @@
 <resources>
-    <!-- Base Colors -->
-    <color name="jellyfin_blue">#00a4dc</color>
-    <color name="jellyfin_purple">#aa5cc3</color>
+    <!-- Stonecrusher Media brand -->
+    <color name="stonecrusher_grass">#5B9A4A</color>
+    <color name="stonecrusher_grass_dark">#3D6B34</color>
+    <color name="stonecrusher_stone">#8A8578</color>
+    <color name="stonecrusher_stone_light">#B5AFA0</color>
+    <color name="stonecrusher_earth">#2A2824</color>
+    <color name="stonecrusher_soil">#1A1814</color>
+    <color name="stonecrusher_sky">#4A6B5A</color>
+
+    <!-- Base Colors (legacy names → Stonecrusher accents) -->
+    <color name="jellyfin_blue">@color/stonecrusher_grass</color>
+    <color name="jellyfin_purple">@color/stonecrusher_grass_dark</color>
     <color name="midnight_blue">#031A6B</color>
     <color name="indigo_dye">#033860</color>
     <color name="spanish_blue">#1E76BA</color>
@@ -43,7 +52,7 @@
     <!-- button_default -->
     <color name="button_default_normal_background">#26FFFFFF</color>
     <color name="button_default_disabled_background">#33747474</color>
-    <color name="button_default_highlight_background">#00a4dc</color>
+    <color name="button_default_highlight_background">@color/stonecrusher_grass</color>
     <color name="button_default_normal_text">#DDDDDD</color>
     <color name="button_default_disabled_text">#686868</color>
     <color name="button_default_highlight_text">#FFFFFF</color>
@@ -66,19 +75,19 @@
 
     <color name="background_filter">#94101010</color>
 
-    <!-- Login / Startup Screen Colors (Moonfin-inspired) -->
-    <color name="login_bg_start">#0a0a0a</color>
-    <color name="login_bg_mid">#1a1a2e</color>
-    <color name="login_bg_end">#16213e</color>
-    <color name="login_card_bg">#CC111528</color>
+    <!-- Login / Startup Screen Colors (Stonecrusher) -->
+    <color name="login_bg_start">@color/stonecrusher_soil</color>
+    <color name="login_bg_mid">@color/stonecrusher_earth</color>
+    <color name="login_bg_end">@color/stonecrusher_sky</color>
+    <color name="login_card_bg">#CC2A2824</color>
     <color name="login_card_border">#33FFFFFF</color>
     <color name="login_input_bg">#1AFFFFFF</color>
-    <color name="login_input_focus_border">#00a4dc</color>
+    <color name="login_input_focus_border">@color/stonecrusher_grass</color>
     <color name="login_text_secondary">#B3FFFFFF</color>
     <color name="login_text_muted">#80FFFFFF</color>
     <color name="login_error_bg">#33ef4444</color>
     <color name="login_error_border">#66ef4444</color>
     <color name="login_error_text">#ef4444</color>
-    <color name="login_qc_border">#00a4dc</color>
-    <color name="login_qc_bg">#0D00a4dc</color>
+    <color name="login_qc_border">@color/stonecrusher_grass</color>
+    <color name="login_qc_bg">#0D5B9A4A</color>
 </resources>

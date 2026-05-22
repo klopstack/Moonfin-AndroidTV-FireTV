@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 
 object PopoverDefaults {
 	val Shape: Shape = RoundedCornerShape(4.dp)
@@ -39,7 +39,7 @@ fun Popover(
 	alignment: Alignment = Alignment.TopStart,
 	offset: DpOffset = DpOffset.Zero,
 	shape: Shape = PopoverDefaults.Shape,
-	backgroundColor: Color = JellyfinTheme.colorScheme.surface,
+	backgroundColor: Color = StonecrusherTheme.colorScheme.surface,
 	content: @Composable BoxScope.() -> Unit,
 ) {
 	val density = LocalDensity.current

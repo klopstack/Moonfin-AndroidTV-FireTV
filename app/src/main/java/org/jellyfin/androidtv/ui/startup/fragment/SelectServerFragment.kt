@@ -42,7 +42,7 @@ import org.jellyfin.androidtv.auth.model.UnableToConnectState
 import org.jellyfin.androidtv.data.repository.NotificationsRepository
 import org.jellyfin.androidtv.databinding.FragmentSelectServerBinding
 import org.jellyfin.androidtv.ui.SpacingItemDecoration
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.startup.StartupViewModel
 import org.jellyfin.androidtv.util.ListAdapter
@@ -171,7 +171,7 @@ class SelectServerFragment : Fragment() {
 					Box(
 						modifier = Modifier
 							.fillMaxWidth()
-							.clip(JellyfinTheme.shapes.medium)
+							.clip(StonecrusherTheme.shapes.medium)
 							.background(colorResource(id = R.color.lb_basic_card_info_bg_color)),
 					) {
 						Text(

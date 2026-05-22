@@ -1,6 +1,6 @@
-# Moonfin-Exclusive Settings
+# Stonecrusher Media Settings Settings
 
-Settings unique to Moonfin that are **not available in upstream Jellyfin AndroidTV**.
+Settings unique to Stonecrusher Media that are **not available in upstream Jellyfin AndroidTV**.
 
 > **Legend:**  
 > ⚠️ Requires Special Action/Input
@@ -181,13 +181,13 @@ Fine-tuning for synchronized playback sessions.
  *Settings → Support & Updates*
 
 - **Check for Updates**  ⚠️
-  - Manually check for new Moonfin versions
+  - Manually check for new app versions
   - Download and install APK updates directly
   - View release notes before updating
   - ⚠️ Requires "Install Unknown Apps" permission on Android 8+
 - **Update Notifications** 
   - Show notification on app launch when updates are available
-- **Support Moonfin** 
+- **Support development** 
   - Donation links and ways to contribute
 
 ---

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <declare-styleable name="JellyfinTheme">
+    <declare-styleable name="StonecrusherTheme">
         <!-- Header Text Color -->
         <attr name="headerTextColor" format="reference|color" />
         <!-- Progress Bar Attributes -->

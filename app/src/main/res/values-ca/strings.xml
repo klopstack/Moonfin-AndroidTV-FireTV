@@ -334,7 +334,7 @@
     <string name="who_is_watching">Qui ho està mirant\?</string>
     <string name="no_user_warning">No s\'ha trobat cap compte! \nAfegiu un nou compte pitjant el botó \"Afegiu-hi un compte\".</string>
     <string name="welcome_content">Connecteu-vos al vostre servidor per a començar.</string>
-    <string name="welcome_title">Us donem la benvinguda a Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Servidors desats</string>
     <string name="press_to_close">Pitgeu per a tancar</string>
     <string name="no_network_permissions">Jellyfin requereix permisos per a funcionar</string>

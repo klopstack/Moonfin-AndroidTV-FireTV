@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.LocalTextStyle
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
 import org.jellyfin.design.Tokens
@@ -43,7 +43,7 @@ fun ListItemContent(
 						.sizeIn(minWidth = 24.dp),
 					contentAlignment = Alignment.Center,
 					content = {
-						ProvideTextStyle(LocalTextStyle.current.copy(color = JellyfinTheme.colorScheme.listCaption)) {
+						ProvideTextStyle(LocalTextStyle.current.copy(color = StonecrusherTheme.colorScheme.listCaption)) {
 							content()
 						}
 					}
@@ -56,7 +56,7 @@ fun ListItemContent(
 					.weight(1f),
 			) {
 				overlineContent?.let { content ->
-					ProvideTextStyle(JellyfinTheme.typography.listOverline.copy(color = JellyfinTheme.colorScheme.listOverline)) {
+					ProvideTextStyle(StonecrusherTheme.typography.listOverline.copy(color = StonecrusherTheme.colorScheme.listOverline)) {
 						content()
 					}
 					Spacer(Modifier.height(Tokens.Space.space2xs))
@@ -68,7 +68,7 @@ fun ListItemContent(
 
 				captionContent?.let { content ->
 					Spacer(Modifier.height(Tokens.Space.spaceXs))
-					ProvideTextStyle(JellyfinTheme.typography.listCaption.copy(color = JellyfinTheme.colorScheme.listCaption)) {
+					ProvideTextStyle(StonecrusherTheme.typography.listCaption.copy(color = StonecrusherTheme.colorScheme.listCaption)) {
 						content()
 					}
 				}
@@ -89,7 +89,7 @@ fun ListItemContent(
 		footerContent?.let { content ->
 			Spacer(Modifier.height(Tokens.Space.spaceXs))
 
-			ProvideTextStyle(LocalTextStyle.current.copy(color = JellyfinTheme.colorScheme.listCaption)) {
+			ProvideTextStyle(LocalTextStyle.current.copy(color = StonecrusherTheme.colorScheme.listCaption)) {
 				content()
 			}
 		}

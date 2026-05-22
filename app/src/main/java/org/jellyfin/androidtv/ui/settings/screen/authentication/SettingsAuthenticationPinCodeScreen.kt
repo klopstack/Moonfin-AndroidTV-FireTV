@@ -10,11 +10,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.auth.repository.UserRepository
+import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.base.form.Checkbox
 import org.jellyfin.androidtv.ui.base.list.ListButton
 import org.jellyfin.androidtv.ui.base.list.ListSection
+import org.jellyfin.androidtv.ui.settings.compat.rememberPreference
 import org.jellyfin.androidtv.ui.settings.composable.SettingsColumn
 import org.jellyfin.androidtv.ui.startup.PinEntryDialog
 import org.jellyfin.androidtv.util.PinCodeUtil
@@ -24,6 +26,7 @@ import org.koin.compose.koinInject
 fun SettingsAuthenticationPinCodeScreen() {
 	val context = LocalContext.current
 	val userRepository = koinInject<UserRepository>()
+	val userPreferences = koinInject<UserPreferences>()
 	
 	// Get user-specific preferences
 	val userId = userRepository.currentUser.value?.id
@@ -61,6 +64,17 @@ fun SettingsAuthenticationPinCodeScreen() {
 					pinEnabled = !pinEnabled
 					userSettingPreferences[UserSettingPreferences.userPinEnabled] = pinEnabled
 				}
+			)
+		}
+
+		item {
+			var pinAutoSubmit by rememberPreference(userPreferences, UserPreferences.pinAutoSubmitOnFourthDigit)
+
+			ListButton(
+				headingContent = { Text(stringResource(R.string.lbl_pin_auto_submit)) },
+				captionContent = { Text(stringResource(R.string.lbl_pin_auto_submit_description)) },
+				trailingContent = { Checkbox(checked = pinAutoSubmit) },
+				onClick = { pinAutoSubmit = !pinAutoSubmit }
 			)
 		}
 

@@ -27,7 +27,7 @@ val authModule = module {
 		val deviceInfo = get<DeviceInfo>(defaultDeviceInfo)
 		EmbyApiClient(
 			appVersion = BuildConfig.VERSION_NAME,
-			clientName = "Moonfin Android TV",
+			clientName = "Stonecrusher Media Android TV",
 			deviceId = deviceInfo.id,
 			deviceName = deviceInfo.name,
 		)

@@ -319,7 +319,7 @@
     <string name="no_user_warning">Vi kunne ikke finde nogen brugere!
 \nTilføj en ny bruger ved at trykke på \"Tilføj bruger\"-knappen.</string>
     <string name="welcome_content">Opret forbindelse til din server fro at starte.</string>
-    <string name="welcome_title">Velkommen til Jellyfin!</string>
+    <string name="welcome_title">Velkommen til Stonecrusher Media!</string>
     <string name="saved_servers">Gemte servere</string>
     <string name="press_to_close">Tryk for at lukke</string>
     <string name="no_network_permissions">Jellyfin skal have netværk rettigheder for at fungere</string>

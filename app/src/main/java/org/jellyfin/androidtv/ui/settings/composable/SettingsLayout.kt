@@ -10,7 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.LocalShapes
 import org.jellyfin.design.Tokens
 
@@ -23,7 +23,7 @@ fun SettingsLayout(
 		modifier = modifier
 			.padding(Tokens.Space.spaceMd)
 			.clip(LocalShapes.current.large)
-			.background(JellyfinTheme.colorScheme.surface)
+			.background(StonecrusherTheme.colorScheme.surface)
 			.width(350.dp)
 			.fillMaxHeight(),
 		content = content

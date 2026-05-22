@@ -28,7 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.ui.base.Icon
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.base.button.Button
@@ -99,7 +99,7 @@ fun ExpandableIconButton(
 			if (isFocused) {
 				Spacer(modifier = Modifier.width(8.dp))
 				ProvideTextStyle(
-					JellyfinTheme.typography.default.copy(fontWeight = FontWeight.Bold)
+					StonecrusherTheme.typography.default.copy(fontWeight = FontWeight.Bold)
 				) {
 					Text(
 						text = label,

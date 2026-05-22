@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.ui.base.Icon
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.LocalTextStyle
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
 
@@ -61,8 +61,8 @@ fun SearchTextInput(
 	}
 
 	val color = when {
-		focused -> JellyfinTheme.colorScheme.inputFocused to JellyfinTheme.colorScheme.onInputFocused
-		else -> JellyfinTheme.colorScheme.input to JellyfinTheme.colorScheme.onInput
+		focused -> StonecrusherTheme.colorScheme.inputFocused to StonecrusherTheme.colorScheme.onInputFocused
+		else -> StonecrusherTheme.colorScheme.input to StonecrusherTheme.colorScheme.onInput
 	}
 
 	ProvideTextStyle(

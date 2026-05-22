@@ -42,7 +42,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.constant.ImageType
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.composable.AsyncImage
 import org.jellyfin.androidtv.ui.composable.item.EpisodePreviewOverlay
@@ -488,7 +488,7 @@ private fun CardViewHolderContent(
 									Box(
 										modifier = Modifier
 											.fillMaxWidth()
-											.background(Tokens.Color.colorBluegrey900.copy(alpha = 0.6f), JellyfinTheme.shapes.extraSmall),
+											.background(Tokens.Color.colorBluegrey900.copy(alpha = 0.6f), StonecrusherTheme.shapes.extraSmall),
 									) {
 										Text(
 											text = title,
@@ -507,7 +507,7 @@ private fun CardViewHolderContent(
 					}
 				}
 			},
-			shape = if (displayConfig.isCircular) CircleShape else JellyfinTheme.shapes.medium,
+			shape = if (displayConfig.isCircular) CircleShape else StonecrusherTheme.shapes.medium,
 			modifier = Modifier
 				.size(size)
 		)

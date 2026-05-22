@@ -313,7 +313,7 @@
     <string name="no_user_warning">Мы не смогли найти ни одну учётную запись!
 \nДобавьте новую учётную запись, нажав кнопку «Добавить учётную запись».</string>
     <string name="welcome_content">Подключитесь к своему серверу, чтобы начать.</string>
-    <string name="welcome_title">Начало работы в Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Сохранённые серверы</string>
     <string name="press_to_close">Нажать для закрытия</string>
     <string name="lbl_next_up_minimal">Без бегунка</string>

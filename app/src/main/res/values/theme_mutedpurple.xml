@@ -4,7 +4,7 @@
     <color name="theme_muted_purple_accent">#627EC8</color>
     <color name="light_grey_transparent">#2EAAAAAA</color>
 
-    <style name="Theme.Jellyfin.MutedPurple" parent="Theme.Jellyfin">
+    <style name="Theme.Stonecrusher.MutedPurple" parent="Theme.Stonecrusher">
         <!-- Colors -->
         <item name="android:colorAccent">@color/theme_muted_purple_accent</item>
         <item name="defaultSearchColor">@color/theme_muted_purple_accent</item>

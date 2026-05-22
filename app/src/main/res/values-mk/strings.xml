@@ -132,7 +132,7 @@
     <string name="lbl_hide_unwatched_count">Сокриј бројчаник за негледани</string>
     <string name="user_picker_last_user_summary">Користи ја последната активна сметка</string>
     <string name="saved_servers">Зачувани сервери</string>
-    <string name="welcome_title">Добредојдовте во Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="welcome_content">Поврзете се со вашиот сервер за да започнете.</string>
     <string name="no_user_warning">Не пронајдовме сметки!
 \nДодајте нова сметка со притискање на копчето \"Додај сметка\".</string>

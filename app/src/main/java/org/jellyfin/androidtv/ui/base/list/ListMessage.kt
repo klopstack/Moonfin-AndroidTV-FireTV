@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.LocalTextStyle
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
 
@@ -19,7 +19,7 @@ fun ListMessage(
 			// TODO: Add suitable space token for this padding
 			.padding(12.dp),
 	) {
-		ProvideTextStyle(LocalTextStyle.current.copy(color = JellyfinTheme.colorScheme.listCaption)) {
+		ProvideTextStyle(LocalTextStyle.current.copy(color = StonecrusherTheme.colorScheme.listCaption)) {
 			content()
 		}
 	}

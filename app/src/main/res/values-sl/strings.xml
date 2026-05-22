@@ -333,7 +333,7 @@
     <string name="no_user_warning">Ne najdemo nobenega računa!
 \nDodaj nov račun s izbiro na gumb \"Dodaj račun\".</string>
     <string name="welcome_content">Poveži se na strežnik za začetek.</string>
-    <string name="welcome_title">Dobrodošli v Jellyfinu!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Shranjeni strežniki</string>
     <string name="press_to_close">Pritisni za zapiranje</string>
     <string name="no_network_permissions">Jellyfin zahteva omrežno povezavo za delovanje</string>

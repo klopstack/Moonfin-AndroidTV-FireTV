@@ -323,7 +323,7 @@
     <string name="who_is_watching">מי צופה\?</string>
     <string name="no_user_warning">לא הצלחנו למצוא אף משתמש!\nהוסף משתמש חדש על ידי לחיצה על כפתור \"הוסף משתמש\".</string>
     <string name="welcome_content">התחבר לשרת שלך בכדי להתחיל.</string>
-    <string name="welcome_title">ברוכים הבאים ל-Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">שרתים שמורים</string>
     <string name="press_to_close">לחץ כדי לסגור</string>
     <string name="pref_next_up_behavior_title">הצג מידע על הסרטון הבא</string>

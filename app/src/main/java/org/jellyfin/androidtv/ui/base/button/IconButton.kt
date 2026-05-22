@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 
 object IconButtonDefaults {
 	val Shape: Shape = ButtonDefaults.Shape
@@ -20,12 +20,12 @@ object IconButtonDefaults {
 	@ReadOnlyComposable
 	@Composable
 	fun colors(
-		containerColor: Color = JellyfinTheme.colorScheme.button,
-		contentColor: Color = JellyfinTheme.colorScheme.onButton,
-		focusedContainerColor: Color = JellyfinTheme.colorScheme.buttonFocused,
-		focusedContentColor: Color = JellyfinTheme.colorScheme.onButtonFocused,
-		disabledContainerColor: Color = JellyfinTheme.colorScheme.buttonDisabled,
-		disabledContentColor: Color = JellyfinTheme.colorScheme.onButtonDisabled,
+		containerColor: Color = StonecrusherTheme.colorScheme.button,
+		contentColor: Color = StonecrusherTheme.colorScheme.onButton,
+		focusedContainerColor: Color = StonecrusherTheme.colorScheme.buttonFocused,
+		focusedContentColor: Color = StonecrusherTheme.colorScheme.onButtonFocused,
+		disabledContainerColor: Color = StonecrusherTheme.colorScheme.buttonDisabled,
+		disabledContentColor: Color = StonecrusherTheme.colorScheme.onButtonDisabled,
 	) = ButtonDefaults.colors(
 		containerColor = containerColor,
 		contentColor = contentColor,

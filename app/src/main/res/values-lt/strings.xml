@@ -368,7 +368,7 @@
     <string name="user_picker_last_user_summary">Naudoti paskutinę aktyvią paskyrą</string>
     <string name="user_picker_disable_summary">Visada rodyti prisijungimo langą</string>
     <string name="lbl_switch_user">Perjungti naudotoją</string>
-    <string name="welcome_title">Sveiki prisijungę prie Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="pref_theme_muted_purple">Prislopinta violetinė</string>
     <string name="no_network_permissions">Kad „Jellyfin“ veiktų, reikia tinklo leidimų</string>
     <string name="press_to_close">Paspauskite, kad uždarytumėte</string>

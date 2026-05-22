@@ -363,7 +363,7 @@
     <string name="no_user_warning">Не знайшли жодних облікових записів!
 \nДодати новий обліковий запис можна натиснувши кнопку «Додати обліковий запис».</string>
     <string name="welcome_content">Щоб розпочати роботу, підключіться до свого медіасервера.</string>
-    <string name="welcome_title">Вітаємо в Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Збережені сервери</string>
     <string name="press_to_close">Натисніть для закриття</string>
     <string name="no_network_permissions">Jellyfin вимагає дозволів мережі для функціонування</string>

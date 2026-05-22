@@ -273,7 +273,7 @@
     <string name="who_is_watching">Kuka katselee\?</string>
     <string name="no_user_warning">Tilejä ei löytynyt!
 \nLisää uusi tili painamalla \"Lisää tili\".</string>
-    <string name="welcome_title">Tervetuloa Jellyfiniin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Tallennetut palvelimet</string>
     <string name="no_network_permissions">Jellyfin tarvitsee toimiakseen verkon käyttöoikeuden</string>
     <string name="pref_theme_muted_purple">Vaimea violetti</string>

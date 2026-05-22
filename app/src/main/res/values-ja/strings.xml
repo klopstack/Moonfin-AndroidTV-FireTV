@@ -247,7 +247,7 @@
     <string name="no_user_warning">ユーザーが見つかりませんでした
 \n“ユーザー追加”ボタンを押して、新しいユーザーを追加してください。</string>
     <string name="welcome_content">サーバーに接続して開始します。</string>
-    <string name="welcome_title">Jellyfinへようこそ!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">保存されたサーバー</string>
     <string name="press_to_close">押して閉じる</string>
     <string name="no_network_permissions">Jellyfinが機能するためにはネットワーク権限が必要です</string>

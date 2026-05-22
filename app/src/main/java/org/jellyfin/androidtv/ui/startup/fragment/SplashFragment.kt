@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.Fragment
 import androidx.fragment.compose.content
 import org.jellyfin.androidtv.R
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 
 @Composable
 fun SplashScreen() {
@@ -50,7 +50,7 @@ class SplashFragment : Fragment() {
 		container: ViewGroup?,
 		savedInstanceState: Bundle?
 	) = content {
-		JellyfinTheme {
+		StonecrusherTheme {
 			SplashScreen()
 		}
 	}

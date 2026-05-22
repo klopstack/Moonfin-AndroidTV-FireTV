@@ -7,7 +7,6 @@ import org.jellyfin.androidtv.constant.Codec
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.constant.AudioBehavior
 import org.jellyfin.androidtv.preference.constant.MaxVideoResolution
-import org.jellyfin.androidtv.preference.constant.MaxAudioChannels
 import org.jellyfin.sdk.model.ServerVersion
 import org.jellyfin.sdk.model.api.CodecType
 import org.jellyfin.sdk.model.api.DlnaProfileType
@@ -87,7 +86,6 @@ fun createDeviceProfile(
 	maxVideoResolution = userPreferences[UserPreferences.maxVideoResolution],
 	isAC3Enabled = userPreferences[UserPreferences.ac3Enabled],
 	downMixAudio = userPreferences[UserPreferences.audioBehaviour] == AudioBehavior.DOWNMIX_TO_STEREO,
-	maxAudioChannels = userPreferences[UserPreferences.maxAudioChannels].maxChannels,
 	assDirectPlay = userPreferences[UserPreferences.assDirectPlay],
 	pgsDirectPlay = userPreferences[UserPreferences.pgsDirectPlay],
 )
@@ -98,7 +96,6 @@ fun createDeviceProfile(
 	maxVideoResolution: MaxVideoResolution = MaxVideoResolution.AUTO,
 	isAC3Enabled: Boolean,
 	downMixAudio: Boolean,
-	maxAudioChannels: Int = MaxAudioChannels.AUTO.maxChannels,
 	assDirectPlay: Boolean,
 	pgsDirectPlay: Boolean,
 ) = buildDeviceProfile {
@@ -524,7 +521,7 @@ fun createDeviceProfile(
 		type = CodecType.VIDEO_AUDIO
 
 		conditions {
-			ProfileConditionValue.AUDIO_CHANNELS lowerThanOrEquals if (downMixAudio) 2 else maxAudioChannels
+			ProfileConditionValue.AUDIO_CHANNELS lowerThanOrEquals if (downMixAudio) 2 else 8
 		}
 	}
 

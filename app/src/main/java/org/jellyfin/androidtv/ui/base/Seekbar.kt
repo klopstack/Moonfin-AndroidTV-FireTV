@@ -41,10 +41,10 @@ object SeekbarDefaults {
 	@ReadOnlyComposable
 	@Composable
 	fun colors(
-		backgroundColor: Color = JellyfinTheme.colorScheme.rangeControlBackground,
-		bufferColor: Color = JellyfinTheme.colorScheme.seekbarBuffer,
-		progressColor: Color = JellyfinTheme.colorScheme.rangeControlFill,
-		knobColor: Color = JellyfinTheme.colorScheme.rangeControlKnob,
+		backgroundColor: Color = StonecrusherTheme.colorScheme.rangeControlBackground,
+		bufferColor: Color = StonecrusherTheme.colorScheme.seekbarBuffer,
+		progressColor: Color = StonecrusherTheme.colorScheme.rangeControlFill,
+		knobColor: Color = StonecrusherTheme.colorScheme.rangeControlKnob,
 	) = SeekbarColors(
 		backgroundColor = backgroundColor,
 		bufferColor = bufferColor,

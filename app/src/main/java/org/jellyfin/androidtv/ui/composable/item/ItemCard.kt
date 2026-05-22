@@ -12,7 +12,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.focusBorderColor
 
 @Composable
@@ -22,14 +22,14 @@ fun ItemCard(
 	focused: Boolean = false,
 	image: @Composable BoxScope.() -> Unit,
 	overlay: (@Composable BoxScope.() -> Unit)? = null,
-	shape: Shape = JellyfinTheme.shapes.medium,
+	shape: Shape = StonecrusherTheme.shapes.medium,
 ) {
 	val borderColor = focusBorderColor()
 	Box(
 		modifier = modifier
 			.then(if (focused) Modifier.border(2.dp, borderColor, shape) else Modifier)
 			.clip(shape)
-			.background(JellyfinTheme.colorScheme.surface, shape)
+			.background(StonecrusherTheme.colorScheme.surface, shape)
 	) {
 		image()
 

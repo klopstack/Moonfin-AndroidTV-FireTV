@@ -328,7 +328,7 @@
     <string name="no_user_warning">Non abbiamo trovato alcun utente!
 \nAggiungi un nuovo utente premendo il pulsante \"Aggiungi utente\".</string>
     <string name="welcome_content">Connettiti al tuo server per incominciare.</string>
-    <string name="welcome_title">Benvenuto su Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Server salvati</string>
     <string name="press_to_close">Premi per chiudere</string>
     <string name="pref_theme_muted_purple">Viola tenue</string>

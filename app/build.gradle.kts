@@ -20,9 +20,13 @@ android {
 		targetSdk = libs.versions.android.targetSdk.get().toInt()
 
 		// Release version - custom applicationId to avoid conflict with official Jellyfin
-		applicationId = "org.moonfin.androidtv"
+		applicationId = "media.stonecrusher.androidtv"
 		versionName = project.getVersionName()
 		versionCode = getVersionCode(versionName!!)
+
+		// Pre-configured Jellyfin server; auto-connects on first launch when empty.
+		// Set to "" to restore stock server-selection behavior.
+		buildConfigField("String", "DEFAULT_SERVER_URL", "\"https://jellyfin.stonecrusher.us\"")
 	}
 
 	buildFeatures {
@@ -84,7 +88,7 @@ android {
 			resValue("string", "app_search_suggest_intent_data", "content://${defaultConfig.applicationId}.content/intent")
 
 			// Set flavored application name
-			resValue("string", "app_name", "Moonfin")
+			resValue("string", "app_name", "Stonecrusher")
 
 			buildConfigField("boolean", "DEVELOPMENT", "false")
 		}
@@ -103,7 +107,7 @@ android {
 			resValue("string", "app_search_suggest_intent_data", "content://${debugAppId}.content/intent")
 
 			// Set flavored application name
-			resValue("string", "app_name", "Moonfin Debug")
+			resValue("string", "app_name", "Stonecrusher Debug")
 
 			buildConfigField("boolean", "DEVELOPMENT", (defaultConfig.versionCode!! < 100).toString())
 		}
@@ -121,7 +125,7 @@ android {
 	}
 }
 
-base.archivesName.set("moonfin-androidtv-v${project.getVersionName()}")
+base.archivesName.set("stonecrusher-media-v${project.getVersionName()}")
 
 tasks.register("versionTxt") {
 	val path = layout.buildDirectory.asFile.get().resolve("version.txt")
@@ -250,6 +254,9 @@ dependencies {
 	runtimeOnly(files(stripPipeExtractorUtils))
 	implementation(libs.pipeextractor.nanojson)
 	implementation(libs.pipeextractor.jsoup)
+
+	// QR codes (Quick Connect login)
+	implementation(libs.zxing.core)
 
 	// Logging
 	implementation(libs.timber)

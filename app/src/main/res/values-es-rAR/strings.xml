@@ -314,7 +314,7 @@
     <string name="no_user_warning">¡No hemos podido encontrar ninguna cuenta!
 \nAñade una nueva cuenta pulsando el botón \"Añadir cuenta\".</string>
     <string name="welcome_content">Conéctate a tu servidor para empezar.</string>
-    <string name="welcome_title">¡Bienvenido a Jellyfin!</string>
+    <string name="welcome_title">¡Bienvenido a Stonecrusher Media!</string>
     <string name="saved_servers">Servidores guardados</string>
     <string name="lbl_next_up_minimal">Sin Miniaturas</string>
     <string name="lbl_next_up_extended">Con Miniaturas</string>

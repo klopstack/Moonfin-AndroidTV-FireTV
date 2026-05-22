@@ -385,7 +385,7 @@
     <string name="lbl_manage_servers">Pārvaldīt serverus</string>
     <string name="pref_developer_link">Izstrādātāja iestatījumi</string>
     <string name="welcome_content">Lai sāktu darbu, izveidojiet savienojumu ar serveri.</string>
-    <string name="welcome_title">Laipni lūdzam Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="lbl_record_only_new">Ierakstīs tikai jaunas epizodes</string>
     <string name="advanced_settings">Paplašināti</string>
     <string name="license_version">Versija</string>

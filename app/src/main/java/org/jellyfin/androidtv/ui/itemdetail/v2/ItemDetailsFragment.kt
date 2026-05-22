@@ -90,7 +90,7 @@ import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.UserSettingPreferences
 import org.jellyfin.androidtv.preference.constant.NavbarPosition
 import org.jellyfin.androidtv.ui.base.CircularProgressIndicator
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.browsing.composable.inforow.InfoRowColors
 import org.jellyfin.androidtv.ui.browsing.composable.inforow.InfoRowMultipleRatings
@@ -303,7 +303,7 @@ class ItemDetailsFragment : Fragment() {
 				FrameLayout.LayoutParams.MATCH_PARENT
 			)
 			setContent {
-				JellyfinTheme {
+				StonecrusherTheme {
 					ItemDetailsContent()
 				}
 			}
@@ -725,7 +725,7 @@ class ItemDetailsFragment : Fragment() {
 											modifier = Modifier
 												.background(
 													Color.White.copy(alpha = 0.1f),
-													JellyfinTheme.shapes.extraSmall,
+													StonecrusherTheme.shapes.extraSmall,
 												)
 												.padding(horizontal = 8.dp, vertical = 2.dp),
 										)
@@ -1632,7 +1632,7 @@ class ItemDetailsFragment : Fragment() {
 											.fillMaxWidth()
 											.background(
 												Color.White.copy(alpha = 0.05f),
-												JellyfinTheme.shapes.medium,
+												StonecrusherTheme.shapes.medium,
 											),
 										contentScale = ContentScale.FillWidth,
 									)
@@ -1889,7 +1889,7 @@ class ItemDetailsFragment : Fragment() {
 											.height(240.dp)
 											.background(
 												Color.White.copy(alpha = 0.05f),
-												JellyfinTheme.shapes.medium,
+												StonecrusherTheme.shapes.medium,
 											),
 										contentScale = ContentScale.Crop,
 									)
@@ -1900,7 +1900,7 @@ class ItemDetailsFragment : Fragment() {
 											.height(240.dp)
 											.background(
 												Color.White.copy(alpha = 0.08f),
-												JellyfinTheme.shapes.medium,
+												StonecrusherTheme.shapes.medium,
 											),
 										contentAlignment = Alignment.Center,
 									) {

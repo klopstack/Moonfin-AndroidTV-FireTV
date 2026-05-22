@@ -325,7 +325,7 @@
     <string name="no_user_warning">Chúng tôi không thể tìm thấy bất kỳ tài khoản nào!
 \nThêm tài khoản mới bằng cách nhấn nút \"Thêm tài khoản\".</string>
     <string name="welcome_content">Kết nối với máy chủ của bạn để bắt đầu.</string>
-    <string name="welcome_title">Chào mừng bạn đến với Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Máy chủ đã lưu</string>
     <string name="press_to_close">Nhấn để đóng</string>
     <string name="pref_theme_muted_purple">Tím im lặng</string>

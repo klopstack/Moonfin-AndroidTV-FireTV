@@ -109,7 +109,7 @@ fun SettingsMainScreen() {
 
 		item {
 			ListButton(
-				leadingContent = { Icon(painterResource(R.drawable.ic_moonfin), contentDescription = null) },
+				leadingContent = { Icon(painterResource(R.drawable.ic_stonecrusher_rock), contentDescription = null) },
 				headingContent = { Text(stringResource(R.string.pref_plugin_settings)) },
 				captionContent = { Text(stringResource(R.string.pref_plugin_description)) },
 				onClick = { router.push(Routes.PLUGIN) }

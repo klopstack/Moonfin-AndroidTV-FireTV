@@ -1,1 +1,1 @@
-Android TV 版本的 Jellyfin
+Stonecrusher Media for Android TV

@@ -15,7 +15,7 @@ import org.jellyfin.androidtv.data.model.DataRefreshService
 import org.jellyfin.androidtv.data.repository.ItemMutationRepository
 import org.jellyfin.androidtv.databinding.LiveTvGuideBinding
 import org.jellyfin.androidtv.ui.GuideChannelHeader
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.navigation.ProvideRouter
 import org.jellyfin.androidtv.ui.settings.Routes
 import org.jellyfin.androidtv.ui.settings.composable.SettingsDialog
@@ -91,7 +91,7 @@ fun LiveTvGuideFragment.addSettingsOptions(binding: LiveTvGuideBinding): Mutable
 	binding.settingsOptions.setContent {
 		val isVisible by visible.collectAsState(false)
 
-		JellyfinTheme {
+		StonecrusherTheme {
 			ProvideRouter(
 				routes,
 				Routes.LIVETV_GUIDE_OPTIONS
@@ -119,7 +119,7 @@ fun LiveTvGuideFragment.addSettingsFilters(binding: LiveTvGuideBinding): Mutable
 	binding.settingsFilters.setContent {
 		val isVisible by visible.collectAsState(false)
 
-		JellyfinTheme {
+		StonecrusherTheme {
 			ProvideRouter(
 				routes,
 				Routes.LIVETV_GUIDE_FILTERS

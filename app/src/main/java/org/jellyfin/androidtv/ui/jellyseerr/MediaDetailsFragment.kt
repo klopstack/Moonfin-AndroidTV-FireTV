@@ -44,7 +44,7 @@ import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrDiscoverItemDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrMovieDetailsDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrRequestDto
 import org.jellyfin.androidtv.data.service.jellyseerr.JellyseerrTvDetailsDto
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.home.mediabar.SponsorBlockApi
 import org.jellyfin.androidtv.ui.itemdetail.v2.DetailActionButton
 import org.jellyfin.androidtv.ui.itemhandling.JellyseerrMediaBaseRowItem
@@ -793,7 +793,7 @@ class MediaDetailsFragment : Fragment() {
 				topMargin = 24.dp(context)
 			}
 			setContent {
-				JellyfinTheme {
+				StonecrusherTheme {
 					Row(
 						horizontalArrangement = Arrangement.spacedBy(12.dp),
 					) {
@@ -1990,7 +1990,7 @@ class MediaDetailsFragment : Fragment() {
 					navigationRepository.navigate(Destinations.itemDetails(jellyfinItem.id))
 				} else {
 					Timber.w("Item not found in Jellyfin library")
-					Toast.makeText(requireContext(), "Item not found in your Moonfin library", Toast.LENGTH_SHORT).show()
+					Toast.makeText(requireContext(), "Item not found in your library", Toast.LENGTH_SHORT).show()
 				}
 			} catch (e: Exception) {
 				Timber.e(e, "Failed to search for item in Moonfin")

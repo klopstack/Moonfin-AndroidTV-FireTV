@@ -53,7 +53,7 @@ import org.jellyfin.androidtv.data.service.BackgroundService
 import org.jellyfin.androidtv.data.service.BlurContext
 import org.jellyfin.androidtv.ui.background.AppBackground
 import org.jellyfin.androidtv.ui.base.CircularProgressIndicator
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.base.form.RadioButton
 import org.jellyfin.androidtv.ui.base.list.ListButton
@@ -99,7 +99,7 @@ class FavoritesBrowseFragment : Fragment() {
 				FrameLayout.LayoutParams.MATCH_PARENT,
 				FrameLayout.LayoutParams.MATCH_PARENT,
 			)
-			setContent { JellyfinTheme { FavoritesBrowseContent() } }
+			setContent { StonecrusherTheme { FavoritesBrowseContent() } }
 		}
 		mainContainer.addView(contentView)
 

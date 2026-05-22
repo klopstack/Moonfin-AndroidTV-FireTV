@@ -16,7 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.sp
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -43,7 +43,7 @@ fun ButtonBase(
 		else -> colors.containerColor to colors.contentColor
 	}
 
-	ProvideTextStyle(value = JellyfinTheme.typography.default.copy(fontSize = 14.sp, color = colors.second)) {
+	ProvideTextStyle(value = StonecrusherTheme.typography.default.copy(fontSize = 14.sp, color = colors.second)) {
 		Box(
 			modifier = modifier
 				.combinedClickable(

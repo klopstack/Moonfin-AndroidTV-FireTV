@@ -334,7 +334,7 @@
     <string name="no_user_warning">Não foi possível encontrar nenhuma conta!
 \nAdicione uma nova conta pressionando o botão \"Adicionar conta\".</string>
     <string name="welcome_content">Conecte-se ao seu servidor para começar.</string>
-    <string name="welcome_title">Boas-vindas ao Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Servidores salvos</string>
     <string name="press_to_close">Pressione para fechar</string>
     <string name="no_network_permissions">Jellyfin requer permissões de rede para funcionar</string>

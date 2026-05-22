@@ -15,15 +15,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.LocalShapes
 
 object ListControlDefaults {
 	@ReadOnlyComposable
 	@Composable
 	fun colors(
-		containerColor: Color = JellyfinTheme.colorScheme.listButton,
-		focusedContainerColor: Color = JellyfinTheme.colorScheme.listButtonFocused,
+		containerColor: Color = StonecrusherTheme.colorScheme.listButton,
+		focusedContainerColor: Color = StonecrusherTheme.colorScheme.listButtonFocused,
 	) = ListControlColors(
 		containerColor = containerColor,
 		focusedContainerColor = focusedContainerColor,
@@ -69,8 +69,8 @@ fun ListControl(
 			leadingContent = leadingContent,
 			trailingContent = trailingContent,
 			footerContent = footerContent,
-			headingStyle = JellyfinTheme.typography.listHeadline
-				.copy(color = JellyfinTheme.colorScheme.listHeadline),
+			headingStyle = StonecrusherTheme.typography.listHeadline
+				.copy(color = StonecrusherTheme.colorScheme.listHeadline),
 		)
 	}
 }

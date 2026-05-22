@@ -2,7 +2,7 @@ package org.jellyfin.androidtv.ui.base.list
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 
 @Composable
 fun ListSection(
@@ -21,8 +21,8 @@ fun ListSection(
 		leadingContent = leadingContent,
 		trailingContent = trailingContent,
 		footerContent = footerContent,
-		headingStyle = JellyfinTheme.typography.listHeader
-			.copy(color = JellyfinTheme.colorScheme.listHeader),
+		headingStyle = StonecrusherTheme.typography.listHeader
+			.copy(color = StonecrusherTheme.colorScheme.listHeader),
 		modifier = modifier,
 	)
 }

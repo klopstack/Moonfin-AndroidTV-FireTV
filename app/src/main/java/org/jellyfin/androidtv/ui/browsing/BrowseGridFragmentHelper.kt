@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.jellyfin.androidtv.auth.repository.SessionRepository
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.navigation.ProvideRouter
 import org.jellyfin.androidtv.ui.settings.Routes
 import org.jellyfin.androidtv.ui.settings.composable.SettingsDialog
@@ -29,7 +29,7 @@ fun BrowseGridFragment.addSettings(
 		val sessionRepository = GlobalContext.get().get<SessionRepository>()
 		val currentSession by sessionRepository.currentSession.collectAsState()
 
-		JellyfinTheme {
+		StonecrusherTheme {
 			ProvideRouter(
 				routes,
 				Routes.LIBRARIES_DISPLAY,

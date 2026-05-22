@@ -19,7 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.LocalTextStyle
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
 
@@ -37,7 +37,7 @@ object MediaToastDefaults {
 		backgroundColor: Color = Color.Black.copy(alpha = 0.5f),
 		iconColor: Color = Color.White,
 		progressBackgroundColor: Color = Color.Black,
-		progressFillColor: Color = JellyfinTheme.colorScheme.rangeControlFill,
+		progressFillColor: Color = StonecrusherTheme.colorScheme.rangeControlFill,
 	) = MediaToastColors(
 		backgroundColor = backgroundColor,
 		iconColor = iconColor,

@@ -23,8 +23,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.jellyfin.androidtv.JellyfinApplication
+import org.jellyfin.androidtv.BuildConfig
+import org.jellyfin.androidtv.StonecrusherApplication
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.auth.model.ConnectedState
+import org.jellyfin.androidtv.auth.model.ConnectingState
+import org.jellyfin.androidtv.auth.model.UnableToConnectState
 import org.jellyfin.androidtv.auth.repository.SessionRepository
 import org.jellyfin.androidtv.auth.repository.SessionRepositoryState
 import org.jellyfin.androidtv.auth.repository.UserRepository
@@ -123,8 +127,11 @@ class StartupActivity : FragmentActivity() {
 				mediaManager.clearAudioQueue()
 
 				val server = startupViewModel.getLastServer()
-				if (server != null) showServer(server.id)
-				else showServerSelection()
+				when {
+					server != null -> showServer(server.id)
+					BuildConfig.DEFAULT_SERVER_URL.isNotBlank() -> connectDefaultServer()
+					else -> showServerSelection()
+				}
 			}
 		}.launchIn(lifecycleScope)
 
@@ -138,7 +145,7 @@ class StartupActivity : FragmentActivity() {
 		Timber.i("Determining next activity (action=${intent.action}, itemId=$itemId, itemIsUserView=$itemIsUserView)")
 
 		// Start session
-		(application as? JellyfinApplication)?.onSessionStart()
+		(application as? StonecrusherApplication)?.onSessionStart()
 
 		// Create destination
 		val destination = when {
@@ -193,6 +200,25 @@ class StartupActivity : FragmentActivity() {
 	private fun showServerSelection() = supportFragmentManager.commit {
 		replace<SelectServerFragment>(R.id.content_view)
 		replace<StartupToolbarFragment>(R.id.toolbar_view)
+	}
+
+	private fun connectDefaultServer() {
+		showSplash()
+
+		startupViewModel.addServer(BuildConfig.DEFAULT_SERVER_URL).onEach { state ->
+			when (state) {
+				is ConnectingState -> Unit
+				is ConnectedState -> showServer(state.id)
+				is UnableToConnectState -> {
+					Toast.makeText(
+						this@StartupActivity,
+						R.string.server_connection_failed,
+						Toast.LENGTH_LONG,
+					).show()
+					showServerSelection()
+				}
+			}
+		}.launchIn(lifecycleScope)
 	}
 
 	override fun onNewIntent(intent: Intent) {

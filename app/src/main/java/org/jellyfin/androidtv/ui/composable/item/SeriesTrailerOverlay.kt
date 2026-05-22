@@ -14,7 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.jellyfin.androidtv.auth.repository.UserRepository
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.home.mediabar.ExoPlayerTrailerView
 import org.jellyfin.androidtv.ui.home.mediabar.TrailerPreviewInfo
 import org.jellyfin.androidtv.ui.home.mediabar.TrailerResolver
@@ -83,7 +83,7 @@ fun SeriesTrailerOverlay(
 			dataSourceFactory = if (info.isLocal) httpDataSourceFactory else null,
 			modifier = modifier
 				.fillMaxSize()
-				.clip(JellyfinTheme.shapes.medium),
+				.clip(StonecrusherTheme.shapes.medium),
 		)
 	}
 }

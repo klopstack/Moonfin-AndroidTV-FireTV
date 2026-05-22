@@ -334,7 +334,7 @@
     <string name="no_user_warning">Er zijn geen accounts gevonden!
 \nVoeg een nieuw account toe met de knop \"Account toevoegen\".</string>
     <string name="welcome_content">Maak verbinding met je server om te beginnen.</string>
-    <string name="welcome_title">Welkom bij Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="saved_servers">Opgeslagen servers</string>
     <string name="pref_next_up_behavior_title">Informatie volgende video tonen</string>
     <string name="lbl_fit">Normaal</string>

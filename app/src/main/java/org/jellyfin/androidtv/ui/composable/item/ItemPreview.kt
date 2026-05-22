@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
 import org.jellyfin.design.Tokens
 
@@ -49,7 +49,7 @@ private fun ItemPreviewMetadata(
 	) {
 		title?.let { content ->
 			ProvideTextStyle(
-				value = JellyfinTheme.typography.default.copy(
+				value = StonecrusherTheme.typography.default.copy(
 					color = Tokens.Color.colorGrey100,
 					fontSize = 12.sp,
 				),
@@ -59,7 +59,7 @@ private fun ItemPreviewMetadata(
 
 		subtitle?.let { content ->
 			ProvideTextStyle(
-				value = JellyfinTheme.typography.default.copy(
+				value = StonecrusherTheme.typography.default.copy(
 					color = Tokens.Color.colorGrey300,
 					fontSize = 10.sp,
 				),

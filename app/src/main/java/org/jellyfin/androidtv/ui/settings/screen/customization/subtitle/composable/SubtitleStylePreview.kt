@@ -22,7 +22,7 @@ import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.SubtitleView
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.preference.UserPreferences
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.design.Tokens
 
 @OptIn(UnstableApi::class)
@@ -45,10 +45,10 @@ fun SubtitleStylePreview(
 		edgeColor = subtitleTextStrokeColor.toInt(),
 		typeface = TypefaceCompat.create(context, Typeface.DEFAULT, subtitlesTextWeight, false),
 		modifier = Modifier
-			.background(Tokens.Color.colorBluegrey800, JellyfinTheme.shapes.large)
+			.background(Tokens.Color.colorBluegrey800, StonecrusherTheme.shapes.large)
 			.fillMaxWidth()
 			.height(75.dp)
-			.clip(JellyfinTheme.shapes.large)
+			.clip(StonecrusherTheme.shapes.large)
 	)
 	Spacer(Modifier.height(Tokens.Space.spaceSm))
 }

@@ -43,7 +43,7 @@ import org.jellyfin.androidtv.data.service.BlurContext
 import org.jellyfin.androidtv.preference.UserPreferences
 import org.jellyfin.androidtv.preference.constant.NEXTUP_TIMER_DISABLED
 import org.jellyfin.androidtv.ui.background.AppBackground
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.LocalTextStyle
 import org.jellyfin.androidtv.ui.base.ProvideTextStyle
 import org.jellyfin.androidtv.ui.base.Text
@@ -134,7 +134,7 @@ fun NextUpOverlay(
 	item: PlaybackPromptItemData,
 	onConfirm: () -> Unit,
 	onCancel: () -> Unit,
-) = ProvideTextStyle(JellyfinTheme.typography.default.copy(color = Color.White)) {
+) = ProvideTextStyle(StonecrusherTheme.typography.default.copy(color = Color.White)) {
 	val api = koinInject<ApiClient>()
 	val userPreferences = koinInject<UserPreferences>()
 	val confirmTimer = remember { Animatable(0f) }
@@ -169,7 +169,7 @@ fun NextUpOverlay(
 					.align(Alignment.CenterVertically)
 					.height(145.dp)
 					.aspectRatio(thumbnail.aspectRatio ?: 1f)
-					.clip(JellyfinTheme.shapes.extraSmall),
+					.clip(StonecrusherTheme.shapes.extraSmall),
 				url = thumbnail.getUrl(api),
 				blurHash = thumbnail.blurHash,
 				aspectRatio = thumbnail.aspectRatio ?: 1f,
@@ -243,7 +243,7 @@ class NextUpFragment : Fragment() {
 		container: ViewGroup?,
 		savedInstanceState: Bundle?,
 	) = content {
-		JellyfinTheme {
+		StonecrusherTheme {
 			val id = remember(arguments) { arguments?.getString(ARGUMENT_ITEM_ID)?.toUUIDOrNull() }
 			if (id != null) {
 				NextUpScreen(

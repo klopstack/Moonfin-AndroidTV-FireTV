@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Jellyfin" parent="@style/Theme.AppCompat.Leanback">
+    <style name="Theme.Stonecrusher" parent="@style/Theme.AppCompat.Leanback">
         <!-- Colors -->
         <item name="android:colorPrimary">@color/grey</item>
         <item name="android:colorPrimaryDark">@color/grey</item>
-        <item name="android:colorAccent">@color/jellyfin_blue</item>
+        <item name="android:colorAccent">@color/stonecrusher_grass</item>
         <!-- Background resource or color -->
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="defaultBackground">@color/not_quite_black</item>
@@ -13,7 +13,7 @@
         <item name="cardImageBackground">@color/grey</item>
         <item name="cardViewBackground">@android:color/transparent</item>
         <!-- Search FAB color -->
-        <item name="defaultSearchColor">@color/jellyfin_blue</item>
+        <item name="defaultSearchColor">@color/stonecrusher_grass</item>
         <!-- Default (non-active) button color -->
         <item name="android:colorButtonNormal">@color/grey</item>
         <item name="buttonDefaultNormalBackground">@color/button_default_normal_background</item>
@@ -29,12 +29,12 @@
 
         <!-- Progress Bar -->
         <item name="progressBackground">@color/grey_transparent</item>
-        <item name="progressPrimary">@color/jellyfin_blue</item>
-        <item name="progressSecondary">@color/jellyfin_purple</item>
+        <item name="progressPrimary">@color/stonecrusher_grass</item>
+        <item name="progressSecondary">@color/stonecrusher_grass_dark</item>
 
         <!-- Custom Styles for Elements -->
         <item name="android:datePickerStyle">@style/DatePickerCustom</item>
-        <item name="rowHeaderStyle">@style/Widget.Jellyfin.Row.Header</item>
+        <item name="rowHeaderStyle">@style/Widget.Stonecrusher.Row.Header</item>
         <item name="browseTitleViewLayout">@layout/view_lb_browse_title</item>
 
         <item name="android:popupMenuStyle">@style/PopupMenu</item>
@@ -51,7 +51,7 @@
 
         <!-- Control icons -->
         <item name="controlIconBackground">@color/button_default_normal_background</item>
-        <item name="controlIconForegroundActive">@color/jellyfin_blue</item>
+        <item name="controlIconForegroundActive">@color/stonecrusher_grass</item>
         <item name="controlIconForegroundInactive">@color/button_default_highlight_background</item>
 
         <!-- QR drawables -->
@@ -83,10 +83,10 @@
         <item name="tile_port_series_timer_bg">@color/midnight_blue</item>
         <item name="tile_port_time_bg">@color/spanish_blue</item>
 
-        <item name="android:dialogTheme">@style/Theme.Jellyfin.Dialog</item>
+        <item name="android:dialogTheme">@style/Theme.Stonecrusher.Dialog</item>
     </style>
 
-    <style name="Theme.Jellyfin.Dialog" parent="Theme.AppCompat.Dialog">
+    <style name="Theme.Stonecrusher.Dialog" parent="Theme.AppCompat.Dialog">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowAnimationStyle">@null</item>
     </style>

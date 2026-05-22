@@ -92,7 +92,7 @@
     <string name="lbl_valid_server_address">Entajpi la servilan adreson (IP aŭ domajna/maŝina nomo)</string>
     <string name="lbl_enter_server_address">Entajpi servilan adreson</string>
     <string name="lbl_tv_channel_status">%1$d de %2$d kanaloj</string>
-    <string name="welcome_title">Bonvenon al Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="lbl_sign_in">Ensaluti</string>
     <string name="lbl_colored_backgrounds">Kolorkoditaj Fonoj</string>
     <string name="lbl_more_like_this">Pli Ĉi Tiel</string>

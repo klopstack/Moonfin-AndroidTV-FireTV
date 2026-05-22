@@ -26,14 +26,14 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 
 @Composable
 fun DialogBase(
 	visible: Boolean,
 	onDismissRequest: () -> Unit,
 	modifier: Modifier = Modifier,
-	scrimColor: Color = JellyfinTheme.colorScheme.scrim,
+	scrimColor: Color = StonecrusherTheme.colorScheme.scrim,
 	enterTransition: EnterTransition = fadeIn(tween(300)),
 	exitTransition: ExitTransition = fadeOut(tween(300)),
 	contentAlignment: Alignment = Alignment.Center,

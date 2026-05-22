@@ -371,7 +371,7 @@
     <string name="lbl_use_series_thumbnails_description">Выкарыстоўваць мініяцюры серый пры адлюстраванні эпізодаў</string>
     <string name="lbl_switch_user">Пераключыць уліковы запіс</string>
     <string name="saved_servers">Захаваныя серверы</string>
-    <string name="welcome_title">Сардэчна запрашаем у Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="help">Дапамога</string>
     <string name="live_tv_preferences">Налады тэлеканалаў</string>
     <string name="pref_crash_report_logs_enabled">Журналы будуць уключаны ў справаздачы аб збоях</string>

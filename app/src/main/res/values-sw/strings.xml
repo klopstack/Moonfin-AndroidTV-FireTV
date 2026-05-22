@@ -343,7 +343,7 @@
     <string name="no_network_permissions">Jellyfin inahitaji ruhusa za mtandao ili kufanya kazi</string>
     <string name="press_to_close">Bonyeza ili kufunga</string>
     <string name="saved_servers">Seva zilizohifadhiwa</string>
-    <string name="welcome_title">Karibu kwenye Jellyfin!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="welcome_content">Unganisha kwenye seva yako ili uanze.</string>
     <string name="no_user_warning">Hatukuweza kupata akaunti yoyote!\nOngeza akaunti mpya kwa kubonyeza kitufe cha \"Ongeza akaunti\".</string>
     <string name="who_is_watching">Nani anatazama?</string>

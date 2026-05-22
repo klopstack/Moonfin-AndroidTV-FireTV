@@ -321,7 +321,7 @@
 \nLegg til ny bruker ved å trykke på \"Legg til bruker\" knappen.</string>
     <string name="add_user">Legg til bruker</string>
     <string name="welcome_content">Koble til serveren din for å starte.</string>
-    <string name="welcome_title">Velkommen til Jellyfin!</string>
+    <string name="welcome_title">Velkommen til Stonecrusher Media!</string>
     <string name="saved_servers">Lagrede servere</string>
     <string name="press_to_close">Trykk for å lukke</string>
     <string name="pref_next_up_behavior_title">Vis info om neste video</string>

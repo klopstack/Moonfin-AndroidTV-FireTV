@@ -50,7 +50,7 @@ import org.jellyfin.androidtv.data.service.BackgroundService
 import org.jellyfin.androidtv.ui.background.AppBackground
 import org.jellyfin.androidtv.ui.base.CircularProgressIndicator
 import org.jellyfin.androidtv.ui.base.Icon
-import org.jellyfin.androidtv.ui.base.JellyfinTheme
+import org.jellyfin.androidtv.ui.base.StonecrusherTheme
 import org.jellyfin.androidtv.ui.base.Text
 import org.jellyfin.androidtv.ui.navigation.Destinations
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
@@ -82,7 +82,7 @@ class SeriesRecordingsBrowseFragment : Fragment() {
 				FrameLayout.LayoutParams.MATCH_PARENT,
 				FrameLayout.LayoutParams.MATCH_PARENT,
 			)
-			setContent { JellyfinTheme { SeriesRecordingsContent() } }
+			setContent { StonecrusherTheme { SeriesRecordingsContent() } }
 		}
 		mainContainer.addView(contentView)
 

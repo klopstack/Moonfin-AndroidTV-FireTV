@@ -503,7 +503,7 @@
     <string name="lbl_use_series_thumbnails_description">에피소드 표시할 때 시리즈 전체 썸네일 사용</string>
     <string name="welcome_content">서버에 연결하여 시작하세요.</string>
     <string name="user_picker_disable_title">비활성화</string>
-    <string name="welcome_title">Jellyfin에 오신 것을 환영합니다!</string>
+    <string name="welcome_title">Welcome to Stonecrusher Media!</string>
     <string name="lbl_starting_early_ending_after">일정보다 %1$s 일찍 시작하고 %2$s 늦게 끝남</string>
     <string name="lbl_starting_early_ending_on_schedule">일정보다 %1$s 일찍 시작하고 일정에 맞춰 끝남</string>
     <string name="lbl_starting_on_schedule_ending_after">일정에 맞춰 시작하고 %1$s 늦게 끝남</string>

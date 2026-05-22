@@ -62,7 +62,6 @@ import org.jellyfin.androidtv.ui.settings.screen.moonfin.SettingsMoonfinThemeMus
 import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackAdvancedScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackAudioBehaviorScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackInactivityPromptScreen
-import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackMaxAudioChannelsScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackMaxBitrateScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackMaxResolutionScreen
 import org.jellyfin.androidtv.ui.settings.screen.playback.SettingsPlaybackPlayerScreen
@@ -132,7 +131,6 @@ object Routes {
 	const val PLAYBACK_REFRESH_RATE_SWITCHING_BEHAVIOR = "/playback/refresh-rate-switching-behavior"
 	const val PLAYBACK_ZOOM_MODE = "/playback/zoom-mode"
 	const val PLAYBACK_AUDIO_BEHAVIOR = "/playback/audio-behavior"
-	const val PLAYBACK_MAX_AUDIO_CHANNELS = "/playback/max-audio-channels"
 	const val JELLYSEERR = "/jellyseerr"
 	const val JELLYSEERR_ROWS = "/jellyseerr/rows"
 	const val PLUGIN = "/plugin"
@@ -379,9 +377,6 @@ val routes = mapOf<String, RouteComposable>(
 	},
 	Routes.PLAYBACK_AUDIO_BEHAVIOR to {
 		SettingsPlaybackAudioBehaviorScreen()
-	},
-	Routes.PLAYBACK_MAX_AUDIO_CHANNELS to {
-		SettingsPlaybackMaxAudioChannelsScreen()
 	},
 	Routes.JELLYSEERR to {
 		SettingsJellyseerrScreen()

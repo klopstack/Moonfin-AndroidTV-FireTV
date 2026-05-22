@@ -114,7 +114,7 @@ fun SettingsJellyseerrScreen() {
 					stringResource(R.string.jellyseerr_moonfin_not_authenticated)
 				}
 				ListButton(
-					leadingContent = { Icon(painterResource(R.drawable.ic_moonfin), contentDescription = null) },
+					leadingContent = { Icon(painterResource(R.drawable.ic_stonecrusher_rock), contentDescription = null) },
 					headingContent = { Text(stringResource(R.string.jellyseerr_moonfin_proxy)) },
 					captionContent = { Text(statusCaption) },
 					onClick = { }
@@ -134,7 +134,7 @@ fun SettingsJellyseerrScreen() {
 			if (userPreferences[UserPreferences.pluginSyncEnabled]) {
 				item {
 					ListButton(
-						leadingContent = { Icon(painterResource(R.drawable.ic_moonfin), contentDescription = null) },
+						leadingContent = { Icon(painterResource(R.drawable.ic_stonecrusher_rock), contentDescription = null) },
 						headingContent = { Text(stringResource(R.string.jellyseerr_moonfin_reconnect)) },
 						captionContent = { Text(stringResource(R.string.jellyseerr_moonfin_reconnect_description)) },
 						onClick = {

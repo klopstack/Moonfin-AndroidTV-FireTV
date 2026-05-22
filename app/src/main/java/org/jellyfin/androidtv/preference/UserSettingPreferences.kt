@@ -54,10 +54,10 @@ class UserSettingPreferences(
 		val mediaBarExcludedGenres = stringPreference("mediaBarExcludedGenres", "[]")
 		val mediaBarOverlayOpacity = intPreference("mediaBarOverlayOpacity", 50)
 		val mediaBarOverlayColor = stringPreference("mediaBarOverlayColor", "gray")
-		val mediaBarTrailerPreview = booleanPreference("mediaBarTrailerPreview", true)
+		val mediaBarTrailerPreview = booleanPreference("mediaBarTrailerPreview", false)
 
 		// Episode preview settings
-		val episodePreviewEnabled = booleanPreference("episodePreviewEnabled", true)
+		val episodePreviewEnabled = booleanPreference("episodePreviewEnabled", false)
 		val previewAudioEnabled = booleanPreference("previewAudioEnabled", true)
 		
 		// Home rows image type settings

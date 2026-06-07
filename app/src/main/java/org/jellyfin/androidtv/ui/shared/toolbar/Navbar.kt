@@ -479,6 +479,16 @@ private fun Navbar(
 						navigationRepository = navigationRepository,
 						itemLauncher = itemLauncher,
 					)
+					MoreLibrariesButton(
+						activeLibraryId = activeLibraryId,
+						userViews = userViews,
+						aggregatedLibraries = aggregatedLibraries,
+						enableMultiServer = enableMultiServer,
+						colors = toolbarButtonColors,
+						activeColors = activeButtonColors,
+						navigationRepository = navigationRepository,
+						itemLauncher = itemLauncher,
+					)
 				}
 
 				ExpandableIconButton(

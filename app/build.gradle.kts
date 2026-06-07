@@ -73,7 +73,7 @@ android {
 			if (keystorePropertiesFile.exists()) {
 				val keystoreProperties = Properties()
 				keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-				
+
 				storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
 				storePassword = keystoreProperties["storePassword"] as String
 				keyAlias = keystoreProperties["keyAlias"] as String
@@ -112,7 +112,7 @@ android {
 			isMinifyEnabled = true
 			isShrinkResources = true
 			proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-			
+
 			// Set package names used in various XML files (must match applicationId for provider authorities)
 			val debugAppId = defaultConfig.applicationId + applicationIdSuffix
 			resValue("string", "app_id", debugAppId)

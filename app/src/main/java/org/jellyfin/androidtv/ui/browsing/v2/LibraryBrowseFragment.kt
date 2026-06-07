@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridPrefetchStrategy
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
@@ -36,16 +38,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import coil3.ImageLoader
+import coil3.request.ImageRequest
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
@@ -76,6 +83,7 @@ import org.jellyfin.androidtv.util.apiclient.itemBackdropImages
 import org.jellyfin.androidtv.util.apiclient.itemImages
 import org.jellyfin.androidtv.util.apiclient.parentImages
 import org.jellyfin.sdk.model.api.BaseItemDto
+import org.koin.compose.koinInject
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
 import org.jellyfin.sdk.model.api.ImageType as JellyfinImageType
@@ -275,46 +283,16 @@ class LibraryBrowseFragment : Fragment() {
 		Column(
 			modifier = Modifier
 				.fillMaxWidth()
-				.padding(start = 60.dp, end = 60.dp, top = 12.dp, bottom = 4.dp),
+				.padding(start = 60.dp, end = 60.dp, top = 8.dp, bottom = 2.dp),
 		) {
-			// Row 0: Centered library name + item count
-			Box(
-				modifier = Modifier.fillMaxWidth(),
-				contentAlignment = Alignment.Center,
-			) {
-				Row(
-					verticalAlignment = Alignment.CenterVertically,
-				) {
-					Text(
-						text = uiState.libraryName,
-						fontSize = 26.sp,
-						fontWeight = FontWeight.Light,
-						color = Color.White,
-					)
-
-					if (uiState.totalItems > 0) {
-						Spacer(modifier = Modifier.width(12.dp))
-						Text(
-							text = "${uiState.totalItems} Items",
-							fontSize = 12.sp,
-							fontWeight = FontWeight.Normal,
-							color = Color.White.copy(alpha = 0.4f),
-						)
-					}
-				}
-			}
-
-			Spacer(modifier = Modifier.height(6.dp))
-
-			// Row 1: Focused item HUD (left)
 			FocusedItemHud(
 				item = uiState.focusedItem,
 				modifier = Modifier.fillMaxWidth(),
 			)
 
-			Spacer(modifier = Modifier.height(6.dp))
+			Spacer(modifier = Modifier.height(4.dp))
 
-			// Row 2: Sort/filter/settings/home buttons (left) — A-Z picker (right)
+			// Sort/filter/settings/home buttons (left) — A-Z picker (right)
 			Row(
 				modifier = Modifier.fillMaxWidth(),
 				verticalAlignment = Alignment.CenterVertically,
@@ -405,14 +383,18 @@ class LibraryBrowseFragment : Fragment() {
 	// Poster grid
 	// ──────────────────────────────────────────────
 
+	@OptIn(ExperimentalFoundationApi::class)
 	@Composable
 	private fun LibraryGrid(
 		uiState: LibraryBrowseUiState,
 		modifier: Modifier = Modifier,
 	) {
+		val context = LocalContext.current
+		val imageLoader = koinInject<ImageLoader>()
 		val gridState = rememberLazyGridState(
 			initialFirstVisibleItemIndex = viewModel.savedScrollIndex,
 			initialFirstVisibleItemScrollOffset = viewModel.savedScrollOffset,
+			prefetchStrategy = LazyGridPrefetchStrategy(nestedPrefetchItemCount = 12),
 		)
 		var focusTargetIndex by remember { mutableStateOf(if (viewModel.hasRestoredScroll) viewModel.savedFocusedIndex else 0) }
 		val focusRequester = remember { FocusRequester() }
@@ -440,24 +422,73 @@ class LibraryBrowseFragment : Fragment() {
 			}
 		}
 
-		// Infinite scroll
-		val shouldLoadMore by remember(uiState.items.size) {
+		val isHorizontal = uiState.gridDirection == GridDirection.HORIZONTAL
+		val horizontalRowCount = 2
+		val prefetchColumnsAhead = 10
+		val prefetchItemsAhead = if (isHorizontal) horizontalRowCount * prefetchColumnsAhead else 18
+		val loadMoreLeadItems = if (isHorizontal) prefetchItemsAhead * 2 else 10
+
+		// Infinite scroll — fetch next API page well before the grid runs out of items
+		val shouldLoadMore by remember(uiState.items.size, loadMoreLeadItems) {
 			derivedStateOf {
 				val lastIdx = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-				lastIdx >= uiState.items.size - 10
+				lastIdx >= uiState.items.size - loadMoreLeadItems
 			}
 		}
 		LaunchedEffect(shouldLoadMore, uiState.hasMoreItems) {
 			if (shouldLoadMore && uiState.hasMoreItems) viewModel.loadMore()
 		}
 
-		val itemSpacing = 12.dp
+		// Pre-fetch poster images ahead of the viewport so they appear during fast scrolling
+		LaunchedEffect(
+			gridState,
+			uiState.items,
+			uiState.imageType,
+			uiState.useAutoImageType,
+			prefetchItemsAhead,
+		) {
+			val prefetchedUrls = mutableSetOf<String>()
+			snapshotFlow {
+				val layout = gridState.layoutInfo
+				val first = layout.visibleItemsInfo.firstOrNull()?.index ?: 0
+				val last = layout.visibleItemsInfo.lastOrNull()?.index ?: 0
+				Triple(first, last, gridState.firstVisibleItemScrollOffset)
+			}
+				.distinctUntilChanged()
+				.collect { (firstVisible, lastVisible, _) ->
+					val start = (firstVisible - prefetchItemsAhead / 2).coerceAtLeast(0)
+					val end = (lastVisible + prefetchItemsAhead).coerceAtMost(uiState.items.lastIndex.coerceAtLeast(0))
+					val imageType = if (uiState.useAutoImageType) ImageType.POSTER else uiState.imageType
+					for (index in start..end) {
+						val item = uiState.items.getOrNull(index) ?: continue
+						val url = getItemImageUrl(item, imageType) ?: continue
+						if (prefetchedUrls.add(url)) {
+							imageLoader.enqueue(
+								ImageRequest.Builder(context)
+									.data(url)
+									.build(),
+							)
+						}
+					}
+				}
+		}
+
+		val spacing = libraryGridSpacing(uiState.posterSize)
 		val minPadding = 40.dp
+		val gridTopPadding = 8.dp
+		val labelBlockHeight = if (uiState.isGenreMode) 38.dp else 0.dp
+		val maxItemHeight = if (uiState.useAutoImageType) {
+			(cardWidth / 0.3f).toInt()
+		} else {
+			cardHeight
+		}
 
-		val isHorizontal = uiState.gridDirection == GridDirection.HORIZONTAL
-
-		val gridItemContent: @Composable (index: Int, item: BaseItemDto) -> Unit = { index, item ->
-			val itemModifier = if (index == focusTargetIndex) Modifier.focusRequester(focusRequester) else Modifier
+		val gridItemContent: @Composable (displayWidth: Int, displayHeight: Int, index: Int, item: BaseItemDto) -> Unit =
+			{ displayWidth, displayHeight, index, item ->
+			val isFocusTarget = index == focusTargetIndex
+			val itemModifier = Modifier
+				.zIndex(if (isFocusTarget) 1f else 0f)
+				.then(if (isFocusTarget) Modifier.focusRequester(focusRequester) else Modifier)
 			val onItemFocused: () -> Unit = {
 				focusTargetIndex = index
 				viewModel.savedFocusedIndex = index
@@ -470,7 +501,7 @@ class LibraryBrowseFragment : Fragment() {
 					val viewportEnd = layoutInfo.viewportEndOffset
 					if (isHorizontal) {
 						val itemEnd = itemInfo.offset.x + itemInfo.size.width
-						val scaleExtra = (itemInfo.size.width * 0.06f).toInt()
+						val scaleExtra = (itemInfo.size.width * 0.10f).toInt()
 						if (itemEnd + scaleExtra > viewportEnd) {
 							coroutineScope.launch {
 								gridState.animateScrollBy((itemEnd + scaleExtra - viewportEnd).toFloat())
@@ -478,7 +509,7 @@ class LibraryBrowseFragment : Fragment() {
 						}
 					} else {
 						val itemBottom = itemInfo.offset.y + itemInfo.size.height
-						val scaleExtra = (itemInfo.size.height * 0.06f).toInt()
+						val scaleExtra = (itemInfo.size.height * 0.10f).toInt()
 						if (itemBottom + scaleExtra > viewportEnd) {
 							coroutineScope.launch {
 								gridState.animateScrollBy((itemBottom + scaleExtra - viewportEnd).toFloat())
@@ -489,23 +520,24 @@ class LibraryBrowseFragment : Fragment() {
 			}
 
 			if ((item.type == BaseItemKind.FOLDER || item.type == BaseItemKind.PHOTO_ALBUM) && !uiState.useAutoImageType) {
-				val folderHeight = (cardWidth * 9) / 16
+				val folderHeight = (displayWidth * 9) / 16
 				LibraryFolderCard(
 					item = item,
 					imageUrl = getItemImageUrl(item, ImageType.THUMB),
-					cardWidth = cardWidth,
+					cardWidth = displayWidth,
 					cardHeight = folderHeight,
 					onClick = { launchItem(item) },
 					onFocused = onItemFocused,
 					modifier = itemModifier,
 				)
 			} else if (uiState.useAutoImageType) {
-				val itemHeight = autoCardHeight(cardWidth, item.primaryImageAspectRatio)
+				val itemHeight = autoCardHeight(displayWidth, item.primaryImageAspectRatio)
+					.coerceAtMost(displayHeight)
 				LibraryPosterCard(
 					item = item,
 					modifier = itemModifier,
 					imageUrl = getItemImageUrl(item, ImageType.POSTER),
-					cardWidth = cardWidth,
+					cardWidth = displayWidth,
 					cardHeight = itemHeight,
 					onClick = { launchItem(item) },
 					onFocused = onItemFocused,
@@ -517,8 +549,8 @@ class LibraryBrowseFragment : Fragment() {
 					item = item,
 					modifier = itemModifier,
 					imageUrl = getItemImageUrl(item, uiState.imageType),
-					cardWidth = cardWidth,
-					cardHeight = cardHeight,
+					cardWidth = displayWidth,
+					cardHeight = displayHeight,
 					onClick = { launchItem(item) },
 					onFocused = onItemFocused,
 					showLabels = uiState.isGenreMode,
@@ -529,53 +561,58 @@ class LibraryBrowseFragment : Fragment() {
 
 		if (isHorizontal) {
 			BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-				val availableHeight = maxHeight - minPadding * 2
-				val cellHeight = cardHeight.dp + 16.dp
-				val rowCount = (availableHeight / cellHeight).toInt().coerceAtLeast(2)
-				val gridHeight = cardHeight.dp * rowCount + 16.dp * (rowCount - 1)
-				val verticalPadding = (maxHeight - gridHeight) / 2
+				val availableForRows = maxHeight - gridTopPadding
+				val targetRowHeight = (availableForRows - spacing) / 2
+				val naturalRowHeight = maxItemHeight.dp + labelBlockHeight
+				val scale = minOf(1f, targetRowHeight / naturalRowHeight)
+				val displayCardWidth = (cardWidth * scale).toInt().coerceAtLeast(1)
+				val displayCardHeight = (maxItemHeight * scale).toInt().coerceAtLeast(1)
 
 				LazyHorizontalGrid(
-					rows = GridCells.Fixed(rowCount),
+					rows = GridCells.Fixed(2),
 					state = gridState,
-					modifier = Modifier.fillMaxSize(),
+					modifier = Modifier
+						.fillMaxSize()
+						.graphicsLayer { clip = false },
 					contentPadding = PaddingValues(
 						start = 20.dp,
 						end = 16.dp,
-						top = verticalPadding,
-						bottom = verticalPadding,
+						top = gridTopPadding,
+						bottom = 0.dp,
 					),
-					horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-					verticalArrangement = Arrangement.spacedBy(16.dp),
+					horizontalArrangement = Arrangement.spacedBy(spacing),
+					verticalArrangement = Arrangement.spacedBy(spacing),
 				) {
 					itemsIndexed(uiState.items) { index, item ->
-						gridItemContent(index, item)
+						gridItemContent(displayCardWidth, displayCardHeight, index, item)
 					}
 				}
 			}
 		} else {
 			BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
 				val availableWidth = maxWidth - minPadding * 2
-				val cellWidth = cardWidth.dp + itemSpacing
+				val cellWidth = cardWidth.dp + spacing
 				val columnCount = (availableWidth / cellWidth).toInt().coerceAtLeast(1)
-				val gridWidth = cardWidth.dp * columnCount + itemSpacing * (columnCount - 1)
-				val horizontalPadding = (maxWidth - gridWidth) / 2
+				val gridWidth = cardWidth.dp * columnCount + spacing * (columnCount - 1)
+				val horizontalPadding = ((maxWidth - gridWidth) / 2).coerceAtLeast(0.dp)
 
 				LazyVerticalGrid(
 					columns = GridCells.Fixed(columnCount),
 					state = gridState,
-					modifier = Modifier.fillMaxWidth(),
+					modifier = Modifier
+						.fillMaxWidth()
+						.graphicsLayer { clip = false },
 					contentPadding = PaddingValues(
 						start = horizontalPadding,
 						end = horizontalPadding,
 						top = 20.dp,
 						bottom = 16.dp,
 					),
-					horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-					verticalArrangement = Arrangement.spacedBy(16.dp),
+					horizontalArrangement = Arrangement.spacedBy(spacing),
+					verticalArrangement = Arrangement.spacedBy(spacing),
 				) {
 					itemsIndexed(uiState.items) { index, item ->
-						gridItemContent(index, item)
+						gridItemContent(cardWidth, maxItemHeight, index, item)
 					}
 				}
 			}
@@ -585,6 +622,12 @@ class LibraryBrowseFragment : Fragment() {
 	// ──────────────────────────────────────────────
 	// Helpers
 	// ──────────────────────────────────────────────
+
+	private fun isCompactGridSpacing(posterSize: PosterSize): Boolean =
+		posterSize == PosterSize.LARGE || posterSize == PosterSize.X_LARGE
+
+	private fun libraryGridSpacing(posterSize: PosterSize) =
+		if (isCompactGridSpacing(posterSize)) 2.dp else 8.dp
 
 	private fun getItemImageUrl(item: BaseItemDto, imageType: ImageType): String? {
 		val jellyfinType = when (imageType) {

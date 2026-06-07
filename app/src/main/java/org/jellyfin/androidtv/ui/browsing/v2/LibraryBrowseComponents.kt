@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -155,15 +156,17 @@ fun LibraryPosterCard(
 		if (isFocused) onFocused()
 	}
 
-	val scale = if (isFocused) 1.08f else 1.0f
+	val scale = if (isFocused) 1.20f else 1.0f
 	val borderColor = focusBorderColor()
 
 	Column(
 		modifier = modifier
+			.zIndex(if (isFocused) 1f else 0f)
 			.width(cardWidth.dp)
 			.graphicsLayer {
 				scaleX = scale
 				scaleY = scale
+				clip = false
 			}
 			.clickable(
 				interactionSource = interactionSource,
@@ -300,15 +303,17 @@ fun LibraryFolderCard(
 		if (isFocused) onFocused()
 	}
 
-	val scale = if (isFocused) 1.08f else 1.0f
+	val scale = if (isFocused) 1.20f else 1.0f
 	val borderColor = focusBorderColor()
 
 	Column(
 		modifier = modifier
+			.zIndex(if (isFocused) 1f else 0f)
 			.width(cardWidth.dp)
 			.graphicsLayer {
 				scaleX = scale
 				scaleY = scale
+				clip = false
 			}
 			.clickable(
 				interactionSource = interactionSource,
@@ -510,7 +515,7 @@ fun FocusedItemHud(
 	modifier: Modifier = Modifier,
 ) {
 	Column(
-		modifier = modifier.defaultMinSize(minHeight = 48.dp),
+		modifier = modifier.defaultMinSize(minHeight = 32.dp),
 		verticalArrangement = Arrangement.Center,
 	) {
 		if (item != null) {

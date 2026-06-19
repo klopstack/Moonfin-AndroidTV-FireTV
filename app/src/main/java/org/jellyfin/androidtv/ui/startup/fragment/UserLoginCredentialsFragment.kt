@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.auth.model.AccessScheduleDeniedState
 import org.jellyfin.androidtv.auth.model.ApiClientErrorLoginState
 import org.jellyfin.androidtv.auth.model.AuthenticatedState
 import org.jellyfin.androidtv.auth.model.AuthenticatingState
@@ -21,6 +22,7 @@ import org.jellyfin.androidtv.auth.model.ServerUnavailableState
 import org.jellyfin.androidtv.auth.model.ServerVersionNotSupported
 import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.databinding.FragmentUserLoginCredentialsBinding
+import org.jellyfin.androidtv.ui.startup.AccessScheduleDeniedDialog
 import org.jellyfin.androidtv.ui.startup.UserLoginViewModel
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
 
@@ -89,6 +91,12 @@ class UserLoginCredentialsFragment : Fragment() {
 						RequireSignInState -> binding.error.setText(R.string.login_invalid_credentials)
 						ServerUnavailableState,
 						is ApiClientErrorLoginState -> binding.error.setText(R.string.login_server_unavailable)
+						is AccessScheduleDeniedState -> AccessScheduleDeniedDialog.show(
+							requireContext(),
+							state.nextAccessMessage,
+						) {
+							binding.username.requestFocus()
+						}
 						// Do nothing because the activity will respond to the new session
 						AuthenticatedState -> Unit
 						// Not initialized

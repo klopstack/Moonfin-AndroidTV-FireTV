@@ -43,7 +43,7 @@ val authModule = module {
 	}
 
 	single<AuthenticationRepository> {
-		AuthenticationRepositoryImpl(get(), get(), get(), get(), get(), get(defaultDeviceInfo), get(), get(named("global")), get())
+		AuthenticationRepositoryImpl(get(), get(), get(), get(), get(), get(defaultDeviceInfo), get(), get(named("global")), get(), get())
 	}
 	single<ServerRepository> { ServerRepositoryImpl(get(), get()) }
 	single<ServerUserRepository> { ServerUserRepositoryImpl(get(), get(), get()) }

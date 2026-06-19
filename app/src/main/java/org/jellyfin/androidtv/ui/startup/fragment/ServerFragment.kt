@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.auth.model.AccessScheduleDeniedState
 import org.jellyfin.androidtv.auth.model.ApiClientErrorLoginState
 import org.jellyfin.androidtv.auth.model.AuthenticatedState
 import org.jellyfin.androidtv.auth.model.AuthenticatingState
@@ -36,6 +37,7 @@ import org.jellyfin.androidtv.auth.repository.ServerUserRepository
 import org.jellyfin.androidtv.data.service.BackgroundService
 import org.jellyfin.androidtv.databinding.FragmentServerBinding
 import org.jellyfin.androidtv.ui.card.UserCardView
+import org.jellyfin.androidtv.ui.startup.AccessScheduleDeniedDialog
 import org.jellyfin.androidtv.ui.startup.PinEntryDialog
 import org.jellyfin.androidtv.ui.startup.StartupViewModel
 import org.jellyfin.androidtv.util.ListAdapter
@@ -194,6 +196,13 @@ class ServerFragment : Fragment() {
 					),
 					Toast.LENGTH_LONG
 				).show()
+
+				is AccessScheduleDeniedState -> AccessScheduleDeniedDialog.show(
+					requireContext(),
+					state.nextAccessMessage,
+				) {
+					binding.users.requestFocus()
+				}
 			}
 		}.launchIn(lifecycleScope)
 	}

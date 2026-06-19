@@ -189,7 +189,7 @@ val appModule = module {
 	}
 	single { org.jellyfin.androidtv.util.sdk.ApiClientFactory(get(), get(), get(defaultDeviceInfo), get(), get()) }
 	single<org.jellyfin.androidtv.data.repository.ParentalControlsRepository> {
-		org.jellyfin.androidtv.data.repository.ParentalControlsRepositoryImpl(androidContext(), get(), get())
+		org.jellyfin.androidtv.data.repository.ParentalControlsRepositoryImpl(androidContext(), get(), get(), get())
 	}
 
 	// Jellyseerr - Global preferences (server URL, UI settings)

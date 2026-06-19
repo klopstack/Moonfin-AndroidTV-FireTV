@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import org.jellyfin.androidtv.auth.model.AccessScheduleDeniedState
 import org.jellyfin.androidtv.auth.model.ApiClientErrorLoginState
 import org.jellyfin.androidtv.auth.model.AuthenticateMethod
 import org.jellyfin.androidtv.auth.model.AuthenticatedState
@@ -24,8 +25,10 @@ import org.jellyfin.androidtv.auth.model.ServerVersionNotSupported
 import org.jellyfin.androidtv.auth.model.User
 import org.jellyfin.androidtv.auth.store.AuthenticationPreferences
 import org.jellyfin.androidtv.auth.store.AuthenticationStore
+import org.jellyfin.androidtv.data.repository.ParentalControlsRepository
 import org.jellyfin.androidtv.data.repository.JellyseerrRepository
 import org.jellyfin.androidtv.preference.JellyseerrPreferences
+import org.jellyfin.androidtv.util.AccessScheduleHelper
 import org.jellyfin.androidtv.util.apiclient.JellyfinImage
 import org.jellyfin.androidtv.util.apiclient.JellyfinImageSource
 import org.jellyfin.androidtv.util.apiclient.getUrl
@@ -67,6 +70,7 @@ class AuthenticationRepositoryImpl(
 	private val jellyseerrRepository: JellyseerrRepository,
 	private val jellyseerrPreferences: JellyseerrPreferences,
 	private val embyApiClient: EmbyApiClient,
+	private val parentalControlsRepository: ParentalControlsRepository,
 ) : AuthenticationRepository {
 	override fun authenticate(server: Server, method: AuthenticateMethod): Flow<LoginState> {
 		return when (method) {
@@ -137,6 +141,12 @@ class AuthenticationRepositoryImpl(
 	private fun authenticateAuthenticationResult(server: Server, result: AuthenticationResult) = flow {
 		val accessToken = result.accessToken ?: return@flow emit(RequireSignInState)
 		val userInfo = result.user ?: return@flow emit(RequireSignInState)
+
+		checkAccessSchedule(userInfo)?.let {
+			emit(it)
+			return@flow
+		}
+
 		val user = PrivateUser(
 			id = userInfo.id,
 			serverId = server.id,
@@ -171,6 +181,10 @@ class AuthenticationRepositoryImpl(
 			} else {
 				// Update user info
 				val userInfo by userApiClient.userApi.getCurrentUser()
+				checkAccessSchedule(userInfo)?.let {
+					emit(it)
+					return@flow
+				}
 				authenticateFinish(server, userInfo, user.accessToken.orEmpty())
 			}
 			emit(AuthenticatedState)
@@ -355,4 +369,16 @@ class AuthenticationRepositoryImpl(
 			index = null
 		)
 	}?.getUrl(jellyfin.createApi(server.address))
+
+	private fun checkAccessSchedule(userInfo: UserDto): AccessScheduleDeniedState? {
+		val schedules = userInfo.policy?.accessSchedules.orEmpty()
+		if (schedules.isEmpty() || AccessScheduleHelper.isAccessAllowed(schedules)) {
+			parentalControlsRepository.setAccessSchedules(schedules)
+			return null
+		}
+
+		return AccessScheduleDeniedState(
+			nextAccessMessage = AccessScheduleHelper.formatNextAccessTime(schedules),
+		)
+	}
 }

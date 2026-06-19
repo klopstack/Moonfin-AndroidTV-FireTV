@@ -18,8 +18,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -27,6 +30,7 @@ import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.auth.repository.SessionRepository
 import org.jellyfin.androidtv.auth.repository.SessionRepositoryState
 import org.jellyfin.androidtv.auth.repository.UserRepository
+import org.jellyfin.androidtv.data.repository.ParentalControlsRepository
 import org.jellyfin.androidtv.data.service.UpdateCheckerService
 import org.jellyfin.androidtv.data.syncplay.SyncPlayManager
 import org.jellyfin.androidtv.databinding.ActivityMainBinding
@@ -40,6 +44,7 @@ import org.jellyfin.androidtv.ui.playback.PlaybackLauncher
 import org.jellyfin.androidtv.ui.playback.ThemeMusicPlayer
 import org.jellyfin.androidtv.ui.screensaver.InAppScreensaver
 import org.jellyfin.androidtv.ui.settings.compat.MainActivitySettings
+import org.jellyfin.androidtv.ui.startup.AccessScheduleDeniedDialog
 import org.jellyfin.androidtv.ui.startup.StartupActivity
 import org.jellyfin.androidtv.util.applyTheme
 import org.jellyfin.androidtv.util.isMediaSessionKeyEvent
@@ -58,9 +63,13 @@ class MainActivity : FragmentActivity() {
 	private val themeMusicPlayer by inject<ThemeMusicPlayer>()
 	private val syncPlayManager by inject<SyncPlayManager>()
 	private val playbackLauncher by inject<PlaybackLauncher>()
+	private val parentalControlsRepository by inject<ParentalControlsRepository>()
 
 	private lateinit var binding: ActivityMainBinding
 	private val showExitDialog = mutableStateOf(false)
+	private var accessScheduleMonitorJob: Job? = null
+	@Volatile
+	private var accessScheduleDialogShowing = false
 
 	private val backPressedCallback = object : OnBackPressedCallback(false) {
 		override fun handleOnBackPressed() {
@@ -133,6 +142,8 @@ class MainActivity : FragmentActivity() {
 		if (org.jellyfin.androidtv.BuildConfig.ENABLE_OTA_UPDATES) {
 			checkForUpdatesOnLaunch()
 		}
+
+		startAccessScheduleMonitor()
 	}
 	
 	private fun setupSyncPlayQueueLauncher() {
@@ -166,6 +177,11 @@ class MainActivity : FragmentActivity() {
 
 		if (!validateAuthentication()) return
 
+		if (!parentalControlsRepository.isAccessScheduleAllowed()) {
+			showAccessScheduleExpired()
+			return
+		}
+
 		applyTheme()
 
 		interactionTrackerViewModel.activityPaused = false
@@ -185,6 +201,38 @@ class MainActivity : FragmentActivity() {
 		}
 
 		return true
+	}
+
+	private fun startAccessScheduleMonitor() {
+		accessScheduleMonitorJob?.cancel()
+		accessScheduleMonitorJob = lifecycleScope.launch {
+			while (isActive) {
+				delay(60_000)
+				if (!parentalControlsRepository.isAccessScheduleAllowed()) {
+					showAccessScheduleExpired()
+					break
+				}
+			}
+		}
+	}
+
+	private fun showAccessScheduleExpired() {
+		if (accessScheduleDialogShowing || isFinishing) return
+		accessScheduleDialogShowing = true
+
+		AccessScheduleDeniedDialog.show(
+			this,
+			parentalControlsRepository.getNextAccessMessage(),
+		) {
+			accessScheduleDialogShowing = false
+			sessionRepository.destroyCurrentSession()
+			startActivity(
+				Intent(this, StartupActivity::class.java).apply {
+					addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+				}
+			)
+			finish()
+		}
 	}
 
 	private fun checkForUpdatesOnLaunch() {
@@ -336,6 +384,7 @@ class MainActivity : FragmentActivity() {
 	}
 
 	override fun onDestroy() {
+		accessScheduleMonitorJob?.cancel()
 		showExitDialog.value = false
 		super.onDestroy()
 	}

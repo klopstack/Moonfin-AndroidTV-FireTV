@@ -123,6 +123,12 @@ class UserSettingPreferences(
 		val userPinHash = stringPreference("user_pin_hash", "")
 
 		/**
+		 * Length of the user's PIN (0 when unset or unknown). Synced per user so
+		 * auto-submit works on new devices without re-entering the PIN.
+		 */
+		val userPinLength = intPreference("user_pin_length", 0)
+
+		/**
 		 * Whether PIN is enabled for this user
 		 */
 		val userPinEnabled = booleanPreference("user_pin_enabled", false)

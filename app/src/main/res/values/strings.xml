@@ -497,7 +497,7 @@
     <string name="lbl_pin_code_too_short">PIN must be at least 4 digits</string>
     <string name="lbl_pin_code_mismatch">PINs do not match</string>
     <string name="lbl_pin_auto_submit">Auto-submit PIN</string>
-    <string name="lbl_pin_auto_submit_description">Submit automatically when the 4th digit is entered</string>
+    <string name="lbl_pin_auto_submit_description">Submit automatically when your full PIN is entered</string>
     <string name="lbl_forgot_pin">Forgot PIN?</string>
     <string name="lbl_admin_pin_setup_title">Set up admin PIN</string>
     <string name="lbl_admin_pin_setup_message">For shared TVs, administrators should protect their profile with a PIN.</string>

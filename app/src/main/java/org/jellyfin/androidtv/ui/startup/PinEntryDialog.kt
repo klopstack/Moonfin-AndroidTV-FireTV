@@ -13,6 +13,7 @@ import androidx.core.view.isVisible
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.databinding.DialogPinEntryBinding
 import org.jellyfin.androidtv.preference.UserPreferences
+import org.jellyfin.androidtv.util.PinCodeUtil
 
 /**
  * TV-friendly PIN entry dialog with numeric keypad
@@ -27,19 +28,26 @@ object PinEntryDialog {
 	 * Show PIN entry dialog for setting or verifying a PIN
 	 * @param context Android context
 	 * @param mode Mode.SET to set a new PIN (with confirmation), Mode.VERIFY to verify existing PIN
+	 * @param expectedPinLength Stored PIN length for verify auto-submit (0 = unknown)
 	 * @param onComplete Callback with the entered PIN, or null if cancelled
 	 * @param onForgotPin Optional callback for "Forgot PIN?" button (only shown in VERIFY mode)
 	 */
 	fun show(
 		context: Context,
 		mode: Mode,
+		expectedPinLength: Int = 0,
 		onComplete: (String?) -> Unit,
 		onForgotPin: (() -> Unit)? = null,
 	) {
-		val autoSubmitOnFourthDigit = UserPreferences(context)[UserPreferences.pinAutoSubmitOnFourthDigit]
+		val autoSubmitEnabled = UserPreferences(context)[UserPreferences.pinAutoSubmitEnabled]
 		when (mode) {
-			Mode.SET -> showSetPinDialog(context, onComplete, autoSubmitOnFourthDigit)
-			Mode.VERIFY -> showVerifyPinDialog(context, onComplete, onForgotPin, autoSubmitOnFourthDigit)
+			Mode.SET -> showSetPinDialog(context, onComplete, autoSubmitEnabled)
+			Mode.VERIFY -> showVerifyPinDialog(
+				context = context,
+				onComplete = onComplete,
+				onForgotPin = onForgotPin,
+				autoSubmitLength = resolveAutoSubmitLength(autoSubmitEnabled, expectedPinLength),
+			)
 		}
 	}
 	
@@ -50,7 +58,7 @@ object PinEntryDialog {
 		context: Context,
 		onComplete: (String?) -> Unit,
 		onForgotPin: (() -> Unit)? = null,
-		autoSubmitOnFourthDigit: Boolean = false,
+		autoSubmitLength: Int? = null,
 	) {
 		showPinDialog(
 			context = context,
@@ -62,7 +70,7 @@ object PinEntryDialog {
 				onComplete(null)
 			},
 			onForgotPin = onForgotPin,
-			autoSubmitOnFourthDigit = autoSubmitOnFourthDigit,
+			autoSubmitLength = autoSubmitLength,
 		)
 	}
 	
@@ -72,22 +80,22 @@ object PinEntryDialog {
 	private fun showSetPinDialog(
 		context: Context,
 		onComplete: (String?) -> Unit,
-		autoSubmitOnFourthDigit: Boolean = false,
+		autoSubmitEnabled: Boolean,
 	) {
 		var firstPin: String? = null
 		
-		// First PIN entry
+		// First PIN entry - never auto-submit; the user may be entering a longer PIN
 		showPinDialog(
 			context = context,
 			title = context.getString(R.string.lbl_enter_new_pin),
-			autoSubmitOnFourthDigit = autoSubmitOnFourthDigit,
+			autoSubmitLength = null,
 			onPinEntered = { pin ->
 				when {
 					pin.isEmpty() -> {
 						Toast.makeText(context, R.string.lbl_pin_code_empty, Toast.LENGTH_SHORT).show()
 						onComplete(null)
 					}
-					pin.length < 4 -> {
+					pin.length < PinCodeUtil.MIN_PIN_LENGTH -> {
 						Toast.makeText(context, R.string.lbl_pin_code_too_short, Toast.LENGTH_SHORT).show()
 						onComplete(null)
 					}
@@ -97,7 +105,7 @@ object PinEntryDialog {
 						showPinDialog(
 							context = context,
 							title = context.getString(R.string.lbl_confirm_pin),
-							autoSubmitOnFourthDigit = autoSubmitOnFourthDigit,
+							autoSubmitLength = resolveAutoSubmitLength(autoSubmitEnabled, pin.length),
 							onPinEntered = { confirmPin ->
 								if (confirmPin == firstPin) {
 									onComplete(confirmPin)
@@ -128,7 +136,7 @@ object PinEntryDialog {
 		onPinEntered: (String) -> Unit,
 		onCancel: () -> Unit = {},
 		onForgotPin: (() -> Unit)? = null,
-		autoSubmitOnFourthDigit: Boolean = false,
+		autoSubmitLength: Int? = null,
 	) {
 		val binding = DialogPinEntryBinding.inflate(LayoutInflater.from(context))
 		
@@ -160,10 +168,10 @@ object PinEntryDialog {
 
 		fun appendPinDigit(digit: String) {
 			val currentText = binding.pinInput.text?.toString() ?: ""
-			if (currentText.length < 10) {  // Match maxLength from XML
+			if (currentText.length < PinCodeUtil.MAX_PIN_LENGTH) {
 				binding.pinInput.append(digit)
 				binding.pinError.isVisible = false
-				if (autoSubmitOnFourthDigit && binding.pinInput.text?.length == 4) {
+				if (autoSubmitLength != null && binding.pinInput.text?.length == autoSubmitLength) {
 					submitPin()
 				}
 			}
@@ -328,4 +336,11 @@ object PinEntryDialog {
 		binding.pinError.isVisible = true
 		binding.pinInput.text?.clear()
 	}
+
+	private fun resolveAutoSubmitLength(autoSubmitEnabled: Boolean, pinLength: Int): Int? =
+		if (autoSubmitEnabled && pinLength in PinCodeUtil.MIN_PIN_LENGTH..PinCodeUtil.MAX_PIN_LENGTH) {
+			pinLength
+		} else {
+			null
+		}
 }

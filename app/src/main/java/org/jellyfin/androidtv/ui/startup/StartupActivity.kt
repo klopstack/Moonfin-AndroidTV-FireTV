@@ -225,7 +225,7 @@ class StartupActivity : FragmentActivity() {
 			AdminPinSetupAction.SET_UP_PIN -> {
 				val pin = showSetPinDialog()
 				if (!pin.isNullOrEmpty()) {
-					userSettings[UserSettingPreferences.userPinHash] = PinCodeUtil.hashPin(pin)
+					PinCodeUtil.savePin(userSettings, pin)
 					userSettings[UserSettingPreferences.userPinEnabled] = true
 					userSettings[UserSettingPreferences.userPinSetupDeclined] = false
 					Toast.makeText(this, R.string.lbl_pin_code_set, Toast.LENGTH_SHORT).show()

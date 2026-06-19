@@ -67,4 +67,13 @@ class PluginSyncMergeTests : FunSpec({
 
 		(merged.containsKey("notASyncKey")) shouldBe false
 	}
+
+	test("first sync ignores keys outside syncable server key set") {
+		val local = mapOf("notASyncKey" to "local", key to true)
+		val server = mapOf("notASyncKey" to "server", key to false)
+
+		val merged = PluginSyncMerge.mergeThreeWay(local, server, emptyMap())
+
+		merged shouldBe mapOf(key to false)
+	}
 })

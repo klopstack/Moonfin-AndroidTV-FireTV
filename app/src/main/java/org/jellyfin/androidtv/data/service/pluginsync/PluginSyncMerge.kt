@@ -23,7 +23,7 @@ internal object PluginSyncMerge {
 		snapshot: Map<String, Any?>,
 	): Map<String, Any?> {
 		if (snapshot.isEmpty()) {
-			return local + server
+			return (local + server).filterKeys { it in PluginSyncConstants.ALL_SERVER_KEYS }
 		}
 
 		val allKeys = (local.keys + server.keys + snapshot.keys)

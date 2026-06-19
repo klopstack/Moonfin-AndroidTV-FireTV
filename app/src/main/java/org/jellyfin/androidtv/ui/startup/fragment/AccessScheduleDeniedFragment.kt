@@ -72,6 +72,10 @@ class AccessScheduleDeniedFragment : Fragment() {
 			}
 		} else if (parentFragmentManager.backStackEntryCount > 0) {
 			parentFragmentManager.popBackStack()
+		} else {
+			parentFragmentManager.commit {
+				replace<SelectServerFragment>(R.id.content_view)
+			}
 		}
 	}
 }
@@ -139,7 +143,7 @@ private fun AccessScheduleDeniedScreen(
 		}
 	}
 
-	androidx.compose.runtime.LaunchedEffect(Unit) {
+	LaunchedEffect(Unit) {
 		focusRequester.requestFocus()
 	}
 }

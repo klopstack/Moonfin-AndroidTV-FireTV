@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -23,9 +22,9 @@ import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.model.api.UserPolicy
 import org.moonfin.server.emby.EmbyApiException
+import java.time.Duration
 import java.time.LocalDateTime
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.time.Duration.Companion.seconds
 
 sealed class AccessScheduleStatus {
 	data object Allowed : AccessScheduleStatus()
@@ -72,9 +71,14 @@ class AccessScheduleRepositoryImpl(
 
 		scope.launch {
 			while (isActive) {
-				delay(60.seconds)
-				val current = checkNow()
-				_status.value = current
+				val policy = userRepository.currentUser.value?.policy
+				val now = LocalDateTime.now()
+				val nextCheck = AccessScheduleEvaluator.getNextStatusChange(policy, now)
+				val delayMs = nextCheck?.let {
+					Duration.between(now, it).toMillis().coerceIn(1_000L, 86_400_000L)
+				} ?: 60_000L
+				delay(delayMs)
+				_status.value = checkNow()
 			}
 		}
 	}

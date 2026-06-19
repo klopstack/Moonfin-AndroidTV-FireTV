@@ -27,4 +27,14 @@ class UpdateCheckerServiceSignatureTests : FunSpec({
 			downloaded = emptyList(),
 		) shouldBe false
 	}
+
+	test("signaturesMatch accepts rotated signing key in installed history") {
+		val currentKey = byteArrayOf(10, 11, 12)
+		val previousKey = byteArrayOf(1, 2, 3)
+
+		UpdateCheckerService.signaturesMatch(
+			installed = listOf(currentKey, previousKey),
+			downloaded = listOf(currentKey),
+		) shouldBe true
+	}
 })

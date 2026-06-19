@@ -309,13 +309,19 @@ class UpdateCheckerService(private val context: Context) {
 		}
 
 		val packageInfo = packageManager.getPackageInfo(context.packageName, flags)
-		return getSigningCertificates(packageInfo)
+		return getSigningCertificates(packageInfo, useSigningHistory = true)
 	}
 
 	private fun getSigningCertificates(
 		packageInfo: android.content.pm.PackageInfo,
+		useSigningHistory: Boolean = false,
 	): List<ByteArray> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-		packageInfo.signingInfo?.apkContentsSigners?.map { it.toByteArray() }.orEmpty()
+		val signingInfo = packageInfo.signingInfo ?: return emptyList()
+		if (useSigningHistory && !signingInfo.hasMultipleSigners()) {
+			signingInfo.signingCertificateHistory?.map { it.toByteArray() }.orEmpty()
+		} else {
+			signingInfo.apkContentsSigners?.map { it.toByteArray() }.orEmpty()
+		}
 	} else {
 		@Suppress("DEPRECATION")
 		packageInfo.signatures?.map { it.toByteArray() }.orEmpty()

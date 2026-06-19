@@ -49,9 +49,10 @@ class AuthenticationStore(
 		// Parse JSON document
 		val root = try {
 			json.parseToJsonElement(storePath.readText()).jsonObject
-		} catch (e: SerializationException) {
-			Timber.e(e, "Unable to read JSON")
-			JsonObject(emptyMap())
+		} catch (e: Exception) {
+			Timber.e(e, "Unable to read authentication store")
+			quarantineCorruptFile()
+			return emptyMap()
 		}
 
 		// Check for version
@@ -63,10 +64,25 @@ class AuthenticationStore(
 			}
 
 			// Current version, return as-is
-			2 -> json.decodeFromJsonElement<Map<UUID, AuthenticationStoreServer>>(root["servers"]!!)
+			2 -> {
+				val serversElement = root["servers"]
+				if (serversElement == null) {
+					Timber.e("Authentication Store is missing servers key")
+					quarantineCorruptFile()
+					return emptyMap()
+				}
+				try {
+					json.decodeFromJsonElement<Map<UUID, AuthenticationStoreServer>>(serversElement)
+				} catch (e: SerializationException) {
+					Timber.e(e, "Failed to parse servers from Authentication Store")
+					quarantineCorruptFile()
+					emptyMap()
+				}
+			}
 
 			null -> {
 				Timber.e("Authentication Store is corrupt!")
+				quarantineCorruptFile()
 				emptyMap()
 			}
 
@@ -74,6 +90,24 @@ class AuthenticationStore(
 				Timber.e("Authentication Store is using an unknown version!")
 				emptyMap()
 			}
+		}
+	}
+
+	private fun quarantineCorruptFile() {
+		if (!storePath.exists()) return
+		val quarantinePath = context.filesDir.resolve("authentication_store.json.corrupt")
+		try {
+			if (quarantinePath.exists() && !quarantinePath.delete()) {
+				Timber.e("Failed to delete existing quarantine file at ${quarantinePath.name}")
+				return
+			}
+			if (storePath.renameTo(quarantinePath)) {
+				Timber.w("Quarantined corrupt authentication store to ${quarantinePath.name}")
+			} else {
+				Timber.e("Failed to quarantine corrupt authentication store (rename failed)")
+			}
+		} catch (e: Exception) {
+			Timber.e(e, "Failed to quarantine corrupt authentication store")
 		}
 	}
 

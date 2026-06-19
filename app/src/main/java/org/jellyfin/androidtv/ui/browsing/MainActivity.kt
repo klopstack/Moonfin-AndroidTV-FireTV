@@ -169,6 +169,11 @@ class MainActivity : FragmentActivity() {
 		applyTheme()
 
 		interactionTrackerViewModel.activityPaused = false
+
+		// Finish any in-flight fragment transitions and force a fresh draw after resume.
+		// Prevents stale layer content from appearing ghosted over the live UI.
+		supportFragmentManager.executePendingTransactions()
+		if (::binding.isInitialized) binding.root.invalidate()
 	}
 
 	private fun validateAuthentication(): Boolean {
@@ -223,6 +228,10 @@ class MainActivity : FragmentActivity() {
 
 	override fun onStop() {
 		super.onStop()
+
+		// Clear replayed navigation actions after the STARTED collector is cancelled,
+		// so flowWithLifecycle(STARTED) does not re-apply the last destination on resume.
+		navigationRepository.consumeAction()
 
 		// Stop theme music when app goes to background
 		themeMusicPlayer.stop()

@@ -12,7 +12,8 @@ import org.jellyfin.preference.Preference
  * to a [serverKey] (the camelCase key used by the Moonfin server plugin and web client).
  *
  * Only settings managed by the Moonfin server plugin are listed here.
- * Sensitive keys (passwords, auth tokens, API keys) are excluded.
+ * Plaintext secrets (passwords, auth tokens, API keys) are excluded; hashed
+ * credentials (e.g. user PIN hash) may still sync for cross-device parity.
  * [UserPreferences.pluginSyncEnabled] itself is never synced (device-local control).
  */
 object PluginSyncConstants {

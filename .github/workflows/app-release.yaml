@@ -50,7 +50,11 @@ jobs:
           } > keystore.properties
           ls -la release.keystore keystore.properties
       - name: Assemble GitHub release APK
-        run: ./gradlew assembleGithubRelease
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          ./gradlew assembleGithubRelease -Pstonecrusher.version="$VERSION"
       - name: Stage release APK
         run: |
           mkdir -p build/gh-app-publish/

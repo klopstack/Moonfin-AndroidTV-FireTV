@@ -266,8 +266,17 @@ class UpdateCheckerService(private val context: Context) {
 			return false
 		}
 
+		val verifiedUri = FileProvider.getUriForFile(
+			context,
+			"${context.packageName}.fileprovider",
+			apkFile,
+		)
+		if (verifiedUri != apkUri) {
+			Timber.w("installUpdate: passed uri does not match verified APK file; using verified file")
+		}
+
 		val intent = Intent(Intent.ACTION_VIEW).apply {
-			setDataAndType(apkUri, "application/vnd.android.package-archive")
+			setDataAndType(verifiedUri, "application/vnd.android.package-archive")
 			addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 			addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
 		}
@@ -295,6 +304,16 @@ class UpdateCheckerService(private val context: Context) {
 
 		val archiveInfo = packageManager.getPackageArchiveInfo(apkFile.absolutePath, archiveFlags)
 			?: return false
+
+		if (archiveInfo.packageName != context.packageName) {
+			Timber.e("APK package name does not match installed app")
+			return false
+		}
+
+		archiveInfo.applicationInfo?.apply {
+			sourceDir = apkFile.absolutePath
+			publicSourceDir = apkFile.absolutePath
+		}
 
 		val apkCerts = getSigningCertificates(archiveInfo)
 		return signaturesMatch(installedCerts, apkCerts)

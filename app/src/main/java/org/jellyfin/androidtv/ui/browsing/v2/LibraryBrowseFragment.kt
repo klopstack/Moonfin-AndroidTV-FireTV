@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
@@ -452,7 +453,14 @@ class LibraryBrowseFragment : Fragment() {
 		}
 
 		val itemSpacing = 12.dp
+		val rowSpacing = 16.dp
 		val minPadding = 40.dp
+		val labelBlockHeight = if (uiState.isGenreMode) 38.dp else 0.dp
+		val layoutCardHeight = if (uiState.useAutoImageType) {
+			autoCardHeight(cardWidth, null)
+		} else {
+			cardHeight
+		}
 
 		val isHorizontal = uiState.gridDirection == GridDirection.HORIZONTAL
 
@@ -529,11 +537,13 @@ class LibraryBrowseFragment : Fragment() {
 
 		if (isHorizontal) {
 			BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-				val availableHeight = maxHeight - minPadding * 2
-				val cellHeight = cardHeight.dp + 16.dp
-				val rowCount = (availableHeight / cellHeight).toInt().coerceAtLeast(2)
-				val gridHeight = cardHeight.dp * rowCount + 16.dp * (rowCount - 1)
-				val verticalPadding = ((maxHeight - gridHeight) / 2).coerceAtLeast(0.dp)
+				val (rowCount, verticalPadding) = horizontalGridLayout(
+					maxHeight = maxHeight,
+					cardHeight = layoutCardHeight.dp,
+					labelBlockHeight = labelBlockHeight,
+					rowSpacing = rowSpacing,
+					minPadding = minPadding,
+				)
 
 				LazyHorizontalGrid(
 					rows = GridCells.Fixed(rowCount),
@@ -546,7 +556,7 @@ class LibraryBrowseFragment : Fragment() {
 						bottom = verticalPadding,
 					),
 					horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-					verticalArrangement = Arrangement.spacedBy(16.dp),
+					verticalArrangement = Arrangement.spacedBy(rowSpacing),
 				) {
 					itemsIndexed(uiState.items) { index, item ->
 						gridItemContent(index, item)
@@ -572,7 +582,7 @@ class LibraryBrowseFragment : Fragment() {
 						bottom = 16.dp,
 					),
 					horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-					verticalArrangement = Arrangement.spacedBy(16.dp),
+					verticalArrangement = Arrangement.spacedBy(rowSpacing),
 				) {
 					itemsIndexed(uiState.items) { index, item ->
 						gridItemContent(index, item)
@@ -585,6 +595,31 @@ class LibraryBrowseFragment : Fragment() {
 	// ──────────────────────────────────────────────
 	// Helpers
 	// ──────────────────────────────────────────────
+
+	/**
+	 * Computes horizontal-grid row count and centering padding so poster cards keep their
+	 * natural height. PR #11 clamped negative padding to 0 to avoid a Compose crash, but
+	 * that left too many rows on small viewports and LazyHorizontalGrid compressed cells.
+	 */
+	private fun horizontalGridLayout(
+		maxHeight: Dp,
+		cardHeight: Dp,
+		labelBlockHeight: Dp,
+		rowSpacing: Dp,
+		minPadding: Dp,
+	): Pair<Int, Dp> {
+		val rowContentHeight = cardHeight + labelBlockHeight
+		val availableHeight = maxHeight - minPadding * 2
+		val cellHeight = rowContentHeight + rowSpacing
+		var rowCount = (availableHeight / cellHeight).toInt().coerceAtLeast(1)
+		var gridHeight = rowContentHeight * rowCount + rowSpacing * (rowCount - 1)
+		while (rowCount > 1 && gridHeight > maxHeight) {
+			rowCount--
+			gridHeight = rowContentHeight * rowCount + rowSpacing * (rowCount - 1)
+		}
+		val verticalPadding = ((maxHeight - gridHeight) / 2).coerceAtLeast(0.dp)
+		return rowCount to verticalPadding
+	}
 
 	private fun getItemImageUrl(item: BaseItemDto, imageType: ImageType): String? {
 		val jellyfinType = when (imageType) {

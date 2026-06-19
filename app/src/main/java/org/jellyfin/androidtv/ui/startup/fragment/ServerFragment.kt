@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.auth.model.AccessScheduleDeniedLoginState
 import org.jellyfin.androidtv.auth.model.ApiClientErrorLoginState
 import org.jellyfin.androidtv.auth.model.AuthenticatedState
 import org.jellyfin.androidtv.auth.model.AuthenticatingState
@@ -47,6 +48,7 @@ import org.jellyfin.androidtv.util.setServerTypeIcon
 import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
+import java.time.ZoneId
 
 class ServerFragment : Fragment() {
 	companion object {
@@ -183,6 +185,7 @@ class ServerFragment : Fragment() {
 					UserLoginFragment.ARG_SERVER_ID to server.id.toString(),
 					UserLoginFragment.ARG_USERNAME to user.name,
 				))
+				is AccessScheduleDeniedLoginState -> navigateToAccessScheduleDenied(state.nextAccessStart, server)
 				// Errors
 				ServerUnavailableState,
 				is ApiClientErrorLoginState -> Toast.makeText(context, R.string.server_connection_failed, Toast.LENGTH_LONG).show()
@@ -246,6 +249,19 @@ class ServerFragment : Fragment() {
 		} else {
 			binding.notification.isGone = true
 		}
+	}
+
+	private fun navigateToAccessScheduleDenied(nextAccessStart: java.time.LocalDateTime?, server: Server) {
+		val args = bundleOf(
+			AccessScheduleDeniedFragment.ARG_SERVER_ID to server.id.toString(),
+		)
+		nextAccessStart?.let {
+			args.putLong(
+				AccessScheduleDeniedFragment.ARG_NEXT_ACCESS_EPOCH_MILLIS,
+				it.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+			)
+		}
+		navigateFragment<AccessScheduleDeniedFragment>(args)
 	}
 
 	private inline fun <reified F : Fragment> navigateFragment(

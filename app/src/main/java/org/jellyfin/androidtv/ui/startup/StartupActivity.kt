@@ -36,6 +36,7 @@ import org.jellyfin.androidtv.util.displayName
 import org.jellyfin.androidtv.auth.repository.SessionRepository
 import org.jellyfin.androidtv.auth.repository.SessionRepositoryState
 import org.jellyfin.androidtv.auth.repository.UserRepository
+import org.jellyfin.androidtv.data.repository.AccessScheduleRepository
 import org.jellyfin.androidtv.data.service.pluginsync.PluginSyncService
 import org.jellyfin.androidtv.databinding.ActivityStartupBinding
 import org.jellyfin.androidtv.preference.UserSettingPreferences
@@ -46,6 +47,7 @@ import org.jellyfin.androidtv.ui.navigation.Destinations
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.androidtv.ui.playback.MediaManager
 import org.jellyfin.androidtv.ui.startup.PinEntryDialog.Mode.SET
+import org.jellyfin.androidtv.ui.startup.fragment.AccessScheduleDeniedFragment
 import org.jellyfin.androidtv.ui.startup.fragment.SelectServerFragment
 import org.jellyfin.androidtv.ui.startup.fragment.ServerFragment
 import org.jellyfin.androidtv.ui.startup.fragment.SplashFragment
@@ -58,6 +60,7 @@ import org.jellyfin.sdk.model.serializer.toUUIDOrNull
 import org.koin.android.ext.android.inject
 import org.koin.androidx.viewmodel.ext.android.viewModel
 import timber.log.Timber
+import java.time.ZoneId
 import java.util.UUID
 import kotlin.coroutines.resume
 
@@ -76,6 +79,7 @@ class StartupActivity : FragmentActivity() {
 	private val navigationRepository: NavigationRepository by inject()
 	private val itemLauncher: ItemLauncher by inject()
 	private val pluginSyncService: PluginSyncService by inject()
+	private val accessScheduleRepository: AccessScheduleRepository by inject()
 
 	private lateinit var binding: ActivityStartupBinding
 	private var hasHandledAdminPinPrompt = false
@@ -136,6 +140,15 @@ class StartupActivity : FragmentActivity() {
 			} else {
 				// Clear audio queue in case left over from last run
 				mediaManager.clearAudioQueue()
+
+				if (accessScheduleRepository.hasPendingLoginDenied()) {
+					val nextAccess = accessScheduleRepository.consumeLoginDenied()
+					lifecycleScope.launch {
+						val server = startupViewModel.getLastServer()
+						showAccessScheduleDenied(nextAccess, server?.id)
+					}
+					return@onEach
+				}
 
 				val server = startupViewModel.getLastServer()
 				when {
@@ -276,6 +289,19 @@ class StartupActivity : FragmentActivity() {
 		supportFragmentManager.commit {
 			replace<SplashFragment>(R.id.content_view)
 		}
+	}
+
+	private fun showAccessScheduleDenied(nextAccessStart: java.time.LocalDateTime?, serverId: UUID?) = supportFragmentManager.commit {
+		val args = bundleOf()
+		serverId?.let { args.putString(AccessScheduleDeniedFragment.ARG_SERVER_ID, it.toString()) }
+		nextAccessStart?.let {
+			args.putLong(
+				AccessScheduleDeniedFragment.ARG_NEXT_ACCESS_EPOCH_MILLIS,
+				it.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+			)
+		}
+		replace<AccessScheduleDeniedFragment>(R.id.content_view, null, args)
+		replace<StartupToolbarFragment>(R.id.toolbar_view)
 	}
 
 	private fun showServer(id: UUID) = supportFragmentManager.commit {

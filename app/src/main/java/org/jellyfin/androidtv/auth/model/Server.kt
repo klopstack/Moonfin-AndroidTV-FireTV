@@ -1,5 +1,6 @@
 package org.jellyfin.androidtv.auth.model
 
+import org.jellyfin.androidtv.BuildConfig
 import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.sdk.model.ServerVersion
 import org.moonfin.server.core.model.ServerType
@@ -24,7 +25,7 @@ data class Server(
 			val sv = serverVersion ?: return false
 			return when (serverType) {
 				ServerType.JELLYFIN -> sv >= ServerRepository.minimumJellyfinVersion
-				ServerType.EMBY -> sv >= ServerRepository.minimumEmbyVersion
+				ServerType.EMBY -> BuildConfig.EMBY_ENABLED && sv >= ServerRepository.minimumEmbyVersion
 			}
 		}
 

@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import org.jellyfin.androidtv.BuildConfig
 import org.jellyfin.androidtv.auth.model.ApiClientErrorLoginState
 import org.jellyfin.androidtv.auth.model.AuthenticateMethod
 import org.jellyfin.androidtv.auth.model.AuthenticatedState
@@ -90,6 +91,10 @@ class AuthenticationRepositoryImpl(
 	}
 
 	private fun authenticateCredential(server: Server, username: String, password: String) = flow {
+		if (server.serverType == ServerType.EMBY && !BuildConfig.EMBY_ENABLED) {
+			emit(ServerVersionNotSupported(server))
+			return@flow
+		}
 		if (server.serverType == ServerType.EMBY) {
 			emitAll(authenticateCredentialEmby(server, username, password))
 			return@flow

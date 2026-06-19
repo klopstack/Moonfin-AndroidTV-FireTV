@@ -545,7 +545,7 @@ private fun CollapsibleSidebarContent(
 						partitionAggregatedLibraries(aggregatedLibraries).first.forEach { aggLib ->
 							SidebarIconItem(
 								icon = ImageVector.vectorResource(primaryLibraryIconRes(aggLib.library.collectionType)),
-								label = stringResource(primaryLibraryLabelRes(aggLib.library.collectionType)),
+								label = aggLib.displayName,
 								showLabel = isExpanded,
 								isExpanded = isExpanded,
 								onClick = {

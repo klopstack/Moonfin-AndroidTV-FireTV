@@ -33,7 +33,7 @@ fun PrimaryLibraryButtons(
 				val isActiveLibrary = activeLibraryId == aggLib.library.id
 				ExpandableIconButton(
 					icon = ImageVector.vectorResource(primaryLibraryIconRes(aggLib.library.collectionType)),
-					label = stringResource(primaryLibraryLabelRes(aggLib.library.collectionType)),
+					label = aggLib.displayName,
 					onClick = {
 						if (!isActiveLibrary) {
 							navigateToLibrary(

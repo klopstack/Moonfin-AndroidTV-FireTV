@@ -195,7 +195,6 @@ class SessionRepositoryImpl(
 						destroyCurrentSession()
 						return false
 					}
-					preferencesRepository.onSessionChanged()
 					@Suppress("DEPRECATION")
 					val jellyfinUser = org.jellyfin.sdk.model.api.UserDto(
 						id = session.userId,
@@ -207,6 +206,7 @@ class SessionRepositoryImpl(
 						hasConfiguredEasyPassword = false,
 					)
 					userRepository.setCurrentUser(jellyfinUser)
+					preferencesRepository.onSessionChanged()
 					serverRepository.setCurrentServer(server)
 					preferencesRepository.configureJellyseerr()
 				}
@@ -222,8 +222,8 @@ class SessionRepositoryImpl(
 						val user = withContext(Dispatchers.IO) {
 							userApiClient.userApi.getCurrentUser().content
 						}
-						preferencesRepository.onSessionChanged()
 						userRepository.setCurrentUser(user)
+						preferencesRepository.onSessionChanged()
 						serverRepository.setCurrentServer(server)
 						preferencesRepository.configureJellyseerr()
 					} catch (err: ApiClientException) {

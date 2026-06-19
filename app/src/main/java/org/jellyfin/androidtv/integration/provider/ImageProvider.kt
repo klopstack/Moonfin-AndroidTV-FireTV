@@ -35,7 +35,7 @@ class ImageProvider : ContentProvider() {
 	override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?) = 0
 
 	override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor? {
-		val src = uri.getQueryParameter("src")
+		val src = uri.getQueryParameter("src")?.trim()
 			?: throw FileNotFoundException("Missing src parameter")
 
 		if (!isAllowedImageUrl(src)) {
@@ -61,7 +61,7 @@ class ImageProvider : ContentProvider() {
 	}
 
 	private fun isAllowedImageUrl(src: String): Boolean {
-		val srcUri = runCatching { src.trim().toUri() }.getOrNull() ?: return false
+		val srcUri = runCatching { src.toUri() }.getOrNull() ?: return false
 
 		if (srcUri.scheme == ContentResolver.SCHEME_ANDROID_RESOURCE) {
 			return srcUri.authority == context?.packageName
@@ -87,7 +87,9 @@ class ImageProvider : ContentProvider() {
 
 		val basePath = baseUri.path?.trimEnd('/') ?: ""
 		val srcPath = srcUri.path ?: ""
-		return basePath.isEmpty() || srcPath.startsWith(basePath, ignoreCase = true)
+		return basePath.isEmpty() ||
+			srcPath.equals(basePath, ignoreCase = true) ||
+			srcPath.startsWith("$basePath/", ignoreCase = true)
 	}
 
 	private fun normalizedPort(uri: Uri): Int {

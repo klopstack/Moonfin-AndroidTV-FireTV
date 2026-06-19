@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -45,7 +43,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -212,12 +209,6 @@ class LibraryBrowseFragment : Fragment() {
 						)
 					}
 				}
-
-				// ── Status bar ──
-				LibraryStatusBar(
-					statusText = buildStatusText(uiState),
-					counterText = "${uiState.items.size} | ${uiState.totalItems}",
-				)
 			}
 
 			// Settings dialog overlay
@@ -278,36 +269,7 @@ class LibraryBrowseFragment : Fragment() {
 				.fillMaxWidth()
 				.padding(start = 60.dp, end = 60.dp, top = 12.dp, bottom = 4.dp),
 		) {
-			// Row 0: Centered library name + item count
-			Box(
-				modifier = Modifier.fillMaxWidth(),
-				contentAlignment = Alignment.Center,
-			) {
-				Row(
-					verticalAlignment = Alignment.CenterVertically,
-				) {
-					Text(
-						text = uiState.libraryName,
-						fontSize = 26.sp,
-						fontWeight = FontWeight.Light,
-						color = Color.White,
-					)
-
-					if (uiState.totalItems > 0) {
-						Spacer(modifier = Modifier.width(12.dp))
-						Text(
-							text = "${uiState.totalItems} Items",
-							fontSize = 12.sp,
-							fontWeight = FontWeight.Normal,
-							color = Color.White.copy(alpha = 0.4f),
-						)
-					}
-				}
-			}
-
-			Spacer(modifier = Modifier.height(6.dp))
-
-			// Row 1: Focused item HUD (left)
+			// Row 0: Focused item HUD (left)
 			FocusedItemHud(
 				item = uiState.focusedItem,
 				modifier = Modifier.fillMaxWidth(),
@@ -542,7 +504,6 @@ class LibraryBrowseFragment : Fragment() {
 					cardHeight = layoutCardHeight.dp,
 					labelBlockHeight = labelBlockHeight,
 					rowSpacing = rowSpacing,
-					minPadding = minPadding,
 				)
 
 				LazyHorizontalGrid(
@@ -597,27 +558,18 @@ class LibraryBrowseFragment : Fragment() {
 	// ──────────────────────────────────────────────
 
 	/**
-	 * Computes horizontal-grid row count and centering padding so poster cards keep their
-	 * natural height. PR #11 clamped negative padding to 0 to avoid a Compose crash, but
-	 * that left too many rows on small viewports and LazyHorizontalGrid compressed cells.
+	 * Two-row horizontal grid with vertical centering. Header chrome (library title and status
+	 * bar) is hidden in library browse to free viewport height so full-size posters keep 2:3.
 	 */
 	private fun horizontalGridLayout(
 		maxHeight: Dp,
 		cardHeight: Dp,
 		labelBlockHeight: Dp,
 		rowSpacing: Dp,
-		minPadding: Dp,
 	): Pair<Int, Dp> {
 		val rowContentHeight = cardHeight + labelBlockHeight
-		val availableHeight = maxHeight - minPadding * 2
-		val cellHeight = rowContentHeight + rowSpacing
-		// Last row has no trailing rowSpacing, so add one spacing unit before dividing.
-		var rowCount = ((availableHeight + rowSpacing) / cellHeight).toInt().coerceAtLeast(1)
-		var gridHeight = rowContentHeight * rowCount + rowSpacing * (rowCount - 1)
-		while (rowCount > 1 && gridHeight > maxHeight) {
-			rowCount--
-			gridHeight = rowContentHeight * rowCount + rowSpacing * (rowCount - 1)
-		}
+		val rowCount = 2
+		val gridHeight = rowContentHeight * rowCount + rowSpacing * (rowCount - 1)
 		val verticalPadding = ((maxHeight - gridHeight) / 2).coerceAtLeast(0.dp)
 		return rowCount to verticalPadding
 	}
@@ -685,26 +637,4 @@ class LibraryBrowseFragment : Fragment() {
 		}
 	}
 
-	@Composable
-	private fun buildStatusText(uiState: LibraryBrowseUiState): String {
-		val parts = mutableListOf<String>()
-		parts.add(stringResource(R.string.lbl_showing))
-		if (!uiState.filterFavorites && uiState.filterPlayed == PlayedStatusFilter.ALL && uiState.filterSeriesStatus == SeriesStatusFilter.ALL) {
-			parts.add(stringResource(R.string.lbl_all_items).lowercase())
-		} else {
-			if (uiState.filterFavorites) parts.add(stringResource(R.string.lbl_favorites))
-			if (uiState.filterPlayed != PlayedStatusFilter.ALL) {
-				parts.add(stringResource(uiState.filterPlayed.labelRes))
-			}
-			if (uiState.filterSeriesStatus != SeriesStatusFilter.ALL) {
-				parts.add(stringResource(uiState.filterSeriesStatus.labelRes))
-			}
-		}
-		if (uiState.startLetter != null) {
-			parts.add("${stringResource(R.string.lbl_starting_with)} ${uiState.startLetter}")
-		}
-		parts.add("${stringResource(R.string.lbl_from)} '${uiState.libraryName}'")
-		parts.add("${stringResource(R.string.lbl_sorted_by)} ${stringResource(uiState.currentSortOption.nameRes)}")
-		return parts.joinToString(" ")
-	}
 }

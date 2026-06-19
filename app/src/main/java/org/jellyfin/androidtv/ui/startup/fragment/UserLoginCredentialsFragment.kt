@@ -6,6 +6,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.commit
+import androidx.fragment.app.replace
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.auth.model.AccessScheduleDeniedLoginState
 import org.jellyfin.androidtv.auth.model.ApiClientErrorLoginState
 import org.jellyfin.androidtv.auth.model.AuthenticatedState
 import org.jellyfin.androidtv.auth.model.AuthenticatingState
@@ -25,6 +28,7 @@ import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.databinding.FragmentUserLoginCredentialsBinding
 import org.jellyfin.androidtv.ui.startup.UserLoginViewModel
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
+import java.time.ZoneId
 
 class UserLoginCredentialsFragment : Fragment() {
 	private val userLoginViewModel: UserLoginViewModel by activityViewModel()
@@ -96,6 +100,7 @@ class UserLoginCredentialsFragment : Fragment() {
 
 						AuthenticatingState -> binding.error.setText(R.string.login_authenticating)
 						RequireSignInState -> binding.error.setText(R.string.login_invalid_credentials)
+						is AccessScheduleDeniedLoginState -> navigateToAccessScheduleDenied(state.nextAccessStart)
 						ServerUnavailableState,
 						is ApiClientErrorLoginState -> binding.error.setText(R.string.login_server_unavailable)
 						// Do nothing because the activity will respond to the new session
@@ -112,6 +117,21 @@ class UserLoginCredentialsFragment : Fragment() {
 		super.onDestroyView()
 
 		_binding = null
+	}
+
+	private fun navigateToAccessScheduleDenied(nextAccessStart: java.time.LocalDateTime?) {
+		val args = if (nextAccessStart != null) {
+			androidx.core.os.bundleOf(
+				AccessScheduleDeniedFragment.ARG_NEXT_ACCESS_EPOCH_MILLIS to
+					nextAccessStart.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+			)
+		} else {
+			androidx.core.os.bundleOf()
+		}
+		requireActivity().supportFragmentManager.commit {
+			replace<AccessScheduleDeniedFragment>(R.id.content_view, null, args)
+			addToBackStack(null)
+		}
 	}
 
 	private fun loginWithCredentials() {

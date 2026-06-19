@@ -8,7 +8,6 @@ import org.jellyfin.sdk.model.api.UserPolicy
 import java.time.DayOfWeek
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 
 /**
  * Evaluates Jellyfin user access schedules using the same rules as the server
@@ -28,19 +27,30 @@ object AccessScheduleEvaluator {
 
 	fun getNextAccessStart(policy: UserPolicy?, now: LocalDateTime = LocalDateTime.now()): LocalDateTime? {
 		if (policy == null || policy.isAdministrator) return null
-		if (policy.accessSchedules.isNullOrEmpty()) return null
+		val schedules = policy.accessSchedules ?: return null
+		if (schedules.isEmpty()) return null
 		if (isAccessAllowed(policy, now)) return null
 
-		var probe = now.plusMinutes(1).truncatedTo(ChronoUnit.MINUTES)
-		val end = now.plusDays(8)
+		var earliest: LocalDateTime? = null
+		for (dayOffset in 0..7) {
+			val date = now.toLocalDate().plusDays(dayOffset.toLong())
+			for (schedule in schedules) {
+				if (!schedule.dayOfWeek.contains(date.dayOfWeek)) continue
 
-		while (probe.isBefore(end)) {
-			if (isAccessAllowed(policy, probe)) return probe
-			probe = probe.plusMinutes(15)
+				val start = date.atTime(hourFromDouble(schedule.startHour), minuteFromDouble(schedule.startHour))
+				if (!start.isAfter(now)) continue
+				if (earliest == null || start.isBefore(earliest)) {
+					earliest = start
+				}
+			}
 		}
 
-		return null
+		return earliest
 	}
+
+	private fun hourFromDouble(hour: Double): Int = hour.toInt()
+
+	private fun minuteFromDouble(hour: Double): Int = ((hour - hour.toInt()) * 60).toInt()
 
 	fun formatNextAccessMessage(context: Context, nextStart: LocalDateTime?, now: LocalDateTime = LocalDateTime.now()): String? {
 		if (nextStart == null) return null

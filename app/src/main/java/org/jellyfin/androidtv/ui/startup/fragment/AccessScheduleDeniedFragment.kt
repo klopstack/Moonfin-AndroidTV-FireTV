@@ -24,7 +24,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.commit
+import androidx.fragment.app.replace
 import androidx.fragment.compose.content
+import androidx.core.os.bundleOf
 import org.jellyfin.androidtv.R
 import org.jellyfin.androidtv.ui.background.AppBackground
 import org.jellyfin.androidtv.ui.base.StonecrusherTheme
@@ -39,6 +42,7 @@ import java.time.ZoneId
 class AccessScheduleDeniedFragment : Fragment() {
 	companion object {
 		const val ARG_NEXT_ACCESS_EPOCH_MILLIS = "next_access_epoch_millis"
+		const val ARG_SERVER_ID = "server_id"
 	}
 
 	override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -52,11 +56,22 @@ class AccessScheduleDeniedFragment : Fragment() {
 			StonecrusherTheme {
 				AccessScheduleDeniedScreen(
 					nextAccessStart = nextAccessStart,
-					onBackToUsers = {
-						parentFragmentManager.popBackStack()
-					},
+					onBackToUsers = { navigateBackToUsers() },
 				)
 			}
+		}
+	}
+
+	private fun navigateBackToUsers() {
+		val serverId = arguments?.getString(ARG_SERVER_ID)
+		if (serverId != null) {
+			parentFragmentManager.commit {
+				replace<ServerFragment>(
+					R.id.content_view, null, bundleOf(ServerFragment.ARG_SERVER_ID to serverId),
+				)
+			}
+		} else if (parentFragmentManager.backStackEntryCount > 0) {
+			parentFragmentManager.popBackStack()
 		}
 	}
 }

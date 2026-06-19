@@ -127,4 +127,11 @@ class AccessScheduleEvaluatorTests : FunSpec({
 		val p = policy(listOf(schedule(DynamicDayOfWeek.EVERYDAY, 8.0, 20.0)))
 		AccessScheduleEvaluator.getNextAccessStart(p, LocalDateTime.of(2026, 6, 18, 12, 0)) shouldBe null
 	}
+
+	test("getNextAccessStart returns exact schedule start when denied just before window") {
+		val p = policy(listOf(schedule(DynamicDayOfWeek.EVERYDAY, 8.0, 20.0)))
+		val now = LocalDateTime.of(2026, 6, 18, 7, 58)
+		val next = AccessScheduleEvaluator.getNextAccessStart(p, now)
+		next shouldBe LocalDateTime.of(2026, 6, 18, 8, 0)
+	}
 })

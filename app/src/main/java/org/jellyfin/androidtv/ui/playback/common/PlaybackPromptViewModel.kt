@@ -106,7 +106,9 @@ abstract class PlaybackPromptViewModel<S : Enum<S>>(
 			)
 		}
 	} catch (e: InvalidStatusException) {
-		if (e.status == 403 || accessScheduleRepository.isScheduleRelatedApiError(e)) {
+		if (accessScheduleRepository.isCurrentlyDenied() &&
+			(accessScheduleRepository.isScheduleRelatedApiError(e) || e.status == 403)
+		) {
 			_accessDenied.value = true
 			accessScheduleRepository.requestBlockedOverlay()
 		} else if (e.status == 404) {

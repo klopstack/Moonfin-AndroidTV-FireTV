@@ -185,7 +185,7 @@ class ServerFragment : Fragment() {
 					UserLoginFragment.ARG_SERVER_ID to server.id.toString(),
 					UserLoginFragment.ARG_USERNAME to user.name,
 				))
-				is AccessScheduleDeniedLoginState -> navigateToAccessScheduleDenied(state.nextAccessStart)
+				is AccessScheduleDeniedLoginState -> navigateToAccessScheduleDenied(state.nextAccessStart, server)
 				// Errors
 				ServerUnavailableState,
 				is ApiClientErrorLoginState -> Toast.makeText(context, R.string.server_connection_failed, Toast.LENGTH_LONG).show()
@@ -251,14 +251,15 @@ class ServerFragment : Fragment() {
 		}
 	}
 
-	private fun navigateToAccessScheduleDenied(nextAccessStart: java.time.LocalDateTime?) {
-		val args = if (nextAccessStart != null) {
-			bundleOf(
-				AccessScheduleDeniedFragment.ARG_NEXT_ACCESS_EPOCH_MILLIS to
-					nextAccessStart.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+	private fun navigateToAccessScheduleDenied(nextAccessStart: java.time.LocalDateTime?, server: Server) {
+		val args = bundleOf(
+			AccessScheduleDeniedFragment.ARG_SERVER_ID to server.id.toString(),
+		)
+		nextAccessStart?.let {
+			args.putLong(
+				AccessScheduleDeniedFragment.ARG_NEXT_ACCESS_EPOCH_MILLIS,
+				it.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
 			)
-		} else {
-			bundleOf()
 		}
 		navigateFragment<AccessScheduleDeniedFragment>(args)
 	}

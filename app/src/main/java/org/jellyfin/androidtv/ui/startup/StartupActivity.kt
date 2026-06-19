@@ -134,7 +134,10 @@ class StartupActivity : FragmentActivity() {
 
 				if (accessScheduleRepository.hasPendingLoginDenied()) {
 					val nextAccess = accessScheduleRepository.consumeLoginDenied()
-					showAccessScheduleDenied(nextAccess)
+					lifecycleScope.launch {
+						val server = startupViewModel.getLastServer()
+						showAccessScheduleDenied(nextAccess, server?.id)
+					}
 					return@onEach
 				}
 
@@ -200,14 +203,14 @@ class StartupActivity : FragmentActivity() {
 		}
 	}
 
-	private fun showAccessScheduleDenied(nextAccessStart: java.time.LocalDateTime?) = supportFragmentManager.commit {
-		val args = if (nextAccessStart != null) {
-			bundleOf(
-				AccessScheduleDeniedFragment.ARG_NEXT_ACCESS_EPOCH_MILLIS to
-					nextAccessStart.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+	private fun showAccessScheduleDenied(nextAccessStart: java.time.LocalDateTime?, serverId: UUID?) = supportFragmentManager.commit {
+		val args = bundleOf()
+		serverId?.let { args.putString(AccessScheduleDeniedFragment.ARG_SERVER_ID, it.toString()) }
+		nextAccessStart?.let {
+			args.putLong(
+				AccessScheduleDeniedFragment.ARG_NEXT_ACCESS_EPOCH_MILLIS,
+				it.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
 			)
-		} else {
-			bundleOf()
 		}
 		replace<AccessScheduleDeniedFragment>(R.id.content_view, null, args)
 		replace<StartupToolbarFragment>(R.id.toolbar_view)

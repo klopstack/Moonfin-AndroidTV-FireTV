@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.commit
 import androidx.fragment.app.replace
@@ -120,13 +121,14 @@ class UserLoginCredentialsFragment : Fragment() {
 	}
 
 	private fun navigateToAccessScheduleDenied(nextAccessStart: java.time.LocalDateTime?) {
-		val args = if (nextAccessStart != null) {
-			androidx.core.os.bundleOf(
-				AccessScheduleDeniedFragment.ARG_NEXT_ACCESS_EPOCH_MILLIS to
-					nextAccessStart.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+		val serverId = userLoginViewModel.server.value?.id?.toString()
+		val args = bundleOf()
+		serverId?.let { args.putString(AccessScheduleDeniedFragment.ARG_SERVER_ID, it) }
+		nextAccessStart?.let {
+			args.putLong(
+				AccessScheduleDeniedFragment.ARG_NEXT_ACCESS_EPOCH_MILLIS,
+				it.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
 			)
-		} else {
-			androidx.core.os.bundleOf()
 		}
 		requireActivity().supportFragmentManager.commit {
 			replace<AccessScheduleDeniedFragment>(R.id.content_view, null, args)

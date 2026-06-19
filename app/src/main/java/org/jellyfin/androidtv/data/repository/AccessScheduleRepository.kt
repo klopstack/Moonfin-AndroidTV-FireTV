@@ -23,8 +23,8 @@ import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.model.api.UserPolicy
 import org.moonfin.server.emby.EmbyApiException
-import timber.log.Timber
 import java.time.LocalDateTime
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.seconds
 
 sealed class AccessScheduleStatus {
@@ -45,6 +45,7 @@ interface AccessScheduleRepository {
 	fun clearPendingLoginDenied()
 	fun requestBlockedOverlay()
 	fun isScheduleRelatedApiError(error: Throwable): Boolean
+	fun isCurrentlyDenied(): Boolean
 }
 
 class AccessScheduleRepositoryImpl(
@@ -60,7 +61,7 @@ class AccessScheduleRepositoryImpl(
 
 	private val _loginDeniedNextAccess = MutableStateFlow<LocalDateTime?>(null)
 	override val loginDeniedNextAccess = _loginDeniedNextAccess.asStateFlow()
-	private var loginDeniedPending = false
+	private val loginDeniedPending = AtomicBoolean(false)
 
 	init {
 		userRepository.currentUser
@@ -89,24 +90,25 @@ class AccessScheduleRepositoryImpl(
 	override fun checkNow(): AccessScheduleStatus = evaluatePolicy(userRepository.currentUser.value?.policy)
 
 	override fun setLoginDenied(nextAccessStart: LocalDateTime?) {
-		loginDeniedPending = true
+		loginDeniedPending.set(true)
 		_loginDeniedNextAccess.value = nextAccessStart
 	}
 
-	override fun hasPendingLoginDenied(): Boolean = loginDeniedPending
+	override fun hasPendingLoginDenied(): Boolean = loginDeniedPending.get()
 
 	override fun clearPendingLoginDenied() {
-		loginDeniedPending = false
+		loginDeniedPending.set(false)
 		_loginDeniedNextAccess.value = null
 	}
 
 	override fun consumeLoginDenied(): LocalDateTime? {
-		if (!loginDeniedPending) return null
-		loginDeniedPending = false
+		if (!loginDeniedPending.getAndSet(false)) return null
 		val value = _loginDeniedNextAccess.value
 		_loginDeniedNextAccess.value = null
 		return value
 	}
+
+	override fun isCurrentlyDenied(): Boolean = status.value is AccessScheduleStatus.Denied
 
 	override fun requestBlockedOverlay() {
 		_forceBlockOverlay.tryEmit(Unit)

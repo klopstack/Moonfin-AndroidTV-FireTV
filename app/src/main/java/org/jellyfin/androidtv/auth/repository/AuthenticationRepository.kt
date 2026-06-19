@@ -220,7 +220,6 @@ class AuthenticationRepositoryImpl(
 		} catch (err: ApiClientException) {
 			Timber.e(err, "Unable to get current user data")
 			if (accessScheduleRepository.isScheduleRelatedApiError(err)) {
-				logout(user)
 				emit(AccessScheduleDeniedLoginState(null))
 			} else {
 				emit(ApiClientErrorLoginState(err))

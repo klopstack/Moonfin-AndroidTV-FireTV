@@ -829,7 +829,11 @@ public class PlaybackController implements PlaybackControllerNotifiable {
             PlaybackException ex = (PlaybackException) exception;
             switch (ex.getErrorCode()) {
                 case NOT_ALLOWED:
-                    KoinJavaComponent.<AccessScheduleRepository>get(AccessScheduleRepository.class).requestBlockedOverlay();
+                    AccessScheduleRepository accessScheduleRepository =
+                            KoinJavaComponent.<AccessScheduleRepository>get(AccessScheduleRepository.class);
+                    if (accessScheduleRepository.isCurrentlyDenied()) {
+                        accessScheduleRepository.requestBlockedOverlay();
+                    }
                     Utils.showToast(mFragment.getContext(), mFragment.getString(R.string.msg_playback_not_allowed));
                     break;
                 case NO_COMPATIBLE_STREAM:

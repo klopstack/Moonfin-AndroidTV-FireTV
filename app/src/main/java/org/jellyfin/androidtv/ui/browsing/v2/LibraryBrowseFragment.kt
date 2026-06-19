@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -45,7 +43,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.fragment.app.Fragment
@@ -211,12 +209,6 @@ class LibraryBrowseFragment : Fragment() {
 						)
 					}
 				}
-
-				// ── Status bar ──
-				LibraryStatusBar(
-					statusText = buildStatusText(uiState),
-					counterText = "${uiState.items.size} | ${uiState.totalItems}",
-				)
 			}
 
 			// Settings dialog overlay
@@ -277,36 +269,7 @@ class LibraryBrowseFragment : Fragment() {
 				.fillMaxWidth()
 				.padding(start = 60.dp, end = 60.dp, top = 12.dp, bottom = 4.dp),
 		) {
-			// Row 0: Centered library name + item count
-			Box(
-				modifier = Modifier.fillMaxWidth(),
-				contentAlignment = Alignment.Center,
-			) {
-				Row(
-					verticalAlignment = Alignment.CenterVertically,
-				) {
-					Text(
-						text = uiState.libraryName,
-						fontSize = 26.sp,
-						fontWeight = FontWeight.Light,
-						color = Color.White,
-					)
-
-					if (uiState.totalItems > 0) {
-						Spacer(modifier = Modifier.width(12.dp))
-						Text(
-							text = "${uiState.totalItems} Items",
-							fontSize = 12.sp,
-							fontWeight = FontWeight.Normal,
-							color = Color.White.copy(alpha = 0.4f),
-						)
-					}
-				}
-			}
-
-			Spacer(modifier = Modifier.height(6.dp))
-
-			// Row 1: Focused item HUD (left)
+			// Row 0: Focused item HUD (left)
 			FocusedItemHud(
 				item = uiState.focusedItem,
 				modifier = Modifier.fillMaxWidth(),
@@ -452,7 +415,23 @@ class LibraryBrowseFragment : Fragment() {
 		}
 
 		val itemSpacing = 12.dp
+		val rowSpacing = 16.dp
 		val minPadding = 40.dp
+		val cardFooterHeight = 5.dp // Spacer below image in LibraryPosterCard/LibraryFolderCard
+		val hasFolderItems = uiState.items.any {
+			it.type == BaseItemKind.FOLDER || it.type == BaseItemKind.PHOTO_ALBUM
+		}
+		val folderLabelHeight = if (!uiState.isGenreMode && !uiState.useAutoImageType && hasFolderItems) {
+			32.dp // title + optional child-count lines in LibraryFolderCard
+		} else {
+			0.dp
+		}
+		val labelBlockHeight = cardFooterHeight + if (uiState.isGenreMode) 38.dp else folderLabelHeight
+		val layoutCardHeight = if (uiState.useAutoImageType) {
+			autoCardHeight(cardWidth, null)
+		} else {
+			cardHeight
+		}
 
 		val isHorizontal = uiState.gridDirection == GridDirection.HORIZONTAL
 
@@ -529,11 +508,12 @@ class LibraryBrowseFragment : Fragment() {
 
 		if (isHorizontal) {
 			BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-				val availableHeight = maxHeight - minPadding * 2
-				val cellHeight = cardHeight.dp + 16.dp
-				val rowCount = (availableHeight / cellHeight).toInt().coerceAtLeast(2)
-				val gridHeight = cardHeight.dp * rowCount + 16.dp * (rowCount - 1)
-				val verticalPadding = ((maxHeight - gridHeight) / 2).coerceAtLeast(0.dp)
+				val (rowCount, verticalPadding) = horizontalGridLayout(
+					maxHeight = maxHeight,
+					cardHeight = layoutCardHeight.dp,
+					labelBlockHeight = labelBlockHeight,
+					rowSpacing = rowSpacing,
+				)
 
 				LazyHorizontalGrid(
 					rows = GridCells.Fixed(rowCount),
@@ -546,7 +526,7 @@ class LibraryBrowseFragment : Fragment() {
 						bottom = verticalPadding,
 					),
 					horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-					verticalArrangement = Arrangement.spacedBy(16.dp),
+					verticalArrangement = Arrangement.spacedBy(rowSpacing),
 				) {
 					itemsIndexed(uiState.items) { index, item ->
 						gridItemContent(index, item)
@@ -572,7 +552,7 @@ class LibraryBrowseFragment : Fragment() {
 						bottom = 16.dp,
 					),
 					horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-					verticalArrangement = Arrangement.spacedBy(16.dp),
+					verticalArrangement = Arrangement.spacedBy(rowSpacing),
 				) {
 					itemsIndexed(uiState.items) { index, item ->
 						gridItemContent(index, item)
@@ -585,6 +565,28 @@ class LibraryBrowseFragment : Fragment() {
 	// ──────────────────────────────────────────────
 	// Helpers
 	// ──────────────────────────────────────────────
+
+	/**
+	 * Horizontal grid row count and vertical centering. Prefers two rows at full poster height;
+	 * drops to one row when the viewport is too short even after header chrome is hidden.
+	 */
+	private fun horizontalGridLayout(
+		maxHeight: Dp,
+		cardHeight: Dp,
+		labelBlockHeight: Dp,
+		rowSpacing: Dp,
+	): Pair<Int, Dp> {
+		val rowContentHeight = cardHeight + labelBlockHeight
+		var rowCount = 2
+		while (rowCount > 1) {
+			val gridHeight = rowContentHeight * rowCount + rowSpacing * (rowCount - 1)
+			if (gridHeight <= maxHeight) break
+			rowCount--
+		}
+		val gridHeight = rowContentHeight * rowCount + rowSpacing * (rowCount - 1)
+		val verticalPadding = ((maxHeight - gridHeight) / 2).coerceAtLeast(0.dp)
+		return rowCount to verticalPadding
+	}
 
 	private fun getItemImageUrl(item: BaseItemDto, imageType: ImageType): String? {
 		val jellyfinType = when (imageType) {
@@ -649,26 +651,4 @@ class LibraryBrowseFragment : Fragment() {
 		}
 	}
 
-	@Composable
-	private fun buildStatusText(uiState: LibraryBrowseUiState): String {
-		val parts = mutableListOf<String>()
-		parts.add(stringResource(R.string.lbl_showing))
-		if (!uiState.filterFavorites && uiState.filterPlayed == PlayedStatusFilter.ALL && uiState.filterSeriesStatus == SeriesStatusFilter.ALL) {
-			parts.add(stringResource(R.string.lbl_all_items).lowercase())
-		} else {
-			if (uiState.filterFavorites) parts.add(stringResource(R.string.lbl_favorites))
-			if (uiState.filterPlayed != PlayedStatusFilter.ALL) {
-				parts.add(stringResource(uiState.filterPlayed.labelRes))
-			}
-			if (uiState.filterSeriesStatus != SeriesStatusFilter.ALL) {
-				parts.add(stringResource(uiState.filterSeriesStatus.labelRes))
-			}
-		}
-		if (uiState.startLetter != null) {
-			parts.add("${stringResource(R.string.lbl_starting_with)} ${uiState.startLetter}")
-		}
-		parts.add("${stringResource(R.string.lbl_from)} '${uiState.libraryName}'")
-		parts.add("${stringResource(R.string.lbl_sorted_by)} ${stringResource(uiState.currentSortOption.nameRes)}")
-		return parts.joinToString(" ")
-	}
 }

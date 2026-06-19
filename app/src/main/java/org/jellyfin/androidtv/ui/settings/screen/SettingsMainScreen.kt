@@ -576,12 +576,20 @@ private fun downloadAndInstall(
 
 			result.fold(
 				onSuccess = { apkUri ->
-					Toast.makeText(context, "Update downloaded", Toast.LENGTH_SHORT).show()
-					updateChecker.installUpdate(apkUri)
+					if (updateChecker.installUpdate(apkUri)) {
+						Toast.makeText(context, R.string.msg_update_downloaded, Toast.LENGTH_SHORT).show()
+					} else {
+						Toast.makeText(context, R.string.msg_update_signature_failed, Toast.LENGTH_LONG).show()
+					}
 				},
 				onFailure = { error ->
 					Timber.e(error, "Failed to download update")
-					Toast.makeText(context, "Failed to download update", Toast.LENGTH_LONG).show()
+					val message = if (error is SecurityException) {
+						context.getString(R.string.msg_update_signature_failed)
+					} else {
+						context.getString(R.string.msg_download_failed)
+					}
+					Toast.makeText(context, message, Toast.LENGTH_LONG).show()
 				}
 			)
 		} catch (e: Exception) {

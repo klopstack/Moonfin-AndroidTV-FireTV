@@ -20,11 +20,9 @@ import org.jellyfin.sdk.api.client.extensions.userApi
 import org.jellyfin.sdk.model.DeviceInfo
 import org.moonfin.server.core.model.ServerType
 import timber.log.Timber
-import java.time.Instant
 import java.util.UUID
 
 interface ProfileProvisioningRepository {
-	suspend fun findAdminAccessToken(server: Server): String?
 	suspend fun provisionAllProfiles(server: Server): Result<ProfileProvisioningSummary>
 }
 
@@ -39,9 +37,6 @@ class ProfileProvisioningRepositoryImpl(
 	private val authenticationStore: AuthenticationStore,
 	private val serverUserRepository: ServerUserRepository,
 ) : ProfileProvisioningRepository {
-	override suspend fun findAdminAccessToken(server: Server): String? =
-		findAdminSession(server)?.accessToken
-
 	private suspend fun findAdminSession(server: Server): AdminSession? = withContext(Dispatchers.IO) {
 		serverUserRepository.getStoredServerUsers(server)
 			.filter { !it.accessToken.isNullOrBlank() }

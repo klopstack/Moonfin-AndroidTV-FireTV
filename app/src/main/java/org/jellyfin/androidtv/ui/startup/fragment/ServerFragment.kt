@@ -162,6 +162,8 @@ class ServerFragment : Fragment() {
 				val result = profileProvisioningRepository.provisionAllProfiles(server)
 				if (!isAdded) return@launch
 
+				if (progressDialog.isShowing) progressDialog.dismiss()
+
 				result.fold(
 					onSuccess = { summary ->
 						ProfileSetupDialog.showResult(requireContext(), summary)
@@ -173,7 +175,7 @@ class ServerFragment : Fragment() {
 				)
 			} finally {
 				if (progressDialog.isShowing) progressDialog.dismiss()
-				if (isAdded) binding.setupProfilesButton.isEnabled = true
+				_binding?.setupProfilesButton?.isEnabled = true
 			}
 		}
 	}

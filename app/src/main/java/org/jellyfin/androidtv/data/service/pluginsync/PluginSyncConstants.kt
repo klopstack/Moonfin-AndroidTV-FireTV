@@ -75,10 +75,9 @@ object PluginSyncConstants {
 		// Parental Controls
 		SyncablePreference(UserSettingPreferences.userPinEnabled, SyncType.BOOLEAN, "userPinEnabled"),
 		SyncablePreference(UserSettingPreferences.userPinHash, SyncType.STRING, "userPinHash"),
-		SyncablePreference(UserSettingPreferences.userPinLength, SyncType.INT, "userPinLength"),
 		SyncablePreference(UserSettingPreferences.userPinSetupDeclined, SyncType.BOOLEAN, "userPinSetupDeclined"),
-		// Moonfin server plugin must persist/return all per-user PIN keys:
-		// userPinHash, userPinLength, userPinEnabled, userPinSetupDeclined.
+		// Moonfin server plugin must persist/return all three per-user PIN keys:
+		// userPinHash, userPinEnabled, userPinSetupDeclined.
 	)
 
 	/** Preference keys from [JellyseerrPreferences] that should be synced. */
@@ -130,7 +129,6 @@ object PluginSyncStoreSelector {
 	val perUserUserSettingKeys: Set<String> = setOf(
 		UserSettingPreferences.userPinEnabled.key,
 		UserSettingPreferences.userPinHash.key,
-		UserSettingPreferences.userPinLength.key,
 		UserSettingPreferences.userPinSetupDeclined.key,
 	)
 

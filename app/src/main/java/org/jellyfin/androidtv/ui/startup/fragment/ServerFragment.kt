@@ -191,6 +191,7 @@ class ServerFragment : Fragment() {
 					val storedHash = userPrefs[org.jellyfin.androidtv.preference.UserSettingPreferences.userPinHash]
 					
 					if (PinCodeUtil.hashPin(pin) == storedHash) {
+						PinCodeUtil.recordPinLengthIfUnknown(userPrefs, pin)
 						authenticateUser(server, user)
 					} else {
 						Toast.makeText(context, R.string.lbl_pin_code_incorrect, Toast.LENGTH_SHORT).show()

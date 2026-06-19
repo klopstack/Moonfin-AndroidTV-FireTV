@@ -123,7 +123,8 @@ class UserSettingPreferences(
 		val userPinHash = stringPreference("user_pin_hash", "")
 
 		/**
-		 * Length of the user's PIN (0 when unset or unknown)
+		 * Length of the user's PIN (0 when unset or unknown). Device-local only;
+		 * not synced to the server to avoid exposing PIN metadata.
 		 */
 		val userPinLength = intPreference("user_pin_length", 0)
 

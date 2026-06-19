@@ -68,7 +68,7 @@ fun SettingsAuthenticationPinCodeScreen() {
 		}
 
 		item {
-			var pinAutoSubmit by rememberPreference(userPreferences, UserPreferences.pinAutoSubmitOnFourthDigit)
+			var pinAutoSubmit by rememberPreference(userPreferences, UserPreferences.pinAutoSubmitEnabled)
 
 			ListButton(
 				headingContent = { Text(stringResource(R.string.lbl_pin_auto_submit)) },
@@ -115,6 +115,7 @@ fun SettingsAuthenticationPinCodeScreen() {
 							if (oldPin != null) {
 								val currentHash = userSettingPreferences[UserSettingPreferences.userPinHash]
 								if (PinCodeUtil.hashPin(oldPin) == currentHash) {
+									PinCodeUtil.recordPinLengthIfUnknown(userSettingPreferences, oldPin)
 									PinEntryDialog.show(
 										context = context,
 										mode = PinEntryDialog.Mode.SET,
@@ -151,6 +152,7 @@ fun SettingsAuthenticationPinCodeScreen() {
 							if (pin != null) {
 								val currentHash = userSettingPreferences[UserSettingPreferences.userPinHash]
 								if (PinCodeUtil.hashPin(pin) == currentHash) {
+									PinCodeUtil.recordPinLengthIfUnknown(userSettingPreferences, pin)
 									PinCodeUtil.clearPin(userSettingPreferences)
 									userSettingPreferences[UserSettingPreferences.userPinEnabled] = false
 									Toast.makeText(context, R.string.lbl_pin_code_removed, Toast.LENGTH_SHORT).show()

@@ -35,6 +35,13 @@ object PinCodeUtil {
 		prefs[UserSettingPreferences.userPinLength] = 0
 	}
 
+	/** Record PIN length after a successful verify when upgrading from installs without stored length. */
+	fun recordPinLengthIfUnknown(prefs: UserSettingPreferences, pin: String) {
+		if (prefs[UserSettingPreferences.userPinLength] == 0 && pin.length in MIN_PIN_LENGTH..MAX_PIN_LENGTH) {
+			prefs[UserSettingPreferences.userPinLength] = pin.length
+		}
+	}
+
 	/**
 	 * Verify PIN code for a user by showing a dialog
 	 * @param onResult callback with true if PIN is correct, false otherwise
@@ -56,7 +63,9 @@ object PinCodeUtil {
 			onComplete = { pin ->
 				if (pin != null) {
 					val enteredHash = hashPin(pin)
-					onResult(enteredHash == storedHash)
+					val verified = enteredHash == storedHash
+					if (verified) recordPinLengthIfUnknown(prefs, pin)
+					onResult(verified)
 				} else {
 					// User cancelled
 					onResult(false)

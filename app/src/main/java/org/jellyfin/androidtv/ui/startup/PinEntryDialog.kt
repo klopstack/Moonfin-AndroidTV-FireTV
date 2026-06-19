@@ -39,7 +39,7 @@ object PinEntryDialog {
 		onComplete: (String?) -> Unit,
 		onForgotPin: (() -> Unit)? = null,
 	) {
-		val autoSubmitEnabled = UserPreferences(context)[UserPreferences.pinAutoSubmitOnFourthDigit]
+		val autoSubmitEnabled = UserPreferences(context)[UserPreferences.pinAutoSubmitEnabled]
 		when (mode) {
 			Mode.SET -> showSetPinDialog(context, onComplete, autoSubmitEnabled)
 			Mode.VERIFY -> showVerifyPinDialog(

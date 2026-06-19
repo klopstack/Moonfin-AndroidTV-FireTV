@@ -144,7 +144,7 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		/**
 		 * Automatically submit the PIN entry dialog when the full PIN is entered
 		 */
-		var pinAutoSubmitOnFourthDigit = booleanPreference("pref_pin_auto_submit", true)
+		var pinAutoSubmitEnabled = booleanPreference("pref_pin_auto_submit", true)
 
 		/**
 		 * Enable automatic update notifications on app launch

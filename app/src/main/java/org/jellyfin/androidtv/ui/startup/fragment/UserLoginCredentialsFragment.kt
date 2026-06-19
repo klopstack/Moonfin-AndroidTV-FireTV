@@ -5,7 +5,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.commit
+import androidx.fragment.app.replace
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -13,7 +16,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.R
-import org.jellyfin.androidtv.auth.model.AccessScheduleDeniedState
+import org.jellyfin.androidtv.auth.model.AccessScheduleDeniedLoginState
 import org.jellyfin.androidtv.auth.model.ApiClientErrorLoginState
 import org.jellyfin.androidtv.auth.model.AuthenticatedState
 import org.jellyfin.androidtv.auth.model.AuthenticatingState
@@ -24,9 +27,9 @@ import org.jellyfin.androidtv.auth.model.ServerVersionNotSupported
 import org.jellyfin.androidtv.util.displayName
 import org.jellyfin.androidtv.auth.repository.ServerRepository
 import org.jellyfin.androidtv.databinding.FragmentUserLoginCredentialsBinding
-import org.jellyfin.androidtv.ui.startup.AccessScheduleDeniedDialog
 import org.jellyfin.androidtv.ui.startup.UserLoginViewModel
 import org.koin.androidx.viewmodel.ext.android.activityViewModel
+import java.time.ZoneId
 
 class UserLoginCredentialsFragment : Fragment() {
 	private val userLoginViewModel: UserLoginViewModel by activityViewModel()
@@ -98,15 +101,9 @@ class UserLoginCredentialsFragment : Fragment() {
 
 						AuthenticatingState -> binding.error.setText(R.string.login_authenticating)
 						RequireSignInState -> binding.error.setText(R.string.login_invalid_credentials)
+						is AccessScheduleDeniedLoginState -> navigateToAccessScheduleDenied(state.nextAccessStart)
 						ServerUnavailableState,
 						is ApiClientErrorLoginState -> binding.error.setText(R.string.login_server_unavailable)
-				is AccessScheduleDeniedState -> AccessScheduleDeniedDialog.show(
-					requireContext(),
-					state.nextAccessMessage,
-				) {
-					userLoginViewModel.clearLoginState()
-					binding.username.requestFocus()
-				}
 						// Do nothing because the activity will respond to the new session
 						AuthenticatedState -> Unit
 						// Not initialized
@@ -121,6 +118,22 @@ class UserLoginCredentialsFragment : Fragment() {
 		super.onDestroyView()
 
 		_binding = null
+	}
+
+	private fun navigateToAccessScheduleDenied(nextAccessStart: java.time.LocalDateTime?) {
+		val serverId = userLoginViewModel.server.value?.id?.toString()
+		val args = bundleOf()
+		serverId?.let { args.putString(AccessScheduleDeniedFragment.ARG_SERVER_ID, it) }
+		nextAccessStart?.let {
+			args.putLong(
+				AccessScheduleDeniedFragment.ARG_NEXT_ACCESS_EPOCH_MILLIS,
+				it.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+			)
+		}
+		requireActivity().supportFragmentManager.commit {
+			replace<AccessScheduleDeniedFragment>(R.id.content_view, null, args)
+			addToBackStack(null)
+		}
 	}
 
 	private fun loginWithCredentials() {

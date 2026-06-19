@@ -11,6 +11,8 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.androidtv.auth.model.Server
 import org.jellyfin.androidtv.auth.store.AuthenticationPreferences
 import org.jellyfin.androidtv.auth.store.AuthenticationStore
+import org.jellyfin.androidtv.data.repository.AccessScheduleRepository
+import org.jellyfin.androidtv.data.repository.AccessScheduleStatus
 import org.jellyfin.androidtv.preference.PreferencesRepository
 import org.jellyfin.androidtv.preference.TelemetryPreferences
 import org.jellyfin.androidtv.preference.constant.UserSelectBehavior.DISABLED
@@ -64,6 +66,7 @@ class SessionRepositoryImpl(
 	private val embyApiClient: EmbyApiClient,
 	private val embyCompatInterceptor: EmbyCompatInterceptor,
 	private val embyWebSocketClient: EmbyWebSocketClient,
+	private val accessScheduleRepository: AccessScheduleRepository,
 ) : SessionRepository {
 	private val currentSessionMutex = Mutex()
 	private val _currentSession = MutableStateFlow<Session?>(null)
@@ -222,12 +225,24 @@ class SessionRepositoryImpl(
 						val user = withContext(Dispatchers.IO) {
 							userApiClient.userApi.getCurrentUser().content
 						}
+						when (val scheduleStatus = accessScheduleRepository.evaluatePolicy(user.policy)) {
+							is AccessScheduleStatus.Denied -> {
+								Timber.i("Session denied: user is outside allowed access schedule")
+								accessScheduleRepository.setLoginDenied(scheduleStatus.nextAccessStart)
+								destroyCurrentSession()
+								return false
+							}
+							AccessScheduleStatus.Allowed -> Unit
+						}
 						preferencesRepository.onSessionChanged()
 						userRepository.setCurrentUser(user)
 						serverRepository.setCurrentServer(server)
 						preferencesRepository.configureJellyseerr()
 					} catch (err: ApiClientException) {
 						Timber.e(err, "Unable to authenticate: bad response when getting user info")
+						if (accessScheduleRepository.isScheduleRelatedApiError(err)) {
+							accessScheduleRepository.setLoginDenied(null)
+						}
 						destroyCurrentSession()
 						return false
 					}

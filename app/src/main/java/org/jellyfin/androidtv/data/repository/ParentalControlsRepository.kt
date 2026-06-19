@@ -4,7 +4,6 @@ import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -15,10 +14,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jellyfin.androidtv.auth.repository.SessionRepository
-import org.jellyfin.androidtv.util.AccessScheduleHelper
 import org.jellyfin.sdk.api.client.ApiClient
-import org.jellyfin.sdk.api.client.extensions.userApi
-import org.jellyfin.sdk.model.api.AccessSchedule
 import org.jellyfin.sdk.api.client.extensions.filterApi
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -71,28 +67,12 @@ interface ParentalControlsRepository {
 	 * Whether parental controls are enabled (any ratings blocked).
 	 */
 	fun isEnabled(): Boolean
-
-	/**
-	 * Update access schedules for the current user (from server policy).
-	 */
-	fun setAccessSchedules(schedules: List<AccessSchedule>?)
-
-	/**
-	 * Whether the current user is within their allowed access schedule window.
-	 */
-	fun isAccessScheduleAllowed(): Boolean
-
-	/**
-	 * Human-readable message for when access resumes, if computable.
-	 */
-	fun getNextAccessMessage(): String?
 }
 
 class ParentalControlsRepositoryImpl(
 	private val context: Context,
 	private val sessionRepository: SessionRepository,
 	private val multiServerRepository: MultiServerRepository,
-	private val userApiClient: ApiClient,
 ) : ParentalControlsRepository {
 
 	companion object {
@@ -110,8 +90,6 @@ class ParentalControlsRepositoryImpl(
 
 	// In-memory cache for faster access
 	private var cachedRatings: List<String>? = null
-	@Volatile
-	private var accessSchedules: List<AccessSchedule> = emptyList()
 	
 	// Scope for observing session changes
 	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -126,7 +104,6 @@ class ParentalControlsRepositoryImpl(
 					Timber.d("ParentalControlsRepository: Session changed, reloading for user ${session.userId}")
 					currentLoadedUserId = session.userId
 					loadBlockedRatings()
-					loadAccessSchedulesFromServer()
 				}
 			}
 			.launchIn(scope)
@@ -337,30 +314,6 @@ class ParentalControlsRepositoryImpl(
 	}
 
 	override fun isEnabled(): Boolean = getBlockedRatingsInternal().isNotEmpty()
-
-	override fun setAccessSchedules(schedules: List<AccessSchedule>?) {
-		accessSchedules = schedules.orEmpty()
-		Timber.d("ParentalControlsRepository: Updated ${accessSchedules.size} access schedules")
-	}
-
-	override fun isAccessScheduleAllowed(): Boolean =
-		AccessScheduleHelper.isAccessAllowed(accessSchedules)
-
-	override fun getNextAccessMessage(): String? =
-		AccessScheduleHelper.formatNextAccessTime(accessSchedules)
-
-	private fun loadAccessSchedulesFromServer() {
-		if (sessionRepository.currentSession.value == null) return
-
-		scope.launch(Dispatchers.IO) {
-			try {
-				val user by userApiClient.userApi.getCurrentUser()
-				setAccessSchedules(user.policy?.accessSchedules)
-			} catch (e: Exception) {
-				Timber.w(e, "ParentalControlsRepository: Failed to load access schedules")
-			}
-		}
-	}
 
 	/**
 	 * Comparator that sorts ratings in a logical order:

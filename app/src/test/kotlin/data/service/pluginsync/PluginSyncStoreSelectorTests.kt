@@ -22,6 +22,12 @@ class PluginSyncStoreSelectorTests : FunSpec({
 		) shouldBe true
 	}
 
+	test("uses per-user store for PIN length preference") {
+		PluginSyncStoreSelector.usePerUserUserSettingStore(
+			PluginSyncConstants.USER_SETTING_PREFERENCES.first { it.preference == org.jellyfin.androidtv.preference.UserSettingPreferences.userPinLength }
+		) shouldBe true
+	}
+
 	test("keeps media bar preferences on global user settings store") {
 		PluginSyncStoreSelector.usePerUserUserSettingStore(
 			PluginSyncConstants.USER_SETTING_PREFERENCES.first { it.preference == org.jellyfin.androidtv.preference.UserSettingPreferences.mediaBarEnabled }

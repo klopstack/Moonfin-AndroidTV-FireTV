@@ -10,6 +10,9 @@ import java.util.UUID
  * Utility class for PIN code operations
  */
 object PinCodeUtil {
+	const val MIN_PIN_LENGTH = 4
+	const val MAX_PIN_LENGTH = 10
+
 	/**
 	 * Check if PIN protection is enabled for a specific user
 	 */
@@ -17,6 +20,19 @@ object PinCodeUtil {
 		val prefs = UserSettingPreferences(context, userId)
 		return prefs[UserSettingPreferences.userPinEnabled] &&
 			prefs[UserSettingPreferences.userPinHash].isNotEmpty()
+	}
+
+	fun getStoredPinLength(prefs: UserSettingPreferences): Int =
+		prefs[UserSettingPreferences.userPinLength]
+
+	fun savePin(prefs: UserSettingPreferences, pin: String) {
+		prefs[UserSettingPreferences.userPinHash] = hashPin(pin)
+		prefs[UserSettingPreferences.userPinLength] = pin.length
+	}
+
+	fun clearPin(prefs: UserSettingPreferences) {
+		prefs[UserSettingPreferences.userPinHash] = ""
+		prefs[UserSettingPreferences.userPinLength] = 0
 	}
 
 	/**
@@ -36,6 +52,7 @@ object PinCodeUtil {
 		PinEntryDialog.show(
 			context = context,
 			mode = PinEntryDialog.Mode.VERIFY,
+			expectedPinLength = getStoredPinLength(prefs),
 			onComplete = { pin ->
 				if (pin != null) {
 					val enteredHash = hashPin(pin)

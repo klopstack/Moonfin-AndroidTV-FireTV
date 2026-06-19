@@ -181,12 +181,13 @@ class ServerFragment : Fragment() {
 	}
 
 	private fun showPinEntry(server: Server, user: User) {
+		val userPrefs = org.jellyfin.androidtv.preference.UserSettingPreferences(requireContext(), user.id)
 		PinEntryDialog.show(
 			context = requireContext(),
 			mode = PinEntryDialog.Mode.VERIFY,
+			expectedPinLength = PinCodeUtil.getStoredPinLength(userPrefs),
 			onComplete = { pin ->
 				if (pin != null) {
-					val userPrefs = org.jellyfin.androidtv.preference.UserSettingPreferences(requireContext(), user.id)
 					val storedHash = userPrefs[org.jellyfin.androidtv.preference.UserSettingPreferences.userPinHash]
 					
 					if (PinCodeUtil.hashPin(pin) == storedHash) {

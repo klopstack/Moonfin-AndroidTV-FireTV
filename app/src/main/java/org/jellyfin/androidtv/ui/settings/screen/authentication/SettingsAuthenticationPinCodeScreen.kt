@@ -89,8 +89,7 @@ fun SettingsAuthenticationPinCodeScreen() {
 						mode = PinEntryDialog.Mode.SET,
 						onComplete = { pin ->
 							if (pin != null) {
-								val hash = PinCodeUtil.hashPin(pin)
-								userSettingPreferences[UserSettingPreferences.userPinHash] = hash
+								PinCodeUtil.savePin(userSettingPreferences, pin)
 								userSettingPreferences[UserSettingPreferences.userPinEnabled] = true
 								userSettingPreferences[UserSettingPreferences.userPinSetupDeclined] = false
 								Toast.makeText(context, R.string.lbl_pin_code_set, Toast.LENGTH_SHORT).show()
@@ -111,6 +110,7 @@ fun SettingsAuthenticationPinCodeScreen() {
 					PinEntryDialog.show(
 						context = context,
 						mode = PinEntryDialog.Mode.VERIFY,
+						expectedPinLength = PinCodeUtil.getStoredPinLength(userSettingPreferences),
 						onComplete = { oldPin ->
 							if (oldPin != null) {
 								val currentHash = userSettingPreferences[UserSettingPreferences.userPinHash]
@@ -120,8 +120,7 @@ fun SettingsAuthenticationPinCodeScreen() {
 										mode = PinEntryDialog.Mode.SET,
 										onComplete = { newPin ->
 											if (newPin != null) {
-												val hash = PinCodeUtil.hashPin(newPin)
-												userSettingPreferences[UserSettingPreferences.userPinHash] = hash
+												PinCodeUtil.savePin(userSettingPreferences, newPin)
 												userSettingPreferences[UserSettingPreferences.userPinSetupDeclined] = false
 												Toast.makeText(context, R.string.lbl_pin_code_changed, Toast.LENGTH_SHORT).show()
 												refreshTrigger++
@@ -147,11 +146,12 @@ fun SettingsAuthenticationPinCodeScreen() {
 					PinEntryDialog.show(
 						context = context,
 						mode = PinEntryDialog.Mode.VERIFY,
+						expectedPinLength = PinCodeUtil.getStoredPinLength(userSettingPreferences),
 						onComplete = { pin ->
 							if (pin != null) {
 								val currentHash = userSettingPreferences[UserSettingPreferences.userPinHash]
 								if (PinCodeUtil.hashPin(pin) == currentHash) {
-									userSettingPreferences[UserSettingPreferences.userPinHash] = ""
+									PinCodeUtil.clearPin(userSettingPreferences)
 									userSettingPreferences[UserSettingPreferences.userPinEnabled] = false
 									Toast.makeText(context, R.string.lbl_pin_code_removed, Toast.LENGTH_SHORT).show()
 									refreshTrigger++

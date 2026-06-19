@@ -142,7 +142,7 @@ class UserPreferences(context: Context) : SharedPreferenceStore(
 		var confirmExit = booleanPreference("confirm_exit", true)
 
 		/**
-		 * Automatically submit the PIN entry dialog when the 4th digit is entered
+		 * Automatically submit the PIN entry dialog when the full PIN is entered
 		 */
 		var pinAutoSubmitOnFourthDigit = booleanPreference("pref_pin_auto_submit", true)
 

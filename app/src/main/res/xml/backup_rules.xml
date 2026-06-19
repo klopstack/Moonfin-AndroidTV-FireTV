@@ -20,7 +20,7 @@
         <!-- AuthenticationPreferences -->
         <include
             domain="sharedpref"
-            path="AuthenticationPreferences" />
+            path="authentication" />
 
         <!-- Jellyseerr prefs contain API keys and passwords — excluded for security -->
         <exclude
@@ -47,7 +47,7 @@
         <!-- AuthenticationPreferences -->
         <include
             domain="sharedpref"
-            path="AuthenticationPreferences" />
+            path="authentication" />
 
         <!-- Jellyseerr prefs contain API keys and passwords — excluded for security -->
         <exclude

@@ -417,7 +417,8 @@ class LibraryBrowseFragment : Fragment() {
 		val itemSpacing = 12.dp
 		val rowSpacing = 16.dp
 		val minPadding = 40.dp
-		val labelBlockHeight = if (uiState.isGenreMode) 38.dp else 0.dp
+		val cardFooterHeight = 5.dp // Spacer below image in LibraryPosterCard/LibraryFolderCard
+		val labelBlockHeight = cardFooterHeight + if (uiState.isGenreMode) 38.dp else 0.dp
 		val layoutCardHeight = if (uiState.useAutoImageType) {
 			autoCardHeight(cardWidth, null)
 		} else {
@@ -558,8 +559,8 @@ class LibraryBrowseFragment : Fragment() {
 	// ──────────────────────────────────────────────
 
 	/**
-	 * Two-row horizontal grid with vertical centering. Header chrome (library title and status
-	 * bar) is hidden in library browse to free viewport height so full-size posters keep 2:3.
+	 * Horizontal grid row count and vertical centering. Prefers two rows at full poster height;
+	 * drops to one row when the viewport is too short even after header chrome is hidden.
 	 */
 	private fun horizontalGridLayout(
 		maxHeight: Dp,
@@ -568,7 +569,12 @@ class LibraryBrowseFragment : Fragment() {
 		rowSpacing: Dp,
 	): Pair<Int, Dp> {
 		val rowContentHeight = cardHeight + labelBlockHeight
-		val rowCount = 2
+		var rowCount = 2
+		while (rowCount > 1) {
+			val gridHeight = rowContentHeight * rowCount + rowSpacing * (rowCount - 1)
+			if (gridHeight <= maxHeight) break
+			rowCount--
+		}
 		val gridHeight = rowContentHeight * rowCount + rowSpacing * (rowCount - 1)
 		val verticalPadding = ((maxHeight - gridHeight) / 2).coerceAtLeast(0.dp)
 		return rowCount to verticalPadding

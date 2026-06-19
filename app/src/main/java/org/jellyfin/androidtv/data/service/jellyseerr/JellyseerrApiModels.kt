@@ -5,11 +5,18 @@ import android.os.Parcelable
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Jellyseerr API Models
@@ -468,8 +475,18 @@ class SeasonsSerializer : KSerializer<Seasons> {
 	}
 	
 	override fun deserialize(decoder: Decoder): Seasons {
-		// Not needed for our use case (we only send, not receive)
-		throw NotImplementedError("Seasons deserialization not implemented")
+		val jsonDecoder = decoder as? JsonDecoder
+			?: throw SerializationException("Seasons serializer requires JsonDecoder")
+		return when (val element = jsonDecoder.decodeJsonElement()) {
+			is JsonPrimitive -> {
+				if (element.isString && element.content == "all") Seasons.All
+				else throw SerializationException("Expected \"all\" or array of season numbers, got: ${element.content}")
+			}
+			is JsonArray -> Seasons.List(
+				element.map { it.jsonPrimitive.int }
+			)
+			else -> throw SerializationException("Expected \"all\" or array of season numbers")
+		}
 	}
 }
 

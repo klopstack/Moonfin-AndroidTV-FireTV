@@ -30,6 +30,11 @@ class AuthenticationStore(
 	private val storePath
 		get() = context.filesDir.resolve("authentication_store.json")
 
+	private val tempStorePath
+		get() = context.filesDir.resolve("authentication_store.json.tmp")
+
+	private val lock = Any()
+
 	private val json = Json {
 		encodeDefaults = true
 		serializersModule = SerializersModule {
@@ -38,8 +43,11 @@ class AuthenticationStore(
 		ignoreUnknownKeys = true
 	}
 
-	private val store by lazy {
-		load().toMutableMap()
+	@Volatile
+	private var storeCache: MutableMap<UUID, AuthenticationStoreServer>? = null
+
+	private fun getStore(): MutableMap<UUID, AuthenticationStoreServer> = synchronized(lock) {
+		storeCache ?: load().toMutableMap().also { storeCache = it }
 	}
 
 	private fun load(): Map<UUID, AuthenticationStoreServer> {
@@ -49,9 +57,10 @@ class AuthenticationStore(
 		// Parse JSON document
 		val root = try {
 			json.parseToJsonElement(storePath.readText()).jsonObject
-		} catch (e: SerializationException) {
-			Timber.e(e, "Unable to read JSON")
-			JsonObject(emptyMap())
+		} catch (e: Exception) {
+			Timber.e(e, "Unable to read authentication store")
+			quarantineCorruptFile()
+			return emptyMap()
 		}
 
 		// Check for version
@@ -63,10 +72,25 @@ class AuthenticationStore(
 			}
 
 			// Current version, return as-is
-			2 -> json.decodeFromJsonElement<Map<UUID, AuthenticationStoreServer>>(root["servers"]!!)
+			2 -> {
+				val serversElement = root["servers"]
+				if (serversElement == null) {
+					Timber.e("Authentication Store is missing servers key")
+					quarantineCorruptFile()
+					return emptyMap()
+				}
+				try {
+					json.decodeFromJsonElement<Map<UUID, AuthenticationStoreServer>>(serversElement)
+				} catch (e: SerializationException) {
+					Timber.e(e, "Failed to parse servers from Authentication Store")
+					quarantineCorruptFile()
+					emptyMap()
+				}
+			}
 
 			null -> {
 				Timber.e("Authentication Store is corrupt!")
+				quarantineCorruptFile()
 				emptyMap()
 			}
 
@@ -77,55 +101,90 @@ class AuthenticationStore(
 		}
 	}
 
+	private fun quarantineCorruptFile() {
+		if (!storePath.exists()) return
+		val quarantinePath = context.filesDir.resolve("authentication_store.json.corrupt")
+		try {
+			if (quarantinePath.exists() && !quarantinePath.delete()) {
+				Timber.e("Failed to delete existing quarantine file at ${quarantinePath.name}")
+				return
+			}
+			if (storePath.renameTo(quarantinePath)) {
+				Timber.w("Quarantined corrupt authentication store to ${quarantinePath.name}")
+			} else {
+				Timber.e("Failed to quarantine corrupt authentication store (rename failed)")
+			}
+		} catch (e: Exception) {
+			Timber.e(e, "Failed to quarantine corrupt authentication store")
+		}
+	}
+
 	private fun write(servers: Map<UUID, AuthenticationStoreServer>): Boolean {
 		val root = JsonObject(mapOf(
 			"version" to JsonPrimitive(2),
 			"servers" to json.encodeToJsonElement(servers)
 		))
 
-		storePath.writeText(json.encodeToString(root))
+		val content = json.encodeToString(root)
+		tempStorePath.writeText(content)
+		if (!tempStorePath.renameTo(storePath)) {
+			storePath.delete()
+			if (!tempStorePath.renameTo(storePath)) {
+				Timber.e("Atomic rename failed for authentication store")
+				tempStorePath.delete()
+				return false
+			}
+		}
 
 		return true
 	}
 
-	private fun save(): Boolean {
-		return write(store)
+	fun getServers(): Map<UUID, AuthenticationStoreServer> = synchronized(lock) {
+		getStore().toMap()
 	}
 
-	fun getServers(): Map<UUID, AuthenticationStoreServer> = store
+	fun getUsers(server: UUID): Map<UUID, AuthenticationStoreUser>? = synchronized(lock) {
+		getStore()[server]?.users?.toMap()
+	}
 
-	fun getUsers(server: UUID): Map<UUID, AuthenticationStoreUser>? = getServer(server)?.users
+	fun getServer(serverId: UUID) = synchronized(lock) {
+		getStore()[serverId]
+	}
 
-	fun getServer(serverId: UUID) = store[serverId]
+	fun getUser(serverId: UUID, userId: UUID) = synchronized(lock) {
+		getStore()[serverId]?.users?.get(userId)
+	}
 
-	fun getUser(serverId: UUID, userId: UUID) = getUsers(serverId)?.get(userId)
-
-	fun putServer(id: UUID, server: AuthenticationStoreServer): Boolean {
+	fun putServer(id: UUID, server: AuthenticationStoreServer): Boolean = synchronized(lock) {
+		val store = getStore()
 		store[id] = server
-		return save()
+		write(store)
 	}
 
-	fun putUser(server: UUID, userId: UUID, userInfo: AuthenticationStoreUser): Boolean {
+	fun putUser(server: UUID, userId: UUID, userInfo: AuthenticationStoreUser): Boolean = synchronized(lock) {
+		val store = getStore()
 		val serverInfo = store[server] ?: return false
 
 		store[server] = serverInfo.copy(users = serverInfo.users.toMutableMap().apply { put(userId, userInfo) })
 
-		return save()
+		write(store)
 	}
 
 	/**
 	 * Removes the server and stored users from the credential store.
 	 */
-	fun removeServer(server: UUID): Boolean {
+	fun removeServer(server: UUID): Boolean = synchronized(lock) {
+		val store = getStore()
 		store.remove(server)
-		return save()
+		write(store)
 	}
 
-	fun removeUser(server: UUID, user: UUID): Boolean {
+	fun removeUser(server: UUID, user: UUID): Boolean = synchronized(lock) {
+		val store = getStore()
 		val serverInfo = store[server] ?: return false
 
 		store[server] = serverInfo.copy(users = serverInfo.users.toMutableMap().apply { remove(user) })
 
-		return save()
+		write(store)
 	}
 }

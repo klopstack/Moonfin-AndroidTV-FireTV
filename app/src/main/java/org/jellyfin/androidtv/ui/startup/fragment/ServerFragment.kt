@@ -154,6 +154,7 @@ class ServerFragment : Fragment() {
 	}
 
 	private fun setupAllProfiles(server: Server) {
+		binding.setupProfilesButton.isEnabled = false
 		val progressDialog = ProfileSetupDialog.showProgress(requireContext())
 
 		viewLifecycleOwner.lifecycleScope.launch {
@@ -172,6 +173,7 @@ class ServerFragment : Fragment() {
 				)
 			} finally {
 				if (progressDialog.isShowing) progressDialog.dismiss()
+				if (isAdded) binding.setupProfilesButton.isEnabled = true
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 package org.jellyfin.androidtv.auth.repository
 
 import kotlinx.coroutines.Dispatchers
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.withContext
 import org.jellyfin.androidtv.auth.model.AuthenticationStoreUser
 import org.jellyfin.androidtv.auth.model.ProfileProvisioningError
@@ -105,6 +106,8 @@ class ProfileProvisioningRepositoryImpl(
 				try {
 					provisionUser(server, adminApi, user)
 					provisioned.add(user.name)
+				} catch (err: CancellationException) {
+					throw err
 				} catch (err: Exception) {
 					Timber.w(err, "Failed to provision profile for ${user.name}")
 					failed.add(ProfileProvisioningFailure(user.name, err.message ?: "Unknown error"))
@@ -142,7 +145,6 @@ class ProfileProvisioningRepositoryImpl(
 		val currentUser = authenticationStore.getUser(server.id, user.id)
 		val updatedUser = currentUser?.copy(
 			name = userName,
-			lastUsed = Instant.now().toEpochMilli(),
 			imageTag = userInfo.primaryImage?.tag,
 			accessToken = accessToken,
 		) ?: AuthenticationStoreUser(

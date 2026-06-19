@@ -5,7 +5,6 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import org.jellyfin.androidtv.auth.model.PrivateUser
 import org.jellyfin.androidtv.auth.model.PublicUser
-import org.jellyfin.androidtv.auth.repository.ProfileProvisioningHelper
 import java.util.UUID
 
 class ProfileProvisioningHelperTests : FunSpec({

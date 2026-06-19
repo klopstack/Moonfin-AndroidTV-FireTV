@@ -437,6 +437,7 @@
     <string name="setup_all_profiles_result_provisioned">Set up: %1$s</string>
     <string name="setup_all_profiles_result_skipped">Already set up: %1$s</string>
     <string name="setup_all_profiles_result_failed">Failed:</string>
+    <string name="setup_all_profiles_result_failed_item">• %1$s: %2$s</string>
     <string name="setup_all_profiles_result_none">All profiles on this server are already set up on this device.</string>
     <string name="setup_all_profiles_error_title">Could not set up profiles</string>
     <string name="setup_all_profiles_error_not_jellyfin">Profile setup is only supported for Jellyfin servers.</string>

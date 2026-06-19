@@ -31,7 +31,8 @@ object ProfileSetupDialog {
 				append(context.getString(R.string.setup_all_profiles_result_failed))
 				append("\n")
 				summary.failed.forEach { failure ->
-					append("• ${failure.userName}: ${failure.reason}\n")
+					append(context.getString(R.string.setup_all_profiles_result_failed_item, failure.userName, failure.reason))
+					append("\n")
 				}
 			}
 			if (summary.provisioned.isEmpty() && summary.failed.isEmpty()) {

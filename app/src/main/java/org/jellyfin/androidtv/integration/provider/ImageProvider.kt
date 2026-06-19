@@ -15,11 +15,15 @@ import coil3.request.ImageRequest
 import coil3.request.error
 import org.jellyfin.androidtv.BuildConfig
 import org.jellyfin.androidtv.R
+import org.jellyfin.androidtv.auth.store.AuthenticationStore
 import org.koin.android.ext.android.inject
+import timber.log.Timber
+import java.io.FileNotFoundException
 import java.io.IOException
 
 class ImageProvider : ContentProvider() {
 	private val imageLoader by inject<ImageLoader>()
+	private val authenticationStore by inject<AuthenticationStore>()
 
 	override fun onCreate(): Boolean = true
 
@@ -30,13 +34,21 @@ class ImageProvider : ContentProvider() {
 	override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?) = 0
 
 	override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor? {
-		val src = requireNotNull(uri.getQueryParameter("src")).toUri()
+		val src = uri.getQueryParameter("src")
+			?: throw FileNotFoundException("Missing src parameter")
+
+		if (!isAllowedImageUrl(src)) {
+			Timber.w("Blocked ImageProvider request for untrusted URL")
+			throw FileNotFoundException("URL not allowed")
+		}
+
+		val srcUri = src.toUri()
 
 		val (read, write) = ParcelFileDescriptor.createPipe()
 		val outputStream = ParcelFileDescriptor.AutoCloseOutputStream(write)
 
 		imageLoader.enqueue(ImageRequest.Builder(context!!).apply {
-			data(src)
+			data(srcUri)
 			error(R.drawable.placeholder_icon)
 			target(
 				onSuccess = { image -> writeDrawable(image.asDrawable(context!!.resources), outputStream) },
@@ -45,6 +57,14 @@ class ImageProvider : ContentProvider() {
 		}.build())
 
 		return read
+	}
+
+	private fun isAllowedImageUrl(src: String): Boolean {
+		val normalizedSrc = src.trim().trimEnd('/')
+		return authenticationStore.getServers().values.any { server ->
+			val baseUrl = server.address.trim().trimEnd('/')
+			normalizedSrc.startsWith(baseUrl, ignoreCase = true)
+		}
 	}
 
 	private fun writeDrawable(

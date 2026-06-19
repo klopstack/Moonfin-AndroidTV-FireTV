@@ -1,5 +1,6 @@
 package org.jellyfin.androidtv.data.repository
 
+import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,14 +17,20 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.jellyfin.androidtv.auth.repository.UserRepository
 import org.jellyfin.androidtv.util.AccessScheduleEvaluator
-import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.sdk.model.api.AccessSchedule
 import org.jellyfin.sdk.model.api.UserPolicy
 import org.moonfin.server.emby.EmbyApiException
+import timber.log.Timber
 import java.time.Duration
 import java.time.LocalDateTime
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 sealed class AccessScheduleStatus {
@@ -43,13 +50,38 @@ interface AccessScheduleRepository {
 	fun hasPendingLoginDenied(): Boolean
 	fun clearPendingLoginDenied()
 	fun requestBlockedOverlay()
-	fun isScheduleRelatedApiError(error: Throwable): Boolean
+	fun isScheduleRelatedApiError(
+		error: Throwable,
+		serverId: UUID? = null,
+		userId: UUID? = null,
+		responseBody: String? = null,
+	): Boolean
 	fun isCurrentlyDenied(): Boolean
+	fun cacheUserPolicy(serverId: UUID, userId: UUID, policy: UserPolicy?)
+	fun evaluateCachedPolicyForUser(
+		serverId: UUID,
+		userId: UUID,
+		now: LocalDateTime = LocalDateTime.now(),
+	): AccessScheduleStatus?
 }
+
+@Serializable
+private data class CachedAccessSchedulePolicy(
+	val isAdministrator: Boolean = false,
+	val accessSchedules: List<AccessSchedule> = emptyList(),
+)
 
 class AccessScheduleRepositoryImpl(
 	private val userRepository: UserRepository,
+	context: Context,
 ) : AccessScheduleRepository {
+	companion object {
+		private const val PREFS_NAME = "access_schedule_policies"
+	}
+
+	private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+	private val json = Json { ignoreUnknownKeys = true }
+	private val memoryCache = ConcurrentHashMap<String, CachedAccessSchedulePolicy>()
 	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
 	private val _status = MutableStateFlow<AccessScheduleStatus>(AccessScheduleStatus.Allowed)
@@ -118,25 +150,127 @@ class AccessScheduleRepositoryImpl(
 		_forceBlockOverlay.tryEmit(Unit)
 	}
 
-	override fun isScheduleRelatedApiError(error: Throwable): Boolean {
-		val message = error.message.orEmpty()
+	private fun cacheKey(serverId: UUID, userId: UUID) = "$serverId:$userId"
+
+	override fun cacheUserPolicy(serverId: UUID, userId: UUID, policy: UserPolicy?) {
+		val key = cacheKey(serverId, userId)
+		val schedules = policy?.accessSchedules
+		if (policy == null || schedules.isNullOrEmpty()) {
+			memoryCache.remove(key)
+			prefs.edit().remove(key).apply()
+			return
+		}
+
+		val cached = CachedAccessSchedulePolicy(
+			isAdministrator = policy.isAdministrator,
+			accessSchedules = schedules,
+		)
+		memoryCache[key] = cached
+		try {
+			prefs.edit().putString(key, json.encodeToString(cached)).apply()
+		} catch (e: Exception) {
+			Timber.e(e, "Failed to persist cached access schedule policy for user $userId on server $serverId")
+		}
+	}
+
+	override fun evaluateCachedPolicyForUser(
+		serverId: UUID,
+		userId: UUID,
+		now: LocalDateTime,
+	): AccessScheduleStatus? {
+		val key = cacheKey(serverId, userId)
+		val cached = memoryCache[key] ?: loadCachedPolicy(key) ?: return null
+		return evaluatePolicy(cached.toUserPolicy(), now)
+	}
+
+	override fun isScheduleRelatedApiError(
+		error: Throwable,
+		serverId: UUID?,
+		userId: UUID?,
+		responseBody: String?,
+	): Boolean {
+		val combinedText = buildString {
+			append(collectThrowableMessages(error))
+			responseBody?.let {
+				append(' ')
+				append(it)
+			}
+		}
+		if (containsScheduleDenialText(combinedText)) return true
 
 		when (error) {
 			is InvalidStatusException -> {
 				if (error.status != 403) return false
-				return message.contains("not allowed access", ignoreCase = true)
-					|| message.contains("not allowed at this time", ignoreCase = true)
+				if (serverId == null || userId == null) return false
+				return evaluateCachedPolicyForUser(serverId, userId) is AccessScheduleStatus.Denied
 			}
 			is EmbyApiException -> {
 				if (error.statusCode != 403) return false
-				return message.contains("not allowed", ignoreCase = true)
-			}
-			is ApiClientException -> {
-				return message.contains("403") && message.contains("not allowed", ignoreCase = true)
+				return containsScheduleDenialText(error.message.orEmpty())
 			}
 		}
 
-		return message.contains("403")
-			&& message.contains("not allowed", ignoreCase = true)
+		return false
+	}
+
+	private fun loadCachedPolicy(key: String): CachedAccessSchedulePolicy? {
+		val jsonString = prefs.getString(key, null) ?: return null
+		return try {
+			json.decodeFromString<CachedAccessSchedulePolicy>(jsonString).also {
+				memoryCache[key] = it
+			}
+		} catch (e: Exception) {
+			Timber.e(e, "Failed to load cached access schedule policy for key $key")
+			null
+		}
+	}
+
+	private fun CachedAccessSchedulePolicy.toUserPolicy() = UserPolicy(
+		isAdministrator = isAdministrator,
+		isHidden = false,
+		enableCollectionManagement = false,
+		enableSubtitleManagement = false,
+		enableLyricManagement = false,
+		isDisabled = false,
+		enableUserPreferenceAccess = true,
+		accessSchedules = accessSchedules,
+		enableRemoteControlOfOtherUsers = false,
+		enableSharedDeviceControl = true,
+		enableRemoteAccess = true,
+		enableLiveTvManagement = false,
+		enableLiveTvAccess = true,
+		enableMediaPlayback = true,
+		enableAudioPlaybackTranscoding = true,
+		enableVideoPlaybackTranscoding = true,
+		enablePlaybackRemuxing = true,
+		forceRemoteSourceTranscoding = false,
+		enableContentDeletion = false,
+		enableContentDownloading = true,
+		enableSyncTranscoding = true,
+		enableMediaConversion = true,
+		enableAllDevices = true,
+		enableAllChannels = true,
+		enableAllFolders = true,
+		invalidLoginAttemptCount = 0,
+		loginAttemptsBeforeLockout = -1,
+		maxActiveSessions = 0,
+		enablePublicSharing = true,
+		remoteClientBitrateLimit = 0,
+		authenticationProviderId = "",
+		passwordResetProviderId = "",
+		syncPlayAccess = org.jellyfin.sdk.model.api.SyncPlayUserAccessType.CREATE_AND_JOIN_GROUPS,
+	)
+}
+
+internal fun containsScheduleDenialText(text: String): Boolean = AccessScheduleEvaluator.isScheduleDenialMessage(text)
+
+private fun collectThrowableMessages(error: Throwable): String = buildString {
+	var current: Throwable? = error
+	while (current != null) {
+		current.message?.let { message ->
+			if (isNotEmpty()) append(' ')
+			append(message)
+		}
+		current = current.cause
 	}
 }

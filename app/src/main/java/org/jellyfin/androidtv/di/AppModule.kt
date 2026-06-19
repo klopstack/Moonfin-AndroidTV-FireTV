@@ -193,7 +193,7 @@ val appModule = module {
 		org.jellyfin.androidtv.data.repository.ParentalControlsRepositoryImpl(androidContext(), get(), get())
 	}
 	single<org.jellyfin.androidtv.data.repository.AccessScheduleRepository> {
-		org.jellyfin.androidtv.data.repository.AccessScheduleRepositoryImpl(get())
+		org.jellyfin.androidtv.data.repository.AccessScheduleRepositoryImpl(get(), androidContext())
 	}
 
 	// Jellyseerr - Global preferences (server URL, UI settings)
@@ -203,6 +203,11 @@ val appModule = module {
 	single<JellyseerrRepository> { JellyseerrRepositoryImpl(androidContext(), get(named("global")), get()) }
 	single { MdbListRepository(get<OkHttpFactory>().createClient(get()), get()) }
 	single { TmdbRepository(get<OkHttpFactory>().createClient(get()), get(), get()) }
+
+	single { org.jellyfin.androidtv.util.JellyfinAuthenticationHelper(
+		org.jellyfin.androidtv.util.JellyfinAuthenticationHelper.createClient(get()),
+		get<JellyfinSdk>().clientInfo!!,
+	) }
 
 	viewModel { AccessScheduleViewModel(get(), get(), get(), get(), get()) }
 	viewModel { StartupViewModel(get(), get(), get(), get()) }

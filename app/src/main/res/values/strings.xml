@@ -376,6 +376,7 @@
     <string name="login_authenticating">Authenticating…</string>
     <string name="login_invalid_credentials">Invalid username and/or password</string>
     <string name="login_server_unavailable">Unable to connect to server</string>
+    <string name="login_forbidden">Unable to sign in. Parental control time limits may be in effect for this account, or the server may have restricted access for another reason.</string>
     <string name="login_username_field_empty">Username cannot be empty</string>
     <string name="lbl_manage_servers">Manage servers</string>
     <string name="lbl_remove_users">This will also remove all associated accounts</string>

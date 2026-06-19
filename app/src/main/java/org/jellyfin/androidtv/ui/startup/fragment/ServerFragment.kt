@@ -26,6 +26,7 @@ import org.jellyfin.androidtv.auth.model.ApiClientErrorLoginState
 import org.jellyfin.androidtv.auth.model.AuthenticatedState
 import org.jellyfin.androidtv.auth.model.AuthenticatingState
 import org.jellyfin.androidtv.auth.model.PrivateUser
+import org.jellyfin.androidtv.auth.model.LoginForbiddenState
 import org.jellyfin.androidtv.auth.model.RequireSignInState
 import org.jellyfin.androidtv.auth.model.Server
 import org.jellyfin.androidtv.auth.model.ServerUnavailableState
@@ -222,6 +223,7 @@ class ServerFragment : Fragment() {
 					UserLoginFragment.ARG_USERNAME to user.name,
 				))
 				is AccessScheduleDeniedLoginState -> navigateToAccessScheduleDenied(state.nextAccessStart, server)
+				LoginForbiddenState -> Toast.makeText(context, R.string.login_forbidden, Toast.LENGTH_LONG).show()
 				// Errors
 				ServerUnavailableState,
 				is ApiClientErrorLoginState -> Toast.makeText(context, R.string.server_connection_failed, Toast.LENGTH_LONG).show()

@@ -22,6 +22,7 @@ import org.jellyfin.androidtv.auth.model.AuthenticatedState
 import org.jellyfin.androidtv.auth.model.AuthenticatingState
 import org.jellyfin.androidtv.auth.model.ConnectedQuickConnectState
 import org.jellyfin.androidtv.auth.model.PendingQuickConnectState
+import org.jellyfin.androidtv.auth.model.LoginForbiddenState
 import org.jellyfin.androidtv.auth.model.RequireSignInState
 import org.jellyfin.androidtv.auth.model.ServerUnavailableState
 import org.jellyfin.androidtv.auth.model.ServerTypeNotSupportedLoginState
@@ -99,6 +100,7 @@ class UserLoginQuickConnectFragment : Fragment() {
 						AuthenticatingState -> binding.error.setText(R.string.login_authenticating)
 						RequireSignInState -> binding.error.setText(R.string.login_invalid_credentials)
 						is AccessScheduleDeniedLoginState -> navigateToAccessScheduleDenied(state.nextAccessStart)
+						LoginForbiddenState -> binding.error.setText(R.string.login_forbidden)
 						ServerUnavailableState,
 						is ApiClientErrorLoginState -> binding.error.setText(R.string.login_server_unavailable)
 						// Do nothing because the activity will respond to the new session

@@ -86,6 +86,12 @@ object AccessScheduleEvaluator {
 
 	private fun minuteFromDouble(hour: Double): Int = timeFromDouble(hour).second
 
+	fun isScheduleDenialMessage(text: String): Boolean {
+		return text.contains("not allowed access", ignoreCase = true)
+			|| text.contains("not allowed at this time", ignoreCase = true)
+			|| text.contains("parental restrictions", ignoreCase = true)
+	}
+
 	fun formatNextAccessMessage(context: Context, nextStart: LocalDateTime?, now: LocalDateTime = LocalDateTime.now()): String? {
 		if (nextStart == null) return null
 

@@ -2,6 +2,7 @@ package org.jellyfin.androidtv.auth.repository
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -16,6 +17,7 @@ import org.jellyfin.androidtv.auth.model.AuthenticatingState
 import org.jellyfin.androidtv.auth.model.AuthenticationStoreUser
 import org.jellyfin.androidtv.auth.model.AutomaticAuthenticateMethod
 import org.jellyfin.androidtv.auth.model.CredentialAuthenticateMethod
+import org.jellyfin.androidtv.auth.model.LoginForbiddenState
 import org.jellyfin.androidtv.auth.model.LoginState
 import org.jellyfin.androidtv.auth.model.PrivateUser
 import org.jellyfin.androidtv.auth.model.QuickConnectAuthenticateMethod
@@ -31,6 +33,7 @@ import org.jellyfin.androidtv.data.repository.AccessScheduleRepository
 import org.jellyfin.androidtv.data.repository.AccessScheduleStatus
 import org.jellyfin.androidtv.data.repository.JellyseerrRepository
 import org.jellyfin.androidtv.preference.JellyseerrPreferences
+import org.jellyfin.androidtv.util.JellyfinAuthenticationHelper
 import org.jellyfin.androidtv.util.apiclient.JellyfinImage
 import org.jellyfin.androidtv.util.apiclient.JellyfinImageSource
 import org.jellyfin.androidtv.util.apiclient.getUrl
@@ -39,6 +42,7 @@ import org.jellyfin.androidtv.util.sdk.forUser
 import org.jellyfin.sdk.Jellyfin
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.ApiClientException
+import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 import org.jellyfin.sdk.api.client.exception.TimeoutException
 import org.jellyfin.sdk.api.client.extensions.authenticateUserByName
 import org.jellyfin.sdk.api.client.extensions.authenticateWithQuickConnect
@@ -47,11 +51,13 @@ import org.jellyfin.sdk.model.DeviceInfo
 import org.jellyfin.sdk.model.api.AuthenticationResult
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.UserDto
+import org.jellyfin.sdk.model.api.UserPolicy
 import org.moonfin.server.core.model.ServerType
 import org.jellyfin.sdk.model.serializer.toUUID
 import org.moonfin.server.emby.EmbyApiClient
 import timber.log.Timber
 import java.time.Instant
+import java.util.UUID
 
 /**
  * Repository to manage authentication of the user in the app.
@@ -73,6 +79,7 @@ class AuthenticationRepositoryImpl(
 	private val jellyseerrPreferences: JellyseerrPreferences,
 	private val embyApiClient: EmbyApiClient,
 	private val accessScheduleRepository: AccessScheduleRepository,
+	private val jellyfinAuthenticationHelper: JellyfinAuthenticationHelper,
 ) : AuthenticationRepository {
 	override fun authenticate(server: Server, method: AuthenticateMethod): Flow<LoginState> {
 		return when (method) {
@@ -107,6 +114,43 @@ class AuthenticationRepositoryImpl(
 		}
 	}
 
+	private fun findStoredUserId(serverId: UUID, username: String): UUID? =
+		authenticationStore.getServer(serverId)?.users?.entries
+			?.firstOrNull { it.value.name.equals(username, ignoreCase = true) }
+			?.key
+
+	private suspend fun FlowCollector<LoginState>.emitIfScheduleDenied(serverId: UUID, userId: UUID?): Boolean {
+		if (userId == null) return false
+		val status = accessScheduleRepository.evaluateCachedPolicyForUser(serverId, userId) ?: return false
+		if (status is AccessScheduleStatus.Denied) {
+			emit(AccessScheduleDeniedLoginState(status.nextAccessStart))
+			return true
+		}
+		return false
+	}
+
+	private fun rememberUserPolicy(serverId: UUID, userId: UUID, policy: UserPolicy?) {
+		accessScheduleRepository.cacheUserPolicy(serverId, userId, policy)
+	}
+
+	private suspend fun emitLoginApiError(
+		err: ApiClientException,
+		serverId: UUID,
+		userId: UUID?,
+		responseBody: String? = null,
+	): LoginState {
+		if (accessScheduleRepository.isScheduleRelatedApiError(err, serverId, userId, responseBody)) {
+			val nextAccess = userId?.let { id ->
+				(accessScheduleRepository.evaluateCachedPolicyForUser(serverId, id) as? AccessScheduleStatus.Denied)?.nextAccessStart
+			}
+			return AccessScheduleDeniedLoginState(nextAccess)
+		}
+		if (err is InvalidStatusException && err.status == 403) {
+			return LoginForbiddenState
+		}
+		return ApiClientErrorLoginState(err)
+	}
+
 	private fun authenticateCredential(server: Server, username: String, password: String) = flow {
 		if (server.serverType == ServerType.EMBY && !BuildConfig.EMBY_ENABLED) {
 			emit(ServerTypeNotSupportedLoginState(server))
@@ -116,6 +160,9 @@ class AuthenticationRepositoryImpl(
 			emitAll(authenticateCredentialEmby(server, username, password))
 			return@flow
 		}
+
+		val userId = findStoredUserId(server.id, username)
+		if (emitIfScheduleDenied(server.id, userId)) return@flow
 
 		val api = jellyfin.createApi(server.address, deviceInfo = defaultDeviceInfo.forUser(username))
 		val result = try {
@@ -128,11 +175,17 @@ class AuthenticationRepositoryImpl(
 			return@flow
 		} catch (err: ApiClientException) {
 			Timber.e(err, "Unable to sign in as $username")
-			if (accessScheduleRepository.isScheduleRelatedApiError(err)) {
-				emit(AccessScheduleDeniedLoginState(null))
+			val responseBody = if (err is InvalidStatusException && err.status == 403 && shouldFetch403ResponseBody(server.id, userId)) {
+				jellyfinAuthenticationHelper.readAuthenticateByNameErrorBody(
+					serverAddress = server.address,
+					username = username,
+					password = password,
+					deviceInfo = defaultDeviceInfo.forUser(username),
+				)
 			} else {
-				emit(ApiClientErrorLoginState(err))
+				null
 			}
+			emit(emitLoginApiError(err, server.id, userId, responseBody))
 			return@flow
 		}
 
@@ -153,11 +206,7 @@ class AuthenticationRepositoryImpl(
 			return@flow
 		} catch (err: ApiClientException) {
 			Timber.e(err, "Unable to sign in with Quick Connect secret")
-			if (accessScheduleRepository.isScheduleRelatedApiError(err)) {
-				emit(AccessScheduleDeniedLoginState(null))
-			} else {
-				emit(ApiClientErrorLoginState(err))
-			}
+			emit(emitLoginApiError(err, server.id, userId = null))
 			return@flow
 		}
 
@@ -177,6 +226,7 @@ class AuthenticationRepositoryImpl(
 		)
 
 		authenticateFinish(server, userInfo, accessToken)
+		rememberUserPolicy(server.id, userInfo.id, userInfo.policy)
 
 		if (server.serverType == ServerType.JELLYFIN) {
 			when (val scheduleStatus = accessScheduleRepository.evaluatePolicy(userInfo.policy)) {
@@ -200,6 +250,8 @@ class AuthenticationRepositoryImpl(
 	private fun authenticateToken(server: Server, user: User) = flow {
 		emit(AuthenticatingState)
 
+		if (emitIfScheduleDenied(server.id, user.id)) return@flow
+
 		val accessToken = user.accessToken.orEmpty()
 		var prefetchedUserInfo: UserDto? = null
 		if (server.serverType == ServerType.JELLYFIN) {
@@ -211,6 +263,7 @@ class AuthenticationRepositoryImpl(
 			try {
 				val userInfo = api.userApi.getCurrentUser().content
 				prefetchedUserInfo = userInfo
+				rememberUserPolicy(server.id, user.id, userInfo.policy)
 				when (val scheduleStatus = accessScheduleRepository.evaluatePolicy(userInfo.policy)) {
 					is AccessScheduleStatus.Denied -> {
 						emit(AccessScheduleDeniedLoginState(scheduleStatus.nextAccessStart))
@@ -224,11 +277,7 @@ class AuthenticationRepositoryImpl(
 				return@flow
 			} catch (err: ApiClientException) {
 				Timber.e(err, "Unable to get current user data")
-				if (accessScheduleRepository.isScheduleRelatedApiError(err)) {
-					emit(AccessScheduleDeniedLoginState(null))
-				} else {
-					emit(ApiClientErrorLoginState(err))
-				}
+				emit(emitLoginApiError(err, server.id, user.id))
 				return@flow
 			}
 		}
@@ -251,11 +300,7 @@ class AuthenticationRepositoryImpl(
 			return@flow
 		} catch (err: ApiClientException) {
 			Timber.e(err, "Unable to get current user data")
-			if (accessScheduleRepository.isScheduleRelatedApiError(err)) {
-				emit(AccessScheduleDeniedLoginState(null))
-			} else {
-				emit(ApiClientErrorLoginState(err))
-			}
+			emit(emitLoginApiError(err, server.id, user.id))
 		} catch (err: Exception) {
 			Timber.e(err, "Unable to get current user data")
 			emit(RequireSignInState)
@@ -429,4 +474,9 @@ class AuthenticationRepositoryImpl(
 			index = null
 		)
 	}?.getUrl(jellyfin.createApi(server.address))
+
+	private fun shouldFetch403ResponseBody(serverId: UUID, userId: UUID?): Boolean {
+		if (userId == null) return true
+		return accessScheduleRepository.evaluateCachedPolicyForUser(serverId, userId) == null
+	}
 }

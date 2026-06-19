@@ -262,6 +262,7 @@ class UpdateCheckerService(private val context: Context) {
 		val apkFile = File(context.getExternalFilesDir(null), "downloads/update.apk")
 		if (!apkFile.exists() || !verifyApkSignature(apkFile)) {
 			Timber.e("Refusing to install update: APK signature verification failed")
+			if (apkFile.exists()) apkFile.delete()
 			return false
 		}
 

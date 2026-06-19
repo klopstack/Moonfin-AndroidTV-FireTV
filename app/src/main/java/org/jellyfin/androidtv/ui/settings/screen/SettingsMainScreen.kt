@@ -583,7 +583,12 @@ private fun downloadAndInstall(
 				},
 				onFailure = { error ->
 					Timber.e(error, "Failed to download update")
-					Toast.makeText(context, "Failed to download update", Toast.LENGTH_LONG).show()
+					val message = if (error is SecurityException) {
+						context.getString(R.string.msg_update_signature_failed)
+					} else {
+						context.getString(R.string.msg_download_failed)
+					}
+					Toast.makeText(context, message, Toast.LENGTH_LONG).show()
 				}
 			)
 		} catch (e: Exception) {

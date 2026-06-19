@@ -100,7 +100,7 @@
         <provider
             android:name=".integration.provider.ImageProvider"
             android:authorities="${applicationId}.integration.provider.ImageProvider"
-            android:exported="false"
+            android:exported="true"
             android:initOrder="10" />
 
         <!-- Authentication -->

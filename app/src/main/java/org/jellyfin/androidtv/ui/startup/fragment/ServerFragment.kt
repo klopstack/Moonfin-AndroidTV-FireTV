@@ -29,7 +29,9 @@ import org.jellyfin.androidtv.auth.model.PrivateUser
 import org.jellyfin.androidtv.auth.model.RequireSignInState
 import org.jellyfin.androidtv.auth.model.Server
 import org.jellyfin.androidtv.auth.model.ServerUnavailableState
+import org.jellyfin.androidtv.auth.model.ServerTypeNotSupportedLoginState
 import org.jellyfin.androidtv.auth.model.ServerVersionNotSupported
+import org.jellyfin.androidtv.util.displayName
 import org.jellyfin.androidtv.auth.model.User
 import org.jellyfin.androidtv.auth.repository.AuthenticationRepository
 import org.jellyfin.androidtv.auth.repository.ServerRepository
@@ -203,6 +205,12 @@ class ServerFragment : Fragment() {
 				) {
 					binding.users.requestFocus()
 				}
+
+				is ServerTypeNotSupportedLoginState -> Toast.makeText(
+					context,
+					getString(R.string.server_type_not_supported, state.server.serverType.displayName(requireContext())),
+					Toast.LENGTH_LONG,
+				).show()
 			}
 		}.launchIn(lifecycleScope)
 	}
@@ -228,7 +236,13 @@ class ServerFragment : Fragment() {
 			navigateFragment<SelectServerFragment>(keepToolbar = true)
 		}
 
-		if (!server.versionSupported) {
+		if (!server.isSupportedByBuild) {
+			binding.notification.isVisible = true
+			binding.notification.text = getString(
+				R.string.server_type_not_supported_notification,
+				server.serverType.displayName(requireContext()),
+			)
+		} else if (!server.versionSupported) {
 			binding.notification.isVisible = true
 			binding.notification.text = getString(
 				R.string.server_unsupported_notification,

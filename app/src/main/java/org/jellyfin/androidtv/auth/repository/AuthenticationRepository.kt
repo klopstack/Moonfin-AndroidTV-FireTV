@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
+import org.jellyfin.androidtv.BuildConfig
 import org.jellyfin.androidtv.auth.model.AccessScheduleDeniedState
 import org.jellyfin.androidtv.auth.model.ApiClientErrorLoginState
 import org.jellyfin.androidtv.auth.model.AuthenticateMethod
@@ -21,6 +22,7 @@ import org.jellyfin.androidtv.auth.model.QuickConnectAuthenticateMethod
 import org.jellyfin.androidtv.auth.model.RequireSignInState
 import org.jellyfin.androidtv.auth.model.Server
 import org.jellyfin.androidtv.auth.model.ServerUnavailableState
+import org.jellyfin.androidtv.auth.model.ServerTypeNotSupportedLoginState
 import org.jellyfin.androidtv.auth.model.ServerVersionNotSupported
 import org.jellyfin.androidtv.auth.model.User
 import org.jellyfin.androidtv.auth.store.AuthenticationPreferences
@@ -93,7 +95,17 @@ class AuthenticationRepositoryImpl(
 		else flowOf(RequireSignInState)
 	}
 
+	private fun loginStateForUnsupportedServer(server: Server): LoginState = when {
+		!server.isSupportedByBuild -> ServerTypeNotSupportedLoginState(server)
+		!server.versionSupported -> ServerVersionNotSupported(server)
+		else -> RequireSignInState
+	}
+
 	private fun authenticateCredential(server: Server, username: String, password: String) = flow {
+		if (server.serverType == ServerType.EMBY && !BuildConfig.EMBY_ENABLED) {
+			emit(ServerTypeNotSupportedLoginState(server))
+			return@flow
+		}
 		if (server.serverType == ServerType.EMBY) {
 			emitAll(authenticateCredentialEmby(server, username, password))
 			return@flow
@@ -162,8 +174,7 @@ class AuthenticationRepositoryImpl(
 			emit(AuthenticatedState)
 		} else {
 			Timber.w("Failed to set active session after authenticating")
-			if (!server.versionSupported) emit(ServerVersionNotSupported(server))
-			else emit(RequireSignInState)
+			emit(loginStateForUnsupportedServer(server))
 		}
 	}.flowOn(Dispatchers.IO)
 
@@ -172,8 +183,7 @@ class AuthenticationRepositoryImpl(
 
 		val success = setActiveSession(user, server)
 		if (!success) {
-			if (!server.versionSupported) emit(ServerVersionNotSupported(server))
-			else emit(RequireSignInState)
+			emit(loginStateForUnsupportedServer(server))
 		} else try {
 			if (server.serverType == ServerType.EMBY) {
 				val embyUser = embyApiClient.validateCurrentUser()
@@ -266,8 +276,7 @@ class AuthenticationRepositoryImpl(
 		val success = setActiveSession(user, server)
 		if (success) emit(AuthenticatedState)
 		else {
-			if (!server.versionSupported) emit(ServerVersionNotSupported(server))
-			else emit(RequireSignInState)
+			emit(loginStateForUnsupportedServer(server))
 		}
 	}.flowOn(Dispatchers.IO)
 

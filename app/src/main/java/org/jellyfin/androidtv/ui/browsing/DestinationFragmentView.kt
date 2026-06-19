@@ -71,7 +71,8 @@ class DestinationFragmentView @JvmOverloads constructor(
 	private val history = Stack<HistoryEntry>()
 
 	fun navigate(action: NavigationAction.NavigateFragment) {
-		if (!action.clear && isShowingDestination(action)) {
+		if (isShowingDestination(action)) {
+			if (action.clear) clearHistoryKeepCurrent()
 			Timber.d("Skipping redundant navigation to ${action.destination.fragment.java.simpleName}")
 			return
 		}
@@ -137,6 +138,32 @@ class DestinationFragmentView @JvmOverloads constructor(
 		return a.keySet().all { key -> a.get(key) == b.get(key) }
 	}
 
+	/**
+	 * Drop back-stack entries without re-attaching the visible fragment.
+	 * Used when a clear-history navigation targets the screen already on top.
+	 */
+	@SuppressLint("CommitTransaction")
+	private fun clearHistoryKeepCurrent() {
+		if (history.isEmpty()) return
+
+		val top = history.peek()
+		val currentFragment = top.fragment ?: fragmentManager.findFragmentByTag(FRAGMENT_TAG_CONTENT)
+		val transaction = fragmentManager.beginTransaction()
+
+		history.mapNotNull { it.fragment }.distinct().forEach { fragment ->
+			if (fragment != currentFragment) transaction.remove(fragment)
+		}
+
+		history.clear()
+		if (currentFragment != null) {
+			history.push(HistoryEntry(top.name, top.arguments, currentFragment, top.savedState))
+		}
+
+		if (fragmentManager.isDestroyed) return
+		if (fragmentManager.isStateSaved) transaction.commitAllowingStateLoss()
+		else transaction.commit()
+	}
+
 	private fun saveCurrentFragmentState() {
 		if (history.isEmpty()) return
 
@@ -163,17 +190,20 @@ class DestinationFragmentView @JvmOverloads constructor(
 		// Update arguments
 		fragment.arguments = entry.arguments
 
+		val current = fragmentManager.findFragmentByTag(FRAGMENT_TAG_CONTENT)
+		if (current === fragment && current.isAdded && !current.isDetached) return
+
 		transaction.apply {
 			// Set options
 			setReorderingAllowed(true)
 			setCustomAnimations(R.anim.fade_in, R.anim.fade_out, R.anim.fade_in, R.anim.fade_out)
 
-			// Detach current fragment
-			fragmentManager.findFragmentByTag(FRAGMENT_TAG_CONTENT)?.let(::detach)
+			// Detach current fragment when switching to a different instance
+			if (current != null && current !== fragment) detach(current)
 
-			// Attach or add next fragment
+			// Attach or replace so only one content fragment owns the container
 			if (fragment.isDetached) attach(fragment)
-			else add(container.id, fragment, FRAGMENT_TAG_CONTENT)
+			else replace(container.id, fragment, FRAGMENT_TAG_CONTENT)
 		}
 
 		if (fragmentManager.isDestroyed) {
@@ -210,7 +240,16 @@ class DestinationFragmentView @JvmOverloads constructor(
 		if (savedHistory != null) {
 			history.clear()
 			history.addAll(savedHistory)
-			if (history.isNotEmpty()) activateHistoryEntry(history.last(), fragmentManager.beginTransaction())
+
+			// FragmentManager may have already restored the content fragment; reusing it
+			// avoids stacking a second copy on top of the restored view (ghost UI).
+			val existing = fragmentManager.findFragmentByTag(FRAGMENT_TAG_CONTENT)
+			if (existing != null && history.isNotEmpty()) {
+				history.peek().fragment = existing
+				Timber.d("Reusing restored content fragment ${existing.javaClass.simpleName}")
+			} else if (history.isNotEmpty()) {
+				activateHistoryEntry(history.last(), fragmentManager.beginTransaction())
+			}
 		}
 	}
 }

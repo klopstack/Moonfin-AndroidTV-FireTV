@@ -558,6 +558,7 @@
     <string name="pref_theme">Theme</string>
     <string name="pref_home_description">Configure shown sections</string>
     <string name="pref_libraries">Libraries</string>
+    <string name="lbl_more">More</string>
     <string name="pref_libraries_description">Change how libraries are displayed</string>
     <string name="lbl_hide_from_navbar">Hide from navigation</string>
     <string name="lbl_hide_from_navbar_description">Hide this library from the home screen navigation</string>

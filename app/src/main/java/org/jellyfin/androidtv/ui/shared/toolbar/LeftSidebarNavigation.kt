@@ -290,6 +290,10 @@ private fun CollapsibleSidebarContent(
 		}
 	}
 
+	var moreLibrariesHasFocus by remember { mutableStateOf(false) }
+	var moreLibrariesExpanded by remember { mutableStateOf(false) }
+	val moreLibrariesFocusRequester = remember { FocusRequester() }
+
 	// Get root view to check for rowsFragment (HomeFragment)
 	val rootView = LocalView.current.rootView
 	val isHomeFragment = rootView.findViewById<android.view.View?>(R.id.rowsFragment) != null
@@ -541,7 +545,7 @@ private fun CollapsibleSidebarContent(
 						partitionAggregatedLibraries(aggregatedLibraries).first.forEach { aggLib ->
 							SidebarIconItem(
 								icon = ImageVector.vectorResource(primaryLibraryIconRes(aggLib.library.collectionType)),
-								label = stringResource(primaryLibraryLabelRes(aggLib.library.collectionType)),
+								label = aggLib.displayName,
 								showLabel = isExpanded,
 								isExpanded = isExpanded,
 								onClick = {
@@ -573,6 +577,83 @@ private fun CollapsibleSidebarContent(
 							)
 							Spacer(modifier = Modifier.height(2.dp))
 						}
+					}
+
+					val additionalUserViews = partitionUserViews(userViews).second
+					val additionalAggregated = partitionAggregatedLibraries(aggregatedLibraries).second
+					val hasAdditionalLibraries = if (enableMultiServer && aggregatedLibraries.isNotEmpty()) {
+						additionalAggregated.isNotEmpty()
+					} else {
+						additionalUserViews.isNotEmpty()
+					}
+
+					if (hasAdditionalLibraries) {
+						Column(
+							modifier = Modifier.onFocusChanged { focusState ->
+								moreLibrariesHasFocus = focusState.hasFocus
+							}
+						) {
+							LaunchedEffect(moreLibrariesHasFocus) {
+								if (!moreLibrariesHasFocus && moreLibrariesExpanded) {
+									delay(100)
+									moreLibrariesExpanded = false
+								}
+							}
+
+							LaunchedEffect(isExpanded) {
+								if (!isExpanded) moreLibrariesExpanded = false
+							}
+
+							SidebarIconItem(
+								icon = ImageVector.vectorResource(R.drawable.ic_more),
+								label = stringResource(R.string.lbl_more),
+								showLabel = isExpanded,
+								isExpanded = isExpanded,
+								onClick = {
+									moreLibrariesExpanded = !moreLibrariesExpanded
+									if (moreLibrariesExpanded) {
+										scope.launch {
+											moreLibrariesFocusRequester.requestFocus()
+										}
+									}
+								},
+							)
+
+							if (isExpanded && moreLibrariesExpanded) {
+								if (enableMultiServer && aggregatedLibraries.isNotEmpty()) {
+									additionalAggregated.forEachIndexed { index, aggLib ->
+										SidebarTextItem(
+											label = aggLib.displayName,
+											modifier = if (index == 0) Modifier.focusRequester(moreLibrariesFocusRequester) else Modifier,
+											onClick = {
+												navigateToLibrary(
+													library = aggLib.library,
+													navigationRepository = navigationRepository,
+													itemLauncher = itemLauncher,
+													serverId = aggLib.server.id,
+													userId = aggLib.userId,
+												)
+											},
+										)
+									}
+								} else {
+									additionalUserViews.forEachIndexed { index, library ->
+										SidebarTextItem(
+											label = library.name ?: "",
+											modifier = if (index == 0) Modifier.focusRequester(moreLibrariesFocusRequester) else Modifier,
+											onClick = {
+												navigateToLibrary(
+													library = library,
+													navigationRepository = navigationRepository,
+													itemLauncher = itemLauncher,
+												)
+											},
+										)
+									}
+								}
+							}
+						}
+						Spacer(modifier = Modifier.height(2.dp))
 					}
 				}
 			}

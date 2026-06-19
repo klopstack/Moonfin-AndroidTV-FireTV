@@ -611,7 +611,8 @@ class LibraryBrowseFragment : Fragment() {
 		val rowContentHeight = cardHeight + labelBlockHeight
 		val availableHeight = maxHeight - minPadding * 2
 		val cellHeight = rowContentHeight + rowSpacing
-		var rowCount = (availableHeight / cellHeight).toInt().coerceAtLeast(1)
+		// Last row has no trailing rowSpacing, so add one spacing unit before dividing.
+		var rowCount = ((availableHeight + rowSpacing) / cellHeight).toInt().coerceAtLeast(1)
 		var gridHeight = rowContentHeight * rowCount + rowSpacing * (rowCount - 1)
 		while (rowCount > 1 && gridHeight > maxHeight) {
 			rowCount--
